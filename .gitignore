@@ -8,3 +8,11 @@ db.sqlite3
 
 # Environment
 venv/
+.env
+
+# Static files
+static/
+
+# User data files
+active_trades.json
+app_settings.json
