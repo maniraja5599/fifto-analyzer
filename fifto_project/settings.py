@@ -2,9 +2,11 @@ from pathlib import Path
 import os
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-SECRET_KEY = "django-insecure-your-secret-key-goes-here"
-DEBUG = True
-ALLOWED_HOSTS = []
+
+# Security settings - configure these properly for production
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-your-secret-key-goes-here')
+DEBUG = os.environ.get('DEBUG', 'False').lower() == 'true'
+ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '').split(',') if os.environ.get('ALLOWED_HOSTS') else []
 
 INSTALLED_APPS = [
     'django.contrib.admin',
