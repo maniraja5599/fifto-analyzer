@@ -63,10 +63,8 @@ def get_option_chain_data(symbol):
         response.raise_for_status()
         return response.json()
     except requests.exceptions.RequestException as e:
-        print(f"Error fetching option chain for {symbol}: {e}")
+        # Log error silently, return None to handle gracefully
         return None
-
-# In analyzer/utils.py
 
 def generate_pl_update_image(data_for_image, timestamp):
     """Generates a styled image from P/L data for Telegram updates."""
@@ -263,14 +261,10 @@ def send_daily_chart_to_telegram(analysis_data):
         message_lines.append(f"- {entry['Entry']}: ₹{amount:.2f}")
     return send_telegram_message("\n".join(message_lines), image_paths=[summary_path, payoff_path])
 
-# In analyzer/utils.py
-
 def monitor_trades(is_eod_report=False):
     now = datetime.now(pytz.timezone('Asia/Kolkata'))
-    print(f"[{now.strftime('%Y-%m-%d %H:%M:%S')}] Running trade monitoring...")
     trades = load_trades()
     if not trades:
-        print("[*] No active trades to monitor.")
         return
 
     active_trades = [t for t in trades if t.get('status') == 'Running']
@@ -310,18 +304,17 @@ def monitor_trades(is_eod_report=False):
             if pnl >= trade['target_amount']:
                 trade['status'] = 'Target'
                 msg = f"✅ TARGET HIT: {trade['id']} ({tag_key})\nP/L: ₹{pnl:.2f}"
-                print(msg); send_telegram_message(msg)
+                send_telegram_message(msg)
             elif pnl <= -trade['stoploss_amount']:
                 trade['status'] = 'Stoploss'
                 msg = f"❌ STOPLOSS HIT: {trade['id']} ({tag_key})\nP/L: ₹{pnl:.2f}"
-                print(msg); send_telegram_message(msg)
+                send_telegram_message(msg)
 
     # Send periodic update image to Telegram
     if any_trade_updated and not is_eod_report:
         image_path = generate_pl_update_image(pl_data_for_image, now)
         send_telegram_message(message="", image_paths=[image_path])
         os.remove(image_path)
-        print("[+] Sent P/L update to Telegram.")
 
     # Save any status changes
     save_trades(active_trades + completed_trades)
