@@ -1,0 +1,48 @@
+{% extends "analyzer/layout.html" %}
+{% block content %}
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3>Active Monitored Trades</h3>
+        <h5 class="m-0">
+            Total P&L: 
+            <span class="{% if total_pnl >= 0 %}pnl-profit{% else %}pnl-loss{% endif %}">
+                ₹{{ total_pnl|floatformat:2 }}
+            </span>
+        </h5>
+    </div>
+
+    {% for batch_tag, trades_in_batch in batched_trades.items %}
+        <div class="card mb-4">
+            <div class="card-header">{{ batch_tag }}</div>
+            <div class="card-body table-responsive p-0">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Type</th>
+                            <th>Start Time</th>
+                            <th>Running P&L</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for trade in trades_in_batch %}
+                        <tr>
+                            <td>{{ trade.id|truncatechars:30 }}</td>
+                            <td>{{ trade.reward_type }}</td>
+                            <td>{{ trade.start_time }}</td>
+                            <td class="{% if trade.pnl >= 0 %}pnl-profit{% else %}pnl-loss{% endif %}">
+                                {% if trade.pnl != "N/A" %}₹{{ trade.pnl|floatformat:2 }}{% else %}N/A{% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    {% empty %}
+        <div class="card">
+            <div class="card-body text-center">
+                No active trades found.
+            </div>
+        </div>
+    {% endfor %}
+{% endblock %}

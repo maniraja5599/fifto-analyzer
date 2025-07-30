@@ -1,0 +1,8 @@
+Django
+matplotlib
+pandas
+requests
+yfinance
+apscheduler
+pytz
+numpy

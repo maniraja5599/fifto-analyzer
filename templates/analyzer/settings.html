@@ -1,0 +1,36 @@
+{% extends "analyzer/layout.html" %}
+{% block content %}
+    <div class="card">
+        <div class="card-header"><h3>Settings</h3></div>
+        <div class="card-body">
+            <form method="POST" action="{% url 'settings' %}">
+                {% csrf_token %}
+
+                <h5 class="mb-3">Monitoring</h5>
+                <div class="form-group">
+                    <label>Telegram P/L Update Frequency</label>
+                     {% for choice in choices %}
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="interval" value="{{ choice }}" {% if settings.update_interval == choice %}checked{% endif %}>
+                        <label class="form-check-label">{{ choice }}</label>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <hr class="my-4">
+
+                <h5 class="mb-3">Telegram Configuration</h5>
+                <div class="form-group">
+                    <label for="bot_token">Bot Token</label>
+                    <input type="text" class="form-control" id="bot_token" name="bot_token" value="{{ settings.bot_token|default_if_none:'' }}" placeholder="Enter your Telegram Bot Token">
+                </div>
+                <div class="form-group">
+                    <label for="chat_id">Chat ID</label>
+                    <input type="text" class="form-control" id="chat_id" name="chat_id" value="{{ settings.chat_id|default_if_none:'' }}" placeholder="Enter your Telegram Chat ID">
+                </div>
+
+                <button type="submit" class="btn btn-primary mt-3">Save Settings</button>
+            </form>
+        </div>
+    </div>
+{% endblock %}

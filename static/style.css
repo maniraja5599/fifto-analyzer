@@ -1,0 +1,95 @@
+:root {
+    --primary-color: #007bff; /* Blue */
+    --secondary-color: #28a745; /* Green */
+    --bg-color-light: #f8f9fa;
+    --bg-color-dark: #0d0d0d;
+    --surface-color-light: #ffffff;
+    --surface-color-dark: #1a1a1a;
+    --text-color-light: #212529;
+    --text-color-dark: #e9ecef;
+    --border-color-light: #dee2e6;
+    --border-color-dark: #343a40;
+}
+
+@keyframes move-orb {
+  0% { transform: translate(-50%, -50%) scale(1); }
+  50% { transform: translate(calc(-50% + 100px), calc(-50% - 100px)) scale(1.2); }
+  100% { transform: translate(-50%, -50%) scale(1); }
+}
+
+body {
+    background-color: var(--bg-color-light);
+    color: var(--text-color-light);
+    font-family: 'Inter', sans-serif;
+    position: relative;
+    overflow-x: hidden;
+    transition: background-color 0.3s ease;
+}
+body.dark-mode {
+    background-color: var(--bg-color-dark);
+    color: var(--text-color-dark);
+}
+
+body::before {
+    content: '';
+    position: fixed;
+    width: 500px;
+    height: 500px;
+    border-radius: 50%;
+    background: radial-gradient(circle, var(--primary-color), transparent 60%);
+    top: 20%;
+    left: 20%;
+    transform: translate(-50%, -50%);
+    opacity: 0.15;
+    filter: blur(100px);
+    animation: move-orb 20s infinite alternate;
+    z-index: -1;
+}
+body::after {
+    content: '';
+    position: fixed;
+    width: 400px;
+    height: 400px;
+    border-radius: 50%;
+    background: radial-gradient(circle, var(--secondary-color), transparent 60%);
+    top: 80%;
+    left: 80%;
+    transform: translate(-50%, -50%);
+    opacity: 0.15;
+    filter: blur(100px);
+    animation: move-orb 25s infinite alternate-reverse;
+    z-index: -1;
+}
+
+.card, .navbar {
+    background: var(--surface-color-light);
+    border: 1px solid var(--border-color-light);
+    border-radius: 1rem;
+    transition: all 0.3s ease;
+}
+body.dark-mode .card, body.dark-mode .navbar {
+    background: var(--surface-color-dark);
+    border: 1px solid var(--border-color-dark);
+}
+
+.table { color: inherit; }
+.table td, .table th { text-align: center; vertical-align: middle; }
+
+.pnl-profit { color: var(--secondary-color); font-weight: 600; }
+.pnl-loss { color: #dc3545; font-weight: 600; }
+
+.theme-toggle-btn {
+    background: transparent;
+    border: 1px solid var(--border-color-light);
+    color: var(--text-color-light);
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+body.dark-mode .theme-toggle-btn {
+    border-color: var(--border-color-dark);
+    color: var(--text-color-dark);
+}
