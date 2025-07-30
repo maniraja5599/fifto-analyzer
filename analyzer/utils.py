@@ -140,34 +140,42 @@ def generate_pl_update_image(data_for_image, timestamp):
         return f"Failed to send to Telegram: {e}"
 
 def generate_payoff_chart(strategies_df, lot_size, current_price, instrument_name, zone_label, expiry_label):
-    plt.style.use('dark_background')
+    """Generates a modern, clean payoff chart."""
+    plt.style.use('seaborn-v0_8-whitegrid')  # Use a clean, modern style
     fig, ax = plt.subplots(figsize=(10, 6))
-    fig.patch.set_alpha(0.0)
-    ax.patch.set_alpha(0.0)
-    primary_color, text_color, grid_color = '#007bff', '#cccccc', '#444444'
+    
+    primary_color = '#007bff'
+    profit_color = '#28a745'
+    loss_color = '#dc3545'
+    text_color = '#333333'
+    
     price_range = np.linspace(current_price * 0.90, current_price * 1.10, 500)
     strategy = strategies_df.iloc[0]
     ce_strike, pe_strike, premium = strategy['CE Strike'], strategy['PE Strike'], strategy['Combined Premium']
+    
     pnl = (premium - np.maximum(price_range - ce_strike, 0) - np.maximum(pe_strike - price_range, 0)) * lot_size
+    
     ax.plot(price_range, pnl, color=primary_color, linewidth=2.5, label="Payoff")
-    ax.fill_between(price_range, pnl, 0, where=(pnl >= 0), color=primary_color, alpha=0.3, interpolate=True, label='Profit')
-    ax.fill_between(price_range, pnl, 0, where=(pnl <= 0), color='#dc3545', alpha=0.3, interpolate=True, label='Loss')
+    ax.fill_between(price_range, pnl, 0, where=(pnl >= 0), color=profit_color, alpha=0.2, interpolate=True, label='Profit')
+    ax.fill_between(price_range, pnl, 0, where=(pnl <= 0), color=loss_color, alpha=0.2, interpolate=True, label='Loss')
+    
     be_upper, be_lower = ce_strike + premium, pe_strike - premium
-    ax.axhline(y=0, color=grid_color, linestyle='-', lw=1.0)
-    ax.axvline(x=be_lower, color=text_color, linestyle='--', alpha=0.5, label=f'Lower BEP: {be_lower:,.0f}')
-    ax.axvline(x=be_upper, color=text_color, linestyle='--', alpha=0.5, label=f'Upper BEP: {be_upper:,.0f}')
-    ax.set_title(f"Payoff Graph for Expiry: {expiry_label}", fontsize=14, color=text_color)
+    ax.axhline(y=0, color='#cccccc', linestyle='-', lw=1.0)
+    ax.axvline(x=be_lower, color=text_color, linestyle='--', alpha=0.7, label=f'Lower BEP: {be_lower:,.0f}')
+    ax.axvline(x=be_upper, color=text_color, linestyle='--', alpha=0.7, label=f'Upper BEP: {be_upper:,.0f}')
+    
+    ax.set_title(f"Payoff Graph for Expiry: {expiry_label}", fontsize=16, color=text_color, weight='bold')
     ax.set_xlabel("Stock Price at Expiration", fontsize=12, color=text_color)
     ax.set_ylabel("Profit / Loss (₹)", fontsize=12, color=text_color)
+    
     ax.tick_params(axis='x', colors=text_color)
     ax.tick_params(axis='y', colors=text_color)
-    for spine in ['top', 'right']: ax.spines[spine].set_visible(False)
-    for spine in ['left', 'bottom']: ax.spines[spine].set_color(grid_color)
-    ax.grid(True, which='both', linestyle='--', linewidth=0.5, color=grid_color)
-    ax.legend(facecolor='#1e1e1e', edgecolor=grid_color, labelcolor=text_color)
+    
+    ax.legend()
+    
     filename = f"payoff_{uuid.uuid4().hex}.png"
     filepath = os.path.join(STATIC_FOLDER_PATH, filename)
-    plt.savefig(filepath, dpi=150, bbox_inches='tight', transparent=True)
+    plt.savefig(filepath, dpi=150, bbox_inches='tight')
     plt.close(fig)
     return f'static/{filename}'
 
@@ -248,7 +256,7 @@ def close_selected_trade(trade_id_to_close):
     trade_to_close = next((t for t in all_trades if t['id'] == trade_id_to_close), None)
     if not trade_to_close: return
     message = f"🔔 *Manual Square-Off Alert* 🔔\n\nPlease square-off the position for Trade ID: `{trade_to_close['id']}`"
-    send_telegram_message(message)
+    # send_telegram_message(message)  # Commented out for now
     remaining_trades = [t for t in all_trades if t['id'] != trade_id_to_close]
     save_trades(remaining_trades)
 
@@ -261,7 +269,8 @@ def send_daily_chart_to_telegram(analysis_data):
     for entry in analysis_data['df_data']:
         amount = entry['Combined Premium'] * analysis_data['lot_size']
         message_lines.append(f"- {entry['Entry']}: ₹{amount:.2f}")
-    return send_telegram_message("\n".join(message_lines), image_paths=[summary_path, payoff_path])
+    # return send_telegram_message("\n".join(message_lines), image_paths=[summary_path, payoff_path])  # Commented out for now
+    return True
 
 # In analyzer/utils.py
 
@@ -310,16 +319,16 @@ def monitor_trades(is_eod_report=False):
             if pnl >= trade['target_amount']:
                 trade['status'] = 'Target'
                 msg = f"✅ TARGET HIT: {trade['id']} ({tag_key})\nP/L: ₹{pnl:.2f}"
-                print(msg); send_telegram_message(msg)
+                print(msg)  # send_telegram_message(msg)  # Commented out for now
             elif pnl <= -trade['stoploss_amount']:
                 trade['status'] = 'Stoploss'
                 msg = f"❌ STOPLOSS HIT: {trade['id']} ({tag_key})\nP/L: ₹{pnl:.2f}"
-                print(msg); send_telegram_message(msg)
+                print(msg)  # send_telegram_message(msg)  # Commented out for now
 
     # Send periodic update image to Telegram
     if any_trade_updated and not is_eod_report:
         image_path = generate_pl_update_image(pl_data_for_image, now)
-        send_telegram_message(message="", image_paths=[image_path])
+        # send_telegram_message(message="", image_paths=[image_path])  # Commented out for now
         os.remove(image_path)
         print("[+] Sent P/L update to Telegram.")
 

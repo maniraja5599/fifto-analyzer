@@ -5,6 +5,30 @@ __pycache__/
 # Django
 db.sqlite3
 *.log
+*.pot
+local_settings.py
+db.sqlite3-journal
+
+# Generated charts and images
+static/payoff_*.png
+static/summary_*.png
+static/pl_update_*.png
+
+# User data files (stored in home directory)
+active_trades.json
+app_settings.json
 
 # Environment
 venv/
+env/
+.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

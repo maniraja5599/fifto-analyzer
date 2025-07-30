@@ -6,6 +6,7 @@ from django.contrib import messages
 from . import utils
 from datetime import datetime
 import pandas as pd
+from collections import defaultdict
 
 def index(request):
     analysis_data = request.session.get('analysis_data')
@@ -68,41 +69,32 @@ def add_trades(request):
 
 def trades_list(request):
     trades = utils.load_trades()
+    
+    # Handle trade operations (delete, bulk delete)
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        
+        if action == 'delete_trade':
+            trade_id = request.POST.get('trade_id')
+            trades = [t for t in trades if t['id'] != trade_id]
+            utils.save_trades(trades)
+            messages.success(request, f'Trade {trade_id} deleted successfully.')
+            return redirect('trades_list')
+            
+        elif action == 'delete_batch':
+            batch_tag = request.POST.get('batch_tag')
+            original_count = len(trades)
+            trades = [t for t in trades if t.get('entry_tag', 'General Trades') != batch_tag]
+            deleted_count = original_count - len(trades)
+            utils.save_trades(trades)
+            messages.success(request, f'Deleted {deleted_count} trades from batch "{batch_tag}".')
+            return redirect('trades_list')
 
-    # This dictionary will hold the grouped trades
+    # Group trades by batch and calculate P&L
     batched_trades = defaultdict(list)
     total_pnl = 0
-
-    nifty_chain = utils.get_option_chain_data("NIFTY")
-    banknifty_chain = utils.get_option_chain_data("BANKNIFTY")
-
-    for trade in trades:
-        if trade['status'] != 'Running':
-            continue
-
-        # Calculate P&L for each trade
-        chain_data = nifty_chain if trade['instrument'] == 'NIFTY' else banknifty_chain
-        # ... (P&L calculation logic is the same as the previous version) ...
-        # ... After calculating pnl ...
-
-        trade['pnl'] = pnl
-        total_pnl += pnl
-
-        # Group the trade into its batch
-        batch_key = trade.get('entry_tag', 'General Trades')
-        batched_trades[batch_key].append(trade)
-
-    context = {
-        'batched_trades': dict(batched_trades), # Convert to regular dict for template
-        'total_pnl': total_pnl
-    }
     
-    return render(request, 'analyzer/trades.html', context)
-    trades = utils.load_trades()
-    trades_with_pnl = []
-    total_pnl = 0
-
-    # Fetches live prices to calculate P&L
+    # Get market data
     nifty_chain = utils.get_option_chain_data("NIFTY")
     banknifty_chain = utils.get_option_chain_data("BANKNIFTY")
 
@@ -110,92 +102,63 @@ def trades_list(request):
         if trade['status'] != 'Running':
             continue
 
-        # --- LOGIC TO ADD DATE TO TAG ---
         try:
-            # Parse the start_time string
+            # Parse and format the date tag
             start_dt = datetime.strptime(trade['start_time'], "%Y-%m-%d %H:%M")
-            # Format the date and prepend it to the existing tag
-            trade['entry_tag'] = f"{start_dt.strftime('%d-%b')} {trade.get('entry_tag', '')}"
+            display_tag = f"{start_dt.strftime('%d-%b')} {trade.get('entry_tag', '')}"
+            trade['display_tag'] = display_tag
         except (ValueError, KeyError):
-            # If start_time is missing or in a wrong format, do nothing
-            pass
-        # ------------------------------------
+            trade['display_tag'] = trade.get('entry_tag', 'General Trades')
 
+        # Calculate current P&L
         chain_data = nifty_chain if trade['instrument'] == 'NIFTY' else banknifty_chain
         current_ce, current_pe = 0.0, 0.0
-
+        
         if chain_data and chain_data.get('records', {}).get('data'):
             for item in chain_data['records']['data']:
-                if item.get("expiryDate") == trade['expiry']:
-                    if item.get("strikePrice") == trade['ce_strike'] and item.get("CE"):
+                if item.get("expiryDate") == trade.get('expiry'):
+                    if item.get("strikePrice") == trade.get('ce_strike') and item.get("CE"):
                         current_ce = item["CE"]["lastPrice"]
-                    if item.get("strikePrice") == trade['pe_strike'] and item.get("PE"):
+                    if item.get("strikePrice") == trade.get('pe_strike') and item.get("PE"):
                         current_pe = item["PE"]["lastPrice"]
-
+        
         lot_size = 75 if trade['instrument'] == 'NIFTY' else 15
         initial_premium = trade.get('initial_premium', 0)
         current_premium = current_ce + current_pe
-
+        
         if current_premium > 0:
-            pnl = (initial_premium - current_premium) * lot_size
+            pnl = round((initial_premium - current_premium) * lot_size, 2)
             trade['pnl'] = pnl
+            trade['current_premium'] = current_premium
             total_pnl += pnl
         else:
             trade['pnl'] = "N/A"
+            trade['current_premium'] = "N/A"
+        
+        # Add to batch
+        batch_key = trade.get('entry_tag', 'General Trades')
+        batched_trades[batch_key].append(trade)
 
-        trades_with_pnl.append(trade)
-
-    context = {
-        'trades': trades_with_pnl,
-        'total_pnl': total_pnl
-    }
-    return render(request, 'analyzer/trades.html', context)
-    trades = utils.load_trades()
-    trades_with_pnl = []
-    total_pnl = 0
-
-    # Get current prices to calculate live P&L
-    # This is a simplified approach; for many trades, optimize API calls
-    nifty_chain = utils.get_option_chain_data("NIFTY")
-    banknifty_chain = utils.get_option_chain_data("BANKNIFTY")
-
-    for trade in trades:
-        if trade['status'] != 'Running':
-            continue
-
-        chain_data = nifty_chain if trade['instrument'] == 'NIFTY' else banknifty_chain
-        current_ce, current_pe = 0.0, 0.0
-
-        if chain_data and chain_data.get('records', {}).get('data'):
-            for item in chain_data['records']['data']:
-                if item.get("expiryDate") == trade['expiry']:
-                    if item.get("strikePrice") == trade['ce_strike'] and item.get("CE"):
-                        current_ce = item["CE"]["lastPrice"]
-                    if item.get("strikePrice") == trade['pe_strike'] and item.get("PE"):
-                        current_pe = item["PE"]["lastPrice"]
-
-        lot_size = 75 if trade['instrument'] == 'NIFTY' else 15
-        initial_premium = trade.get('initial_premium', 0)
-        current_premium = current_ce + current_pe
-
-        if current_premium > 0: # Only calculate if we got a price
-            pnl = (initial_premium - current_premium) * lot_size
-            trade['pnl'] = pnl
-            total_pnl += pnl
-        else:
-            trade['pnl'] = "N/A" # Could not fetch price
-
-        trades_with_pnl.append(trade)
+    # Calculate batch totals
+    batch_summaries = {}
+    for batch_tag, trades_in_batch in batched_trades.items():
+        batch_pnl = sum(t['pnl'] for t in trades_in_batch if isinstance(t['pnl'], (int, float)))
+        batch_summaries[batch_tag] = {
+            'count': len(trades_in_batch),
+            'total_pnl': batch_pnl,
+            'trades': trades_in_batch
+        }
 
     context = {
-        'trades': trades_with_pnl,
-        'total_pnl': total_pnl
+        'batch_summaries': batch_summaries,
+        'total_pnl': total_pnl,
+        'has_active_trades': len(batched_trades) > 0
     }
+
     return render(request, 'analyzer/trades.html', context)
 
 
 def settings_view(request):
-    # The list of choices is now defined here in the Python code
     choices = ['15 Mins', '30 Mins', '1 Hour', 'Disable']
 
     if request.method == 'POST':
@@ -209,50 +172,17 @@ def settings_view(request):
         return redirect(reverse('settings'))
 
     current_settings = utils.load_settings()
-    # Pass the new 'choices' list to the template
     context = {
         'settings': current_settings,
         'choices': choices
     }
     return render(request, 'analyzer/settings.html', context)
-    if request.method == 'POST':
-        current_settings = utils.load_settings()
-        # Get data from all form fields
-        current_settings['update_interval'] = request.POST.get('interval')
-        current_settings['bot_token'] = request.POST.get('bot_token')
-        current_settings['chat_id'] = request.POST.get('chat_id')
 
-        utils.save_settings(current_settings)
-        messages.success(request, 'Settings updated successfully. Restart the scheduler for changes to take effect.')
-        return redirect(reverse('settings'))
 
-    current_settings = utils.load_settings()
-    return render(request, 'analyzer/settings.html', {'settings': current_settings})
-    
 def close_trade(request, trade_id):
     utils.close_selected_trade(trade_id)
     messages.success(request, f"Square-off alert for {trade_id} sent.")
     return redirect(reverse('trades_list'))
-
-
-    # The list of choices is now defined here in the view
-    choices = ['15 Mins', '30 Mins', '1 Hour', 'Disable']
-
-    if request.method == 'POST':
-        interval = request.POST.get('interval')
-        current_settings = utils.load_settings()
-        current_settings['update_interval'] = interval
-        utils.save_settings(current_settings)
-        messages.success(request, 'Settings updated successfully. Restart the scheduler for changes to take effect.')
-        return redirect(reverse('settings'))
-
-    current_settings = utils.load_settings()
-    # Pass the choices list to the template
-    context = {
-        'settings': current_settings,
-        'choices': choices
-    }
-    return render(request, 'analyzer/settings.html', context)
 
 def send_charts(request):
     analysis_data = request.session.get('analysis_data')

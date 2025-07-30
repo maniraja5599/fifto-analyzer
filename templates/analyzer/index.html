@@ -41,14 +41,14 @@
                 <a href="{% url 'send_charts' %}" class="btn btn-info">Send to Telegram</a>
             </div>
             <ul class="nav nav-tabs" id="myTab" role="tablist">
-                <li class="nav-item"><a class="nav-link active" data-toggle="tab" href="#summary">Analysis Chart</a></li>
-                <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#payoff">Payoff Chart</a></li>
-                <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#table">Data Table</a></li>
+                <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#summary" role="tab">Analysis Chart</a></li>
+                <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#payoff" role="tab">Payoff Chart</a></li>
+                <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#table" role="tab">Data Table</a></li>
             </ul>
             <div class="tab-content mt-3">
-                <div class="tab-pane fade show active" id="summary"><img src="/{{ analysis_data.summary_file }}" class="img-fluid"></div>
-                <div class="tab-pane fade" id="payoff"><img src="/{{ analysis_data.payoff_file }}" class="img-fluid"></div>
-                <div class="tab-pane fade" id="table">{{ analysis_data.display_df_html|safe }}</div>
+                <div class="tab-pane fade show active" id="summary" role="tabpanel"><img src="/{{ analysis_data.summary_file }}" class="img-fluid"></div>
+                <div class="tab-pane fade" id="payoff" role="tabpanel"><img src="/{{ analysis_data.payoff_file }}" class="img-fluid"></div>
+                <div class="tab-pane fade" id="table" role="tabpanel">{{ analysis_data.display_df_html|safe }}</div>
             </div>
         </div>
     </div>
