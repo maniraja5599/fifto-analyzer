@@ -69,6 +69,7 @@ def add_trades(request):
 
 def trades_list(request):
     trades = utils.load_trades()
+    group_by = request.GET.get('group_by', 'batch')  # Default to batch grouping
     
     # Handle trade operations (delete, bulk delete)
     if request.method == 'POST':
@@ -82,16 +83,24 @@ def trades_list(request):
             return redirect('trades_list')
             
         elif action == 'delete_batch':
-            batch_tag = request.POST.get('batch_tag')
-            original_count = len(trades)
-            trades = [t for t in trades if t.get('entry_tag', 'General Trades') != batch_tag]
-            deleted_count = original_count - len(trades)
-            utils.save_trades(trades)
-            messages.success(request, f'Deleted {deleted_count} trades from batch "{batch_tag}".')
+            if group_by == 'batch':
+                batch_tag = request.POST.get('batch_tag')
+                original_count = len(trades)
+                trades = [t for t in trades if t.get('entry_tag', 'General Trades') != batch_tag]
+                deleted_count = original_count - len(trades)
+                utils.save_trades(trades)
+                messages.success(request, f'Deleted {deleted_count} trades from batch "{batch_tag}".')
+            else:  # expiry grouping
+                expiry_date = request.POST.get('expiry_date')
+                original_count = len(trades)
+                trades = [t for t in trades if t.get('expiry') != expiry_date]
+                deleted_count = original_count - len(trades)
+                utils.save_trades(trades)
+                messages.success(request, f'Deleted {deleted_count} trades expiring on "{expiry_date}".')
             return redirect('trades_list')
 
-    # Group trades by batch and calculate P&L
-    batched_trades = defaultdict(list)
+    # Group trades and calculate P&L
+    grouped_trades = defaultdict(list)
     total_pnl = 0
     
     # Get market data
@@ -135,24 +144,30 @@ def trades_list(request):
             trade['pnl'] = "N/A"
             trade['current_premium'] = "N/A"
         
-        # Add to batch
-        batch_key = trade.get('entry_tag', 'General Trades')
-        batched_trades[batch_key].append(trade)
+        # Group by batch or expiry
+        if group_by == 'batch':
+            group_key = trade.get('entry_tag', 'General Trades')
+        else:  # expiry grouping
+            group_key = trade.get('expiry', 'Unknown Expiry')
+        
+        grouped_trades[group_key].append(trade)
 
-    # Calculate batch totals
-    batch_summaries = {}
-    for batch_tag, trades_in_batch in batched_trades.items():
-        batch_pnl = sum(t['pnl'] for t in trades_in_batch if isinstance(t['pnl'], (int, float)))
-        batch_summaries[batch_tag] = {
-            'count': len(trades_in_batch),
-            'total_pnl': batch_pnl,
-            'trades': trades_in_batch
+    # Calculate group summaries
+    group_summaries = {}
+    for group_key, trades_in_group in grouped_trades.items():
+        group_pnl = sum(t['pnl'] for t in trades_in_group if isinstance(t['pnl'], (int, float)))
+        group_summaries[group_key] = {
+            'count': len(trades_in_group),
+            'total_pnl': group_pnl,
+            'trades': trades_in_group
         }
 
     context = {
-        'batch_summaries': batch_summaries,
+        'group_summaries': group_summaries,
         'total_pnl': total_pnl,
-        'has_active_trades': len(batched_trades) > 0
+        'has_active_trades': len(grouped_trades) > 0,
+        'group_by': group_by,
+        'group_type_display': 'Batch' if group_by == 'batch' else 'Expiry Date'
     }
 
     return render(request, 'analyzer/trades.html', context)

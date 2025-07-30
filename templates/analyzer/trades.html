@@ -5,51 +5,78 @@
 {% block content %}
 <div class="row">
     <div class="col-12">
-        <div class="card border-0 shadow-sm">
+        <div class="card border-0 shadow-sm fade-in">
             <div class="card-header bg-white border-bottom">
-                <div class="d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0 fw-bold">Active Monitored Trades</h5>
-                    <div class="text-end">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                    <div class="d-flex align-items-center gap-3">
+                        <h5 class="mb-0 fw-bold text-primary">
+                            <i class="bi bi-graph-up me-2"></i>Active Monitored Trades
+                        </h5>
                         <span class="badge bg-primary fs-6">Total P&L: ₹{{ total_pnl|floatformat:2 }}</span>
+                    </div>
+                    
+                    <!-- Group By Toggle -->
+                    <div class="d-flex align-items-center gap-3">
+                        <label class="form-label mb-0 fw-semibold">Group by:</label>
+                        <div class="btn-group" role="group">
+                            <a href="?group_by=batch" class="btn {% if group_by == 'batch' %}btn-primary{% else %}btn-outline-primary{% endif %} btn-sm">
+                                <i class="bi bi-collection me-1"></i>Batch
+                            </a>
+                            <a href="?group_by=expiry" class="btn {% if group_by == 'expiry' %}btn-primary{% else %}btn-outline-primary{% endif %} btn-sm">
+                                <i class="bi bi-calendar-event me-1"></i>Expiry
+                            </a>
+                        </div>
                     </div>
                 </div>
             </div>
             <div class="card-body">
                 {% if not has_active_trades %}
                     <div class="text-center py-5">
-                        <i class="bi bi-graph-up text-muted" style="font-size: 3rem;"></i>
-                        <h6 class="text-muted mt-3">No active trades found.</h6>
-                        <p class="text-muted">Start by generating an analysis and adding trades to monitor.</p>
-                        <a href="{% url 'index' %}" class="btn btn-primary">
+                        <div class="mb-4">
+                            <i class="bi bi-graph-up text-muted" style="font-size: 4rem; opacity: 0.3;"></i>
+                        </div>
+                        <h6 class="text-muted mt-3 fw-semibold">No active trades found</h6>
+                        <p class="text-muted mb-4">Start by generating an analysis and adding trades to monitor.</p>
+                        <a href="{% url 'index' %}" class="btn btn-primary btn-lg">
                             <i class="bi bi-plus-circle me-2"></i>Generate Analysis
                         </a>
                     </div>
                 {% else %}
-                    <!-- Batch-wise Trade Display -->
-                    {% for batch_tag, batch_data in batch_summaries.items %}
-                    <div class="mb-4">
-                        <div class="d-flex justify-content-between align-items-center mb-3">
-                            <h6 class="fw-bold text-primary mb-0">
-                                <i class="bi bi-collection me-2"></i>{{ batch_tag }}
-                                <span class="badge bg-light text-dark ms-2">{{ batch_data.count }} trade{{ batch_data.count|pluralize }}</span>
-                            </h6>
+                    <!-- Group-wise Trade Display -->
+                    {% for group_key, group_data in group_summaries.items %}
+                    <div class="group-card mb-4">
+                        <div class="group-header d-flex justify-content-between align-items-center mb-3 p-3 rounded-3" style="background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1)); border: 1px solid rgba(102, 126, 234, 0.2);">
                             <div class="d-flex align-items-center gap-3">
-                                <span class="badge {% if batch_data.total_pnl >= 0 %}bg-success{% else %}bg-danger{% endif %} fs-6">
-                                    Batch P&L: ₹{{ batch_data.total_pnl|floatformat:2 }}
+                                <h6 class="fw-bold text-primary mb-0">
+                                    {% if group_by == 'batch' %}
+                                        <i class="bi bi-collection me-2"></i>{{ group_key }}
+                                    {% else %}
+                                        <i class="bi bi-calendar-event me-2"></i>Expiry: {{ group_key }}
+                                    {% endif %}
+                                </h6>
+                                <span class="badge bg-light text-dark fs-6">{{ group_data.count }} trade{{ group_data.count|pluralize }}</span>
+                            </div>
+                            <div class="d-flex align-items-center gap-3">
+                                <span class="badge {% if group_data.total_pnl >= 0 %}bg-success{% else %}bg-danger{% endif %} fs-6 px-3 py-2">
+                                    {{ group_type_display }} P&L: ₹{{ group_data.total_pnl|floatformat:2 }}
                                 </span>
-                                <!-- Batch Actions -->
+                                <!-- Group Actions -->
                                 <div class="dropdown">
                                     <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
                                         <i class="bi bi-three-dots"></i>
                                     </button>
-                                    <ul class="dropdown-menu">
+                                    <ul class="dropdown-menu shadow">
                                         <li>
-                                            <form method="post" style="display: inline;" onsubmit="return confirm('Delete all trades in this batch?')">
+                                            <form method="post" style="display: inline;" onsubmit="return confirm('Delete all trades in this group?')">
                                                 {% csrf_token %}
                                                 <input type="hidden" name="action" value="delete_batch">
-                                                <input type="hidden" name="batch_tag" value="{{ batch_tag }}">
+                                                {% if group_by == 'batch' %}
+                                                    <input type="hidden" name="batch_tag" value="{{ group_key }}">
+                                                {% else %}
+                                                    <input type="hidden" name="expiry_date" value="{{ group_key }}">
+                                                {% endif %}
                                                 <button type="submit" class="dropdown-item text-danger">
-                                                    <i class="bi bi-trash me-2"></i>Delete Batch
+                                                    <i class="bi bi-trash me-2"></i>Delete Group
                                                 </button>
                                             </form>
                                         </li>
@@ -58,68 +85,91 @@
                             </div>
                         </div>
                         
-                        <!-- Trades Table -->
+                        <!-- Enhanced Trades Table -->
                         <div class="table-responsive">
-                            <table class="table table-hover mb-0">
+                            <table class="table table-hover mb-0 modern-table">
                                 <thead class="table-light">
                                     <tr>
-                                        <th>Trade ID</th>
-                                        <th>Instrument</th>
-                                        <th>Expiry</th>
-                                        <th>Strikes (CE/PE)</th>
-                                        <th>Initial Premium</th>
-                                        <th>Current Premium</th>
-                                        <th class="text-center">P&L</th>
-                                        <th>Target</th>
-                                        <th>Stoploss</th>
-                                        <th class="text-center">Actions</th>
+                                        <th class="fw-semibold">Trade Details</th>
+                                        <th class="fw-semibold">Instrument</th>
+                                        <th class="fw-semibold">Expiry</th>
+                                        <th class="fw-semibold">Strikes</th>
+                                        <th class="fw-semibold">Premium</th>
+                                        <th class="fw-semibold text-center">P&L Status</th>
+                                        <th class="fw-semibold">Targets</th>
+                                        <th class="fw-semibold text-center">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {% for trade in batch_data.trades %}
-                                    <tr>
+                                    {% for trade in group_data.trades %}
+                                    <tr class="trade-row">
                                         <td>
-                                            <span class="fw-bold">{{ trade.reward_type }}</span>
-                                            <br>
-                                            <small class="text-muted">{{ trade.start_time }}</small>
+                                            <div class="d-flex flex-column">
+                                                <span class="fw-bold text-primary">{{ trade.reward_type }}</span>
+                                                <small class="text-muted">{{ trade.start_time }}</small>
+                                            </div>
                                         </td>
-                                        <td>{{ trade.instrument }}</td>
+                                        <td>
+                                            <span class="badge bg-info text-white px-3 py-2">{{ trade.instrument }}</span>
+                                        </td>
                                         <td>{{ trade.expiry }}</td>
                                         <td>
-                                            <span class="badge bg-info">{{ trade.ce_strike }}</span>
-                                            /
-                                            <span class="badge bg-warning">{{ trade.pe_strike }}</span>
+                                            <div class="d-flex gap-1">
+                                                <span class="badge bg-success">CE: {{ trade.ce_strike }}</span>
+                                                <span class="badge bg-warning text-dark">PE: {{ trade.pe_strike }}</span>
+                                            </div>
                                         </td>
-                                        <td>₹{{ trade.initial_premium|floatformat:2 }}</td>
                                         <td>
-                                            {% if trade.current_premium != "N/A" %}
-                                                ₹{{ trade.current_premium|floatformat:2 }}
-                                            {% else %}
-                                                <span class="text-muted">{{ trade.current_premium }}</span>
-                                            {% endif %}
+                                            <div class="premium-info">
+                                                <div><strong>Initial:</strong> ₹{{ trade.initial_premium|floatformat:2 }}</div>
+                                                <div>
+                                                    <strong>Current:</strong> 
+                                                    {% if trade.current_premium != "N/A" %}
+                                                        ₹{{ trade.current_premium|floatformat:2 }}
+                                                    {% else %}
+                                                        <span class="text-muted">{{ trade.current_premium }}</span>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
                                         </td>
                                         <td class="text-center">
                                             {% if trade.pnl != "N/A" %}
-                                                <span class="badge {% if trade.pnl >= 0 %}bg-success{% else %}bg-danger{% endif %} fs-6">
-                                                    ₹{{ trade.pnl|floatformat:2 }}
-                                                </span>
+                                                <div class="pnl-display">
+                                                    <span class="badge {% if trade.pnl >= 0 %}bg-success{% else %}bg-danger{% endif %} fs-6 px-3 py-2">
+                                                        ₹{{ trade.pnl|floatformat:2 }}
+                                                    </span>
+                                                    {% if trade.pnl >= 0 %}
+                                                        <small class="d-block text-success mt-1">
+                                                            <i class="bi bi-arrow-up"></i> Profit
+                                                        </small>
+                                                    {% else %}
+                                                        <small class="d-block text-danger mt-1">
+                                                            <i class="bi bi-arrow-down"></i> Loss
+                                                        </small>
+                                                    {% endif %}
+                                                </div>
                                             {% else %}
                                                 <span class="text-muted">{{ trade.pnl }}</span>
                                             {% endif %}
                                         </td>
-                                        <td>₹{{ trade.target_amount|floatformat:2 }}</td>
-                                        <td>₹{{ trade.stoploss_amount|floatformat:2 }}</td>
+                                        <td>
+                                            <div class="target-info">
+                                                <div><span class="text-success">Target:</span> ₹{{ trade.target_amount|floatformat:2 }}</div>
+                                                <div><span class="text-danger">SL:</span> ₹{{ trade.stoploss_amount|floatformat:2 }}</div>
+                                            </div>
+                                        </td>
                                         <td class="text-center">
                                             <div class="dropdown">
-                                                <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                                <button class="btn btn-outline-primary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
                                                     <i class="bi bi-gear"></i>
                                                 </button>
-                                                <ul class="dropdown-menu">
+                                                <ul class="dropdown-menu shadow">
                                                     <li>
                                                         <a class="dropdown-item" href="{% url 'close_trade' trade.id %}">
-                                                            <i class="bi bi-x-circle me-2"></i>Close Trade
+                                                            <i class="bi bi-x-circle me-2 text-warning"></i>Close Trade
                                                         </a>
                                                     </li>
+                                                    <li><hr class="dropdown-divider"></li>
                                                     <li>
                                                         <form method="post" style="display: inline;" onsubmit="return confirm('Delete this trade?')">
                                                             {% csrf_token %}
@@ -139,7 +189,7 @@
                             </table>
                         </div>
                     </div>
-                    <hr class="my-4">
+                    {% if not forloop.last %}<hr class="my-4 opacity-25">{% endif %}
                     {% endfor %}
                 {% endif %}
             </div>
@@ -148,17 +198,78 @@
 </div>
 
 <style>
-.badge {
-    font-size: 0.8em;
+.group-card {
+    background: rgba(255, 255, 255, 0.8);
+    border-radius: 12px;
+    padding: 16px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    transition: all 0.3s ease;
 }
-.table th {
+
+.group-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+.modern-table th {
     font-weight: 600;
     font-size: 0.9em;
     color: #495057;
+    border-bottom: 2px solid #e9ecef;
+    padding: 16px 12px;
 }
+
+.modern-table td {
+    padding: 16px 12px;
+    vertical-align: middle;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.trade-row {
+    transition: all 0.2s ease;
+}
+
+.trade-row:hover {
+    background-color: rgba(102, 126, 234, 0.05);
+}
+
+.premium-info, .target-info {
+    font-size: 0.9em;
+    line-height: 1.4;
+}
+
+.pnl-display {
+    text-align: center;
+}
+
 .dropdown-menu {
     border: none;
-    box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.1);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+    border-radius: 8px;
+}
+
+.fade-in {
+    animation: fadeIn 0.6s ease-out;
+}
+
+@keyframes fadeIn {
+    from { 
+        opacity: 0; 
+        transform: translateY(20px); 
+    }
+    to { 
+        opacity: 1; 
+        transform: translateY(0); 
+    }
+}
+
+.btn-group .btn {
+    transition: all 0.2s ease;
+}
+
+.badge {
+    font-size: 0.8em;
+    font-weight: 500;
 }
 </style>
 {% endblock %}
