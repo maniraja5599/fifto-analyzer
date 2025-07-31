@@ -3,21 +3,48 @@
 {% block title %}Active Trades{% endblock %}
 
 {% block content %}
+<!-- Trades Header -->
+<div class="settings-header mb-4">
+    <div class="row align-items-center">
+        <div class="col-md-8">
+            <div class="settings-title">
+                <h1 class="display-6 fw-bold text-gradient mb-2">
+                    <i class="bi bi-graph-up me-3"></i>
+                    Active Monitored Trades
+                </h1>
+                <p class="lead text-muted mb-0">
+                    Monitor your portfolio performance and manage active positions
+                </p>
+            </div>
+        </div>
+        <div class="col-md-4 text-end">
+            <div class="settings-status">
+                <div class="status-indicator">
+                    <div class="pulse-dot"></div>
+                    <span class="fw-semibold">Total P&L: ₹{{ total_pnl|floatformat:2 }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="row">
     <div class="col-12">
-        <div class="card border-0 shadow-sm fade-in">
-            <div class="card-header bg-white border-bottom">
-                <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
-                    <div class="d-flex align-items-center gap-3">
-                        <h5 class="mb-0 fw-bold text-primary">
-                            <i class="bi bi-graph-up me-2"></i>Active Monitored Trades
-                        </h5>
-                        <span class="badge bg-primary fs-6">Total P&L: ₹{{ total_pnl|floatformat:2 }}</span>
+        <!-- Main Trades Card -->
+        <div class="card settings-main-card border-0 shadow-lg fade-in mb-4">
+            <div class="card-header settings-card-header">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div class="d-flex align-items-center">
+                        <div class="header-icon">
+                            <i class="bi bi-graph-up"></i>
+                        </div>
+                        <div>
+                            <h5 class="mb-0 fw-bold">Portfolio Management</h5>
+                            <p class="text-muted mb-0 small">View and manage your active trading positions</p>
+                        </div>
                     </div>
-                    
-                    <!-- Group By Toggle -->
-                    <div class="d-flex align-items-center gap-3">
-                        <label class="form-label mb-0 fw-semibold">Group by:</label>
+                    <div class="grouping-controls">
+                        <label class="form-label mb-0 fw-semibold me-3">Group by:</label>
                         <div class="btn-group" role="group">
                             <a href="?group_by=batch" class="btn {% if group_by == 'batch' %}btn-primary{% else %}btn-outline-primary{% endif %} btn-sm">
                                 <i class="bi bi-collection me-1"></i>Batch
@@ -29,50 +56,142 @@
                     </div>
                 </div>
             </div>
-            <div class="card-body">
+            <div class="card-body p-0">
                 {% if not has_active_trades %}
-                    <div class="text-center py-5">
-                        <div class="mb-4">
-                            <i class="bi bi-graph-up text-muted" style="font-size: 4rem; opacity: 0.3;"></i>
+                    <!-- No Trades Section -->
+                    <div class="settings-section text-center">
+                        <div class="empty-state">
+                            <div class="empty-icon">
+                                <i class="bi bi-graph-up"></i>
+                            </div>
+                            <h6 class="fw-bold mb-2">No active trades found</h6>
+                            <p class="text-muted mb-4">Start by generating an analysis and adding trades to monitor.</p>
+                            <a href="{% url 'index' %}" class="btn btn-primary save-btn">
+                                <i class="bi bi-plus-circle me-2"></i>Generate Analysis
+                            </a>
                         </div>
-                        <h6 class="text-muted mt-3 fw-semibold">No active trades found</h6>
-                        <p class="text-muted mb-4">Start by generating an analysis and adding trades to monitor.</p>
-                        <a href="{% url 'index' %}" class="btn btn-primary btn-lg">
-                            <i class="bi bi-plus-circle me-2"></i>Generate Analysis
-                        </a>
                     </div>
                 {% else %}
-                    <!-- Group-wise Trade Display -->
-                    {% for group_key, group_data in group_summaries.items %}
-                    <div class="group-card mb-4">
-                        <div class="group-header d-flex justify-content-between align-items-center mb-3 p-3 rounded-3" style="background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1)); border: 1px solid rgba(102, 126, 234, 0.2);">
-                            <div class="d-flex align-items-center gap-3">
-                                <h6 class="fw-bold text-primary mb-0">
-                                    {% if group_by == 'batch' %}
-                                        <i class="bi bi-collection me-2"></i>{{ group_key }}
-                                    {% else %}
-                                        <i class="bi bi-calendar-event me-2"></i>Expiry: {{ group_key }}
-                                    {% endif %}
-                                </h6>
-                                <span class="badge bg-light text-dark fs-6">{{ group_data.count }} trade{{ group_data.count|pluralize }}</span>
+                    <!-- Active Trades Section -->
+                    <div class="settings-section">
+                        <div class="section-header">
+                            <div class="section-icon">
+                                <i class="bi bi-list-ul"></i>
                             </div>
-                            <div class="d-flex align-items-center gap-3">
-                                <span class="badge {% if group_data.total_pnl >= 0 %}bg-success{% else %}bg-danger{% endif %} fs-6 px-3 py-2">
-                                    {{ group_type_display }} P&L: ₹{{ group_data.total_pnl|floatformat:2 }}
-                                </span>
-                                <!-- Group Actions -->
-                                <div class="dropdown">
-                                    <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                                        <i class="bi bi-three-dots"></i>
-                                    </button>
-                                    <ul class="dropdown-menu shadow">
-                                        <li>
-                                            <form method="post" style="display: inline;" onsubmit="return confirm('Delete all trades in this group?')">
-                                                {% csrf_token %}
-                                                <input type="hidden" name="action" value="delete_batch">
+                            <div class="section-info">
+                                <h6 class="fw-bold mb-1">Active Positions</h6>
+                                <p class="text-muted mb-0 small">Your current trading positions grouped by {{ group_by }}</p>
+                            </div>
+                        </div>
+                        <div class="section-content">
+                            <!-- Group-wise Trade Display -->
+                            {% for group_key, group_data in group_summaries.items %}
+                            <div class="trade-group mb-4">
+                                <div class="group-header">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div class="group-info">
+                                            <h6 class="fw-bold mb-1">
                                                 {% if group_by == 'batch' %}
-                                                    <input type="hidden" name="batch_tag" value="{{ group_key }}">
+                                                    <i class="bi bi-collection me-2"></i>Batch {{ group_key }}
                                                 {% else %}
+                                                    <i class="bi bi-calendar-event me-2"></i>{{ group_key }}
+                                                {% endif %}
+                                            </h6>
+                                            <p class="text-muted mb-0 small">{{ group_data.trade_count }} position{{ group_data.trade_count|pluralize }}</p>
+                                        </div>
+                                        <div class="group-stats">
+                                            <span class="badge {% if group_data.total_pnl >= 0 %}bg-success{% else %}bg-danger{% endif %} me-2">
+                                                ₹{{ group_data.total_pnl|floatformat:2 }}
+                                            </span>
+                                            <div class="dropdown">
+                                                <button class="btn btn-outline-primary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                                    <i class="bi bi-three-dots-vertical"></i>
+                                                </button>
+                                                <ul class="dropdown-menu">
+                                                    <li>
+                                                        <form method="POST" action="{% url 'delete_trades' %}" class="d-inline">
+                                                            {% csrf_token %}
+                                                            <input type="hidden" name="group_by" value="{{ group_by }}">
+                                                            <input type="hidden" name="group_key" value="{{ group_key }}">
+                                                            <button type="submit" class="dropdown-item text-danger" onclick="return confirm('Are you sure you want to delete all trades in this group?')">
+                                                                <i class="bi bi-trash me-2"></i>Delete Group
+                                                            </button>
+                                                        </form>
+                                                    </li>
+                                                </ul>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="trades-table">
+                                    <div class="table-responsive">
+                                        <table class="table table-hover align-middle">
+                                            <thead class="table-light">
+                                                <tr>
+                                                    <th><i class="bi bi-building me-1"></i>Symbol</th>
+                                                    <th><i class="bi bi-calendar me-1"></i>Expiry</th>
+                                                    <th><i class="bi bi-tag me-1"></i>Strike</th>
+                                                    <th><i class="bi bi-arrow-up-down me-1"></i>Type</th>
+                                                    <th><i class="bi bi-cart me-1"></i>Qty</th>
+                                                    <th><i class="bi bi-currency-rupee me-1"></i>Entry</th>
+                                                    <th><i class="bi bi-currency-rupee me-1"></i>LTP</th>
+                                                    <th><i class="bi bi-graph-up me-1"></i>P&L</th>
+                                                    <th><i class="bi bi-gear me-1"></i>Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for trade in group_data.trades %}
+                                                <tr class="trade-row">
+                                                    <td class="fw-semibold">{{ trade.symbol }}</td>
+                                                    <td>{{ trade.expiry_date|date:"d-M-y" }}</td>
+                                                    <td>{{ trade.strike_price }}</td>
+                                                    <td>
+                                                        <span class="badge {% if trade.option_type == 'CE' %}bg-success{% else %}bg-info{% endif %}">
+                                                            {{ trade.option_type }}
+                                                        </span>
+                                                    </td>
+                                                    <td>{{ trade.quantity }}</td>
+                                                    <td>₹{{ trade.entry_price|floatformat:2 }}</td>
+                                                    <td>₹{{ trade.current_price|floatformat:2 }}</td>
+                                                    <td>
+                                                        <span class="badge {% if trade.pnl >= 0 %}bg-success{% else %}bg-danger{% endif %} pnl-badge">
+                                                            ₹{{ trade.pnl|floatformat:2 }}
+                                                        </span>
+                                                    </td>
+                                                    <td>
+                                                        <div class="dropdown">
+                                                            <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                                                <i class="bi bi-three-dots"></i>
+                                                            </button>
+                                                            <ul class="dropdown-menu">
+                                                                <li>
+                                                                    <form method="POST" action="{% url 'delete_trade' trade.id %}" class="d-inline">
+                                                                        {% csrf_token %}
+                                                                        <button type="submit" class="dropdown-item text-danger" onclick="return confirm('Delete this trade?')">
+                                                                            <i class="bi bi-trash me-2"></i>Delete
+                                                                        </button>
+                                                                    </form>
+                                                                </li>
+                                                            </ul>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
                                                     <input type="hidden" name="expiry_date" value="{{ group_key }}">
                                                 {% endif %}
                                                 <button type="submit" class="dropdown-item text-danger">

@@ -3,66 +3,93 @@
 {% block title %}Settings{% endblock %}
 
 {% block content %}
+<!-- Settings Header -->
+<div class="settings-header mb-4">
+    <div class="row align-items-center">
+        <div class="col-md-8">
+            <div class="settings-title">
+                <h1 class="display-6 fw-bold text-gradient mb-2">
+                    <i class="bi bi-gear-fill me-3 text-primary"></i>
+                    Application Settings
+                </h1>
+                <p class="lead text-muted mb-0">
+                    Configure your trading preferences and system behavior
+                </p>
+            </div>
+        </div>
+        <div class="col-md-4 text-end">
+            <div class="settings-status">
+                <div class="status-indicator">
+                    <div class="pulse-dot"></div>
+                    <span class="text-success fw-semibold">System Active</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="row">
     <div class="col-12">
         <!-- Main Settings Card -->
-        <div class="card border-0 shadow-sm fade-in mb-4">
-            <div class="card-header bg-white border-bottom">
+        <div class="card settings-main-card border-0 shadow-lg fade-in mb-4">
+            <div class="card-header settings-card-header">
                 <div class="d-flex align-items-center">
-                    <h5 class="mb-0 fw-bold text-primary">
-                        <i class="bi bi-gear me-2"></i>Application Settings
-                    </h5>
+                    <div class="header-icon">
+                        <i class="bi bi-sliders"></i>
+                    </div>
+                    <div>
+                        <h5 class="mb-0 fw-bold">Configuration Panel</h5>
+                        <p class="text-muted mb-0 small">Customize your trading experience</p>
+                    </div>
                 </div>
             </div>
             <div class="card-body p-0">
-                <form method="POST" action="{% url 'settings' %}">
+                <form method="POST" action="{% url 'settings' %}" class="settings-form">
                     {% csrf_token %}
                     
                     <!-- Monitoring Settings Card -->
-                    <div class="settings-section border-bottom">
-                        <div class="section-header p-4 pb-3">
-                            <h6 class="fw-bold text-dark mb-1">
-                                <i class="bi bi-clock-history me-2 text-primary"></i>Monitoring Configuration
-                            </h6>
-                            <p class="text-muted mb-0 small">Configure how frequently the system sends P&L updates</p>
+                    <div class="settings-section monitoring-section">
+                        <div class="section-header">
+                            <div class="section-icon">
+                                <i class="bi bi-clock-history"></i>
+                            </div>
+                            <div class="section-info">
+                                <h6 class="fw-bold mb-1">Monitoring Configuration</h6>
+                                <p class="text-muted mb-0 small">Configure how frequently the system sends P&L updates</p>
+                            </div>
                         </div>
-                        <div class="section-content px-4 pb-4">
-                            <label class="form-label fw-semibold mb-3">Telegram P&L Update Frequency</label>
-                            <div class="row g-3">
+                        <div class="section-content">
+                            <label class="form-label fw-semibold mb-4">Telegram P&L Update Frequency</label>
+                            <div class="frequency-grid">
                                 {% for choice in choices %}
-                                <div class="col-sm-6 col-lg-3">
-                                    <div class="form-check-card">
-                                        <input class="form-check-input" type="radio" name="interval" value="{{ choice }}" id="interval_{{ forloop.counter }}" {% if settings.update_interval == choice %}checked{% endif %}>
-                                        <label class="form-check-label w-100" for="interval_{{ forloop.counter }}">
-                                            <div class="card h-100 border-2 choice-card">
-                                                <div class="card-body text-center p-3">
-                                                    <div class="choice-icon mb-2">
-                                                        {% if choice == "15 Mins" %}
-                                                            <i class="bi bi-speedometer text-danger"></i>
-                                                        {% elif choice == "30 Mins" %}
-                                                            <i class="bi bi-speedometer2 text-warning"></i>
-                                                        {% elif choice == "1 Hour" %}
-                                                            <i class="bi bi-hourglass-split text-info"></i>
-                                                        {% else %}
-                                                            <i class="bi bi-pause-circle text-secondary"></i>
-                                                        {% endif %}
-                                                    </div>
-                                                    <div class="fw-semibold">{{ choice }}</div>
-                                                    <small class="text-muted">
-                                                        {% if choice == "15 Mins" %}
-                                                            High frequency
-                                                        {% elif choice == "30 Mins" %}
-                                                            Balanced
-                                                        {% elif choice == "1 Hour" %}
-                                                            Low frequency
-                                                        {% else %}
-                                                            No updates
-                                                        {% endif %}
-                                                    </small>
-                                                </div>
-                                            </div>
-                                        </label>
-                                    </div>
+                                <div class="frequency-option">
+                                    <input class="form-check-input" type="radio" name="interval" value="{{ choice }}" id="interval_{{ forloop.counter }}" {% if settings.update_interval == choice %}checked{% endif %}>
+                                    <label class="frequency-card" for="interval_{{ forloop.counter }}">
+                                        <div class="frequency-icon">
+                                            {% if choice == "15 Mins" %}
+                                                <i class="bi bi-speedometer text-danger"></i>
+                                            {% elif choice == "30 Mins" %}
+                                                <i class="bi bi-speedometer2 text-warning"></i>
+                                            {% elif choice == "1 Hour" %}
+                                                <i class="bi bi-hourglass-split text-info"></i>
+                                            {% else %}
+                                                <i class="bi bi-pause-circle text-secondary"></i>
+                                            {% endif %}
+                                        </div>
+                                        <div class="frequency-title">{{ choice }}</div>
+                                        <div class="frequency-description">
+                                            {% if choice == "15 Mins" %}
+                                                Real-time updates
+                                            {% elif choice == "30 Mins" %}
+                                                Balanced frequency
+                                            {% elif choice == "1 Hour" %}
+                                                Conservative updates
+                                            {% else %}
+                                                Manual only
+                                            {% endif %}
+                                        </div>
+                                        <div class="selection-indicator"></div>
+                                    </label>
                                 </div>
                                 {% endfor %}
                             </div>
@@ -70,59 +97,58 @@
                     </div>
 
                     <!-- Telegram Configuration Card -->
-                    <div class="settings-section">
-                        <div class="section-header p-4 pb-3">
-                            <h6 class="fw-bold text-dark mb-1">
-                                <i class="bi bi-telegram me-2 text-primary"></i>Telegram Integration
-                            </h6>
-                            <p class="text-muted mb-0 small">Configure Telegram bot for receiving trade alerts and updates</p>
+                    <div class="settings-section telegram-section">
+                        <div class="section-header">
+                            <div class="section-icon">
+                                <i class="bi bi-telegram"></i>
+                            </div>
+                            <div class="section-info">
+                                <h6 class="fw-bold mb-1">Telegram Integration</h6>
+                                <p class="text-muted mb-0 small">Configure Telegram bot for receiving trade alerts and updates</p>
+                            </div>
                         </div>
-                        <div class="section-content px-4 pb-4">
-                            <div class="row g-4">
-                                <div class="col-md-6">
+                        <div class="section-content">
+                            <div class="telegram-config">
+                                <div class="config-field">
                                     <div class="form-floating">
-                                        <input type="text" class="form-control" id="bot_token" name="bot_token" 
+                                        <input type="text" class="form-control telegram-input" id="bot_token" name="bot_token" 
                                                value="{{ settings.bot_token|default_if_none:'' }}" 
                                                placeholder="Enter your Telegram Bot Token">
                                         <label for="bot_token">
                                             <i class="bi bi-robot me-2"></i>Bot Token
                                         </label>
                                     </div>
-                                    <div class="form-text">
+                                    <div class="field-help">
                                         <i class="bi bi-info-circle me-1"></i>
-                                        Get your bot token from <a href="https://t.me/BotFather" target="_blank" class="text-decoration-none">@BotFather</a>
+                                        Get your bot token from <a href="https://t.me/BotFather" target="_blank" class="help-link">@BotFather</a>
                                     </div>
                                 </div>
-                                <div class="col-md-6">
+                                <div class="config-field">
                                     <div class="form-floating">
-                                        <input type="text" class="form-control" id="chat_id" name="chat_id" 
+                                        <input type="text" class="form-control telegram-input" id="chat_id" name="chat_id" 
                                                value="{{ settings.chat_id|default_if_none:'' }}" 
                                                placeholder="Enter your Telegram Chat ID">
                                         <label for="chat_id">
                                             <i class="bi bi-chat-dots me-2"></i>Chat ID
                                         </label>
                                     </div>
-                                    <div class="form-text">
-                                        <i class="bi bi-info-circle me-1"></i>
-                                        Your personal chat ID or group chat ID
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                                    <div class="field-help">
+                                        <i class="bi bi-lightbulb me-1"></i>
+                                        Send a message to <a href="https://t.me/userinfobot" target="_blank" class="help-link">@userinfobot</a> to get your Chat ID
                     </div>
 
-                    <!-- Action Buttons -->
-                    <div class="card-footer bg-light border-top-0 p-4">
+                    <!-- Save Settings Section -->
+                    <div class="settings-footer">
                         <div class="d-flex justify-content-between align-items-center">
-                            <div class="text-muted small">
-                                <i class="bi bi-shield-check me-1"></i>
-                                Settings are automatically saved and encrypted
+                            <div class="footer-info">
+                                <i class="bi bi-shield-check me-2 text-success"></i>
+                                <span class="text-muted">Settings are automatically saved and encrypted</span>
                             </div>
-                            <div class="d-flex gap-2">
-                                <button type="button" class="btn btn-outline-secondary" onclick="location.reload()">
+                            <div class="action-buttons">
+                                <button type="button" class="btn btn-outline-secondary me-2" onclick="location.reload()">
                                     <i class="bi bi-arrow-clockwise me-2"></i>Reset
                                 </button>
-                                <button type="submit" class="btn btn-primary">
+                                <button type="submit" class="btn btn-primary save-btn">
                                     <i class="bi bi-check-circle me-2"></i>Save Settings
                                 </button>
                             </div>
@@ -132,114 +158,36 @@
             </div>
         </div>
 
-        <!-- Information Cards -->
-        <div class="row g-4">
-            <div class="col-md-6">
-                <div class="card border-0 shadow-sm h-100">
-                    <div class="card-body text-center p-4">
-                        <div class="feature-icon mb-3">
-                            <i class="bi bi-lightning-charge text-warning" style="font-size: 2.5rem;"></i>
-                        </div>
-                        <h6 class="fw-bold">Real-time Monitoring</h6>
-                        <p class="text-muted small mb-0">Get instant notifications when your trades hit targets or stop losses</p>
-                    </div>
+        <!-- Feature Information Cards -->
+        <div class="feature-cards">
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <i class="bi bi-lightning-charge"></i>
+                </div>
+                <div class="feature-content">
+                    <h6 class="feature-title">Real-time Monitoring</h6>
+                    <p class="feature-description">Get instant notifications when your trades hit targets or stop losses</p>
                 </div>
             </div>
-            <div class="col-md-6">
-                <div class="card border-0 shadow-sm h-100">
-                    <div class="card-body text-center p-4">
-                        <div class="feature-icon mb-3">
-                            <i class="bi bi-graph-up-arrow text-success" style="font-size: 2.5rem;"></i>
-                        </div>
-                        <h6 class="fw-bold">P&L Tracking</h6>
-                        <p class="text-muted small mb-0">Comprehensive profit and loss tracking with detailed analytics</p>
-                    </div>
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <i class="bi bi-graph-up-arrow"></i>
+                </div>
+                <div class="feature-content">
+                    <h6 class="feature-title">P&L Tracking</h6>
+                    <p class="feature-description">Comprehensive profit and loss tracking with detailed analytics</p>
+                </div>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <i class="bi bi-bell"></i>
+                </div>
+                <div class="feature-content">
+                    <h6 class="feature-title">Smart Alerts</h6>
+                    <p class="feature-description">Intelligent alerts based on your trading patterns and preferences</p>
                 </div>
             </div>
         </div>
     </div>
 </div>
-
-<style>
-.settings-section {
-    transition: all 0.3s ease;
-}
-
-.section-header {
-    background: linear-gradient(135deg, rgba(102, 126, 234, 0.05), rgba(118, 75, 162, 0.05));
-}
-
-.form-check-card {
-    position: relative;
-}
-
-.form-check-card input[type="radio"] {
-    position: absolute;
-    opacity: 0;
-    z-index: -1;
-}
-
-.choice-card {
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    cursor: pointer;
-    border-color: #e9ecef !important;
-}
-
-.form-check-card input[type="radio"]:checked + label .choice-card {
-    border-color: #667eea !important;
-    background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
-    transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(102, 126, 234, 0.15);
-}
-
-.choice-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-}
-
-.choice-icon i {
-    font-size: 1.5rem;
-}
-
-.form-floating > .form-control {
-    border-radius: 12px;
-    border: 2px solid #e9ecef;
-    transition: all 0.3s ease;
-}
-
-.form-floating > .form-control:focus {
-    border-color: #667eea;
-    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
-}
-
-.feature-icon {
-    width: 80px;
-    height: 80px;
-    background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin: 0 auto;
-}
-
-.fade-in {
-    animation: fadeIn 0.6s ease-out;
-}
-
-@keyframes fadeIn {
-    from { 
-        opacity: 0; 
-        transform: translateY(20px); 
-    }
-    to { 
-        opacity: 1; 
-        transform: translateY(0); 
-    }
-}
-
-.card-footer {
-    border-radius: 0 0 16px 16px;
-}
-</style>
 {% endblock %}
