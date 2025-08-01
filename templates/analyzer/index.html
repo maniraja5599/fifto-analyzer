@@ -1,29 +1,22 @@
 {% extends "analyzer/layout.html" %}
 {% block content %}
-<!-- Dashboard Header -->
+<!-- Clean Dashboard Header -->
 <div class="dashboard-header mb-4">
     <div class="row align-items-center">
         <div class="col-md-8">
-            <div class="dashboard-title">
-                <h1 class="display-6 fw-bold text-gradient mb-2">
-                    <i class="bi bi-graph-up-arrow me-3"></i>
+            <div class="page-title">
+                <h1 class="h3 fw-bold mb-1">
+                    <i class="bi bi-graph-up-arrow me-2 text-primary"></i>
                     Trading Dashboard
                 </h1>
-                <p class="lead text-muted mb-0">
-                    Analyze options strategies and monitor your portfolio performance
-                </p>
+                <p class="text-muted mb-0">Analyze options strategies and monitor your portfolio performance</p>
             </div>
         </div>
         <div class="col-md-4 text-end">
             <div class="dashboard-stats">
-                <div class="stat-card">
-                    <div class="stat-icon">
-                        <i class="bi bi-calendar-check"></i>
-                    </div>
-                    <div class="stat-content">
-                        <div class="stat-value">{{ expiries|length }}</div>
-                        <div class="stat-label">Available Expiries</div>
-                    </div>
+                <div class="badge bg-primary fs-6 px-3 py-2">
+                    <i class="bi bi-calendar-check me-2"></i>
+                    {{ expiries|length }} Available Expiries
                 </div>
             </div>
         </div>
@@ -33,103 +26,69 @@
 <div class="row">
     <div class="col-12">
         <!-- Analysis Generator Card -->
-        <div class="card settings-main-card border-0 shadow-lg fade-in mb-4">
-            <div class="card-header settings-card-header">
+        <div class="card clean-card border-0 shadow-sm mb-4">
+            <div class="card-header bg-light border-bottom">
                 <div class="d-flex align-items-center">
-                    <div class="header-icon">
-                        <i class="bi bi-plus-circle-fill"></i>
-                    </div>
+                    <i class="bi bi-plus-circle-fill text-primary me-3 fs-5"></i>
                     <div>
                         <h5 class="mb-0 fw-bold">Generate New Analysis</h5>
                         <p class="text-muted mb-0 small">Create detailed options analysis with payoff diagrams</p>
                     </div>
                 </div>
             </div>
-            <div class="card-body p-0">
-                <form method="POST" action="{% url 'generate_analysis' %}" class="settings-form">
+            <div class="card-body">
+                <form method="POST" action="{% url 'generate_analysis' %}" class="analysis-form">
                     {% csrf_token %}
                     
                     <!-- Analysis Configuration Section -->
-                    <div class="settings-section">
-                        <div class="section-header">
-                            <div class="section-icon">
-                                <i class="bi bi-gear"></i>
-                            </div>
-                            <div class="section-info">
-                                <h6 class="fw-bold mb-1">Analysis Configuration</h6>
-                                <p class="text-muted mb-0 small">Configure your options analysis parameters</p>
-                            </div>
+                    <div class="row g-4 mb-4">
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">
+                                <i class="bi bi-graph-up me-2 text-primary"></i>Index
+                            </label>
+                            <select name="instrument" class="form-select" onchange="window.location.href = `{% url 'index' %}?instrument=${this.value}`">
+                                <option value="NIFTY" {% if instrument == 'NIFTY' %}selected{% endif %}>NIFTY</option>
+                                <option value="BANKNIFTY" {% if instrument == 'BANKNIFTY' %}selected{% endif %}>BANKNIFTY</option>
+                            </select>
+                            <small class="text-muted">Choose the underlying index</small>
                         </div>
-                        <div class="section-content">
-                            <div class="analysis-config">
-                                <div class="config-field">
-                                    <div class="form-floating">
-                                        <select id="instrument" name="instrument" class="form-control telegram-input" onchange="window.location.href = `{% url 'index' %}?instrument=${this.value}`">
-                                            <option value="NIFTY" {% if instrument == 'NIFTY' %}selected{% endif %}>NIFTY</option>
-                                            <option value="BANKNIFTY" {% if instrument == 'BANKNIFTY' %}selected{% endif %}>BANKNIFTY</option>
-                                        </select>
-                                        <label for="instrument">
-                                            <i class="bi bi-graph-up me-2"></i>Select Index
-                                        </label>
-                                    </div>
-                                    <div class="field-help">
-                                        <i class="bi bi-info-circle me-1"></i>
-                                        Choose the underlying index for your analysis
-                                    </div>
-                                </div>
-                                <div class="config-field">
-                                    <div class="form-floating">
-                                        <select id="calc_type" name="calc_type" class="form-control telegram-input">
-                                            <option value="Weekly">Weekly</option>
-                                            <option value="Monthly">Monthly</option>
-                                        </select>
-                                        <label for="calc_type">
-                                            <i class="bi bi-calendar-range me-2"></i>Calculation Type
-                                        </label>
-                                    </div>
-                                    <div class="field-help">
-                                        <i class="bi bi-clock me-1"></i>
-                                        Select the time frame for your analysis
-                                    </div>
-                                </div>
-                                <div class="config-field">
-                                    <div class="form-floating">
-                                        <select id="expiry" name="expiry" class="form-control telegram-input">
-                                            {% for e in expiries %}<option value="{{ e }}">{{ e }}</option>{% endfor %}
-                                        </select>
-                                        <label for="expiry">
-                                            <i class="bi bi-calendar-event me-2"></i>Expiry Date
-                                        </label>
-                                    </div>
-                                    <div class="field-help">
-                                        <i class="bi bi-calendar-check me-1"></i>
-                                        Choose the expiry date for your options analysis
-                                    </div>
-                                </div>
-                            </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">
+                                <i class="bi bi-calendar-range me-2 text-primary"></i>Calculation Type
+                            </label>
+                            <select name="calc_type" class="form-select">
+                                <option value="Weekly">Weekly</option>
+                                <option value="Monthly">Monthly</option>
+                            </select>
+                            <small class="text-muted">Select the time frame</small>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">
+                                <i class="bi bi-calendar-event me-2 text-primary"></i>Expiry Date
+                            </label>
+                            <select name="expiry" class="form-select">
+                                {% for e in expiries %}<option value="{{ e }}">{{ e }}</option>{% endfor %}
+                            </select>
+                            <small class="text-muted">Choose the expiry date</small>
                         </div>
                     </div>
 
                     <!-- Generate Button Section -->
-                    <div class="settings-footer">
-                        <div class="d-flex justify-content-center align-items-center">
-                            <button type="submit" class="btn btn-primary save-btn">
-                                <i class="bi bi-lightning-charge me-2"></i>Generate Charts
-                            </button>
-                        </div>
+                    <div class="text-center">
+                        <button type="submit" class="btn btn-primary btn-lg px-5">
+                            <i class="bi bi-lightning-charge me-2"></i>Generate Charts
+                        </button>
                     </div>
                 </form>
             </div>
         </div>
         {% if analysis_data %}
         <!-- Analysis Results Card -->
-        <div class="card settings-main-card border-0 shadow-lg fade-in mb-4">
-            <div class="card-header settings-card-header">
+        <div class="card clean-card border-0 shadow-sm mb-4">
+            <div class="card-header bg-light border-bottom">
                 <div class="d-flex align-items-center justify-content-between">
                     <div class="d-flex align-items-center">
-                        <div class="header-icon">
-                            <i class="bi bi-graph-up-arrow"></i>
-                        </div>
+                        <i class="bi bi-graph-up-arrow text-primary me-3 fs-5"></i>
                         <div>
                             <h5 class="mb-0 fw-bold">Analysis Results</h5>
                             <p class="text-muted mb-0 small">Your options strategy analysis is ready</p>
@@ -145,53 +104,40 @@
                     </div>
                 </div>
             </div>
-            <div class="card-body p-0">
+            <div class="card-body">
                 <!-- Chart Selection Section -->
-                <div class="settings-section">
-                    <div class="section-header">
-                        <div class="section-icon">
-                            <i class="bi bi-bar-chart-line"></i>
+                <div class="chart-selection mb-4">
+                    <ul class="nav nav-pills justify-content-center mb-4" id="analysisTab" role="tablist">
+                        <li class="nav-item">
+                            <a class="nav-link active" data-bs-toggle="pill" href="#summary" role="tab">
+                                <i class="bi bi-graph-up-arrow me-2"></i>Analysis Chart
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" data-bs-toggle="pill" href="#payoff" role="tab">
+                                <i class="bi bi-activity me-2"></i>Payoff Chart
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" data-bs-toggle="pill" href="#table" role="tab">
+                                <i class="bi bi-grid-3x3-gap me-2"></i>Data Table
+                            </a>
+                        </li>
+                    </ul>
+                    <div class="tab-content">
+                        <div class="tab-pane fade show active" id="summary" role="tabpanel">
+                            <div class="chart-container text-center">
+                                <img src="/{{ analysis_data.summary_file }}" class="img-fluid rounded border">
+                            </div>
                         </div>
-                        <div class="section-info">
-                            <h6 class="fw-bold mb-1">Chart Visualization</h6>
-                            <p class="text-muted mb-0 small">Select the type of chart you want to view</p>
+                        <div class="tab-pane fade" id="payoff" role="tabpanel">
+                            <div class="chart-container text-center">
+                                <img src="/{{ analysis_data.payoff_file }}" class="img-fluid rounded border">
+                            </div>
                         </div>
-                    </div>
-                    <div class="section-content">
-                        <div class="chart-selection">
-                            <ul class="nav nav-pills chart-nav mb-4" id="analysisTab" role="tablist">
-                                <li class="nav-item">
-                                    <a class="nav-link active chart-tab" data-bs-toggle="pill" href="#summary" role="tab">
-                                        <i class="bi bi-bar-chart-line me-2"></i>Analysis Chart
-                                    </a>
-                                </li>
-                                <li class="nav-item">
-                                    <a class="nav-link chart-tab" data-bs-toggle="pill" href="#payoff" role="tab">
-                                        <i class="bi bi-graph-up me-2"></i>Payoff Chart
-                                    </a>
-                                </li>
-                                <li class="nav-item">
-                                    <a class="nav-link chart-tab" data-bs-toggle="pill" href="#table" role="tab">
-                                        <i class="bi bi-table me-2"></i>Data Table
-                                    </a>
-                                </li>
-                            </ul>
-                            <div class="tab-content chart-content">
-                                <div class="tab-pane fade show active" id="summary" role="tabpanel">
-                                    <div class="chart-container">
-                                        <img src="/{{ analysis_data.summary_file }}" class="img-fluid chart-image">
-                                    </div>
-                                </div>
-                                <div class="tab-pane fade" id="payoff" role="tabpanel">
-                                    <div class="chart-container">
-                                        <img src="/{{ analysis_data.payoff_file }}" class="img-fluid chart-image">
-                                    </div>
-                                </div>
-                                <div class="tab-pane fade" id="table" role="tabpanel">
-                                    <div class="table-container">
-                                        {{ analysis_data.display_df_html|safe }}
-                                    </div>
-                                </div>
+                        <div class="tab-pane fade" id="table" role="tabpanel">
+                            <div class="table-container">
+                                {{ analysis_data.display_df_html|safe }}
                             </div>
                         </div>
                     </div>
