@@ -17,6 +17,7 @@ urlpatterns = [
     path('trades/', views.trades_list, name='trades_list'),
     path('closed_trades/', views.closed_trades_view, name='closed_trades'),
     path('automation/', views.automation_view, name='automation'),
+    path('test_automation/', views.test_automation_view, name='test_automation'),
     path('settings/', views.settings_view, name='settings'),
 
     # Action for closing a specific trade

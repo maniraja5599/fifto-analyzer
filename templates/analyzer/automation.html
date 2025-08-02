@@ -3,23 +3,25 @@
 {% block title %}Automation{% endblock %}
 
 {% block content %}
-<!-- Automation Header -->
-<div class="automation-header mb-4">
-    <div class="row align-items-center">
-        <div class="col-md-8">
-            <div class="page-title">
-                <h1 class="h3 fw-bold mb-1">
-                    <i class="bi bi-robot me-2 text-primary"></i>
-                    Automation Center
-                </h1>
-                <p class="text-muted mb-0">Configure automated chart generation and scheduled tasks</p>
+<!-- Dashboard Style Header -->
+<div class="dashboard-header">
+    <div class="container-fluid">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <div class="header-content">
+                    <h1 class="dashboard-title">
+                        <i class="bi bi-gear-fill me-3"></i>
+                        Automation Center
+                    </h1>
+                    <p class="dashboard-subtitle">Configure automated chart generation and scheduled tasks</p>
+                </div>
             </div>
-        </div>
-        <div class="col-md-4 text-end">
-            <div class="automation-status">
-                <div class="badge {% if settings.enable_auto_generation %}bg-success{% else %}bg-secondary{% endif %} fs-6 px-3 py-2">
-                    <i class="bi {% if settings.enable_auto_generation %}bi-gear-fill{% else %}bi-gear{% endif %} me-2"></i>
-                    {% if settings.enable_auto_generation %}Active{% else %}Inactive{% endif %}
+            <div class="col-md-4 text-end">
+                <div class="status-badge-container">
+                    <span class="status-badge {% if settings.enable_auto_generation %}status-active{% else %}status-inactive{% endif %}">
+                        <i class="bi bi-check-circle me-2"></i>
+                        {% if settings.enable_auto_generation %}System Active{% else %}System Inactive{% endif %}
+                    </span>
                 </div>
             </div>
         </div>
@@ -28,20 +30,67 @@
 
 <div class="row">
     <div class="col-12">
-        <!-- Auto Chart Generation Card -->
+        <!-- Main Automation Card -->
         <div class="card clean-card border-0 shadow-sm mb-4">
-            <div class="card-header bg-gradient-primary text-white">
+            <div class="card-header bg-light border-bottom">
                 <div class="d-flex align-items-center">
-                    <i class="bi bi-calendar2-week me-3 fs-5"></i>
+                    <i class="bi bi-sliders text-primary me-3 fs-5"></i>
                     <div>
-                        <h5 class="mb-0 fw-bold">Auto Chart Generation</h5>
-                        <p class="mb-0 small opacity-75">Automatically generate analysis charts on scheduled times</p>
+                        <h5 class="mb-0 fw-bold">Configuration Panel</h5>
+                        <p class="text-muted mb-0 small">Configure automated chart generation settings</p>
                     </div>
                 </div>
             </div>
-            <div class="card-body">
-                <form method="POST" action="{% url 'automation' %}" class="automation-form">
+            
+            <!-- Automation Content -->
+            <div class="card-body p-0">
+                <div class="p-4">
+                    <form method="POST" action="{% url 'automation' %}" class="automation-form">
                     {% csrf_token %}
+                    
+                    <!-- Portfolio Management Section (inside form) -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <div class="card border-0 shadow-sm">
+                                <div class="card-header bg-light border-bottom">
+                                    <div class="d-flex align-items-center">
+                                        <i class="bi bi-briefcase text-warning me-3 fs-5"></i>
+                                        <div>
+                                            <h5 class="mb-0 fw-bold">Portfolio Management</h5>
+                                            <p class="text-muted mb-0 small">Configure automatic portfolio addition for generated charts</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row align-items-center">
+                                        <div class="col-md-8">
+                                            <div class="portfolio-option-info">
+                                                <h6 class="mb-2 fw-bold">
+                                                    <i class="bi bi-plus-circle me-2 text-success"></i>
+                                                    Auto-Add to Portfolio
+                                                </h6>
+                                                <p class="text-muted mb-0 small">
+                                                    Automatically add generated charts to your active portfolio if they haven't been manually added by traders. 
+                                                    This ensures all automated charts are tracked for P&L monitoring and alerts.
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4 text-end">
+                                            <div class="form-check form-switch">
+                                                <input class="form-check-input" type="checkbox" name="auto_add_to_portfolio" id="auto_add_to_portfolio" 
+                                                       {% if settings.auto_add_to_portfolio %}checked{% endif %}>
+                                                <label class="form-check-label fw-bold" for="auto_add_to_portfolio">
+                                                    <span id="autoPortfolioStatus">
+                                                        {% if settings.auto_add_to_portfolio %}Enabled{% else %}Disabled{% endif %}
+                                                    </span>
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                     
                     <!-- Professional Enable/Disable Toggle -->
                     <div class="row mb-4">
@@ -92,25 +141,25 @@
                         <!-- Schedule Configuration -->
                         <div class="row g-4 mb-4">
                             <div class="col-md-8">
-                                <div class="card border-0 shadow-sm">
-                                    <div class="card-header bg-light">
-                                        <h6 class="mb-0 fw-bold">
-                                            <i class="bi bi-calendar-check text-primary me-2"></i>Schedule Configuration
+                                <div class="card border-0 shadow-sm" style="background-color: #6c757d;">
+                                    <div class="card-header" style="background-color: #5a6268; border-bottom: 1px solid #495057;">
+                                        <h6 class="mb-0 fw-bold text-white">
+                                            <i class="bi bi-calendar-check text-white me-2"></i>Schedule Configuration
                                         </h6>
                                     </div>
-                                    <div class="card-body">
+                                    <div class="card-body" style="background-color: #6c757d; color: white;">
                                         <!-- Days Selection with Select All -->
                                         <div class="mb-4">
-                                            <label class="form-label fw-bold mb-3">
-                                                <i class="bi bi-calendar3 me-2"></i>Select Days
+                                            <label class="form-label fw-bold mb-3 text-white">
+                                                <i class="bi bi-calendar3 me-2 text-white"></i>Select Days
                                             </label>
                                             <div class="d-flex justify-content-between align-items-center mb-3">
-                                                <span class="text-muted small">Choose which days to run automation</span>
+                                                <span class="text-light small">Choose which days to run automation</span>
                                                 <div class="btn-group btn-group-sm">
-                                                    <button type="button" class="btn btn-outline-primary btn-sm" id="selectAllDays">
+                                                    <button type="button" class="btn btn-light btn-sm" id="selectAllDays">
                                                         <i class="bi bi-check-all me-1"></i>Select All
                                                     </button>
-                                                    <button type="button" class="btn btn-outline-secondary btn-sm" id="clearAllDays">
+                                                    <button type="button" class="btn btn-outline-light btn-sm" id="clearAllDays">
                                                         <i class="bi bi-x-lg me-1"></i>Clear All
                                                     </button>
                                                 </div>
@@ -134,12 +183,12 @@
                                         
                                         <!-- Time Selection -->
                                         <div class="mb-3">
-                                            <label for="auto_gen_time" class="form-label fw-bold">
-                                                <i class="bi bi-clock me-2"></i>Generation Time
+                                            <label for="auto_gen_time" class="form-label fw-bold text-white">
+                                                <i class="bi bi-clock me-2 text-white"></i>Generation Time
                                             </label>
                                             <input type="time" class="form-control form-control-lg" name="auto_gen_time" 
                                                    id="auto_gen_time" value="{{ settings.auto_gen_time|default:'09:20' }}">
-                                            <small class="text-muted">Charts will be generated at this time on selected days</small>
+                                            <small class="text-light">Charts will be generated at this time on selected days</small>
                                         </div>
                                     </div>
                                 </div>
@@ -147,15 +196,15 @@
                             
                             <!-- Instruments Selection -->
                             <div class="col-md-4">
-                                <div class="card border-0 shadow-sm">
-                                    <div class="card-header bg-light">
-                                        <h6 class="mb-0 fw-bold">
-                                            <i class="bi bi-graph-up text-success me-2"></i>Instruments
+                                <div class="card border-0 shadow-sm" style="background-color: #6c757d;">
+                                    <div class="card-header" style="background-color: #5a6268; border-bottom: 1px solid #495057;">
+                                        <h6 class="mb-0 fw-bold text-white">
+                                            <i class="bi bi-graph-up text-white me-2"></i>Instruments
                                         </h6>
                                     </div>
-                                    <div class="card-body">
+                                    <div class="card-body" style="background-color: #6c757d; color: white;">
                                         <div class="mb-3">
-                                            <label class="form-label fw-bold">Select Instruments</label>
+                                            <label class="form-label fw-bold text-white">Select Instruments</label>
                                             
                                             <!-- NIFTY Selection -->
                                             <div class="instrument-card mb-3">
@@ -206,21 +255,138 @@
                     </div>
                     
                     <!-- Save Button -->
-                    <div class="row">
-                        <div class="col-12 text-end">
-                            <button type="submit" class="btn btn-primary btn-lg px-5">
-                                <i class="bi bi-check-circle me-2"></i>
-                                Save Automation Settings
-                            </button>
+                    <div class="p-4 border-top bg-light">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="text-muted small">
+                                <i class="bi bi-info-circle me-1"></i>
+                                Changes will be applied immediately after saving
+                            </div>
+                            <div class="btn-group">
+                                <button type="submit" class="btn btn-primary btn-lg px-5">
+                                    <i class="bi bi-check-circle me-2"></i>
+                                    Save All Settings
+                                </button>
+                                {% if settings.enable_auto_generation %}
+                                <button type="button" class="btn btn-success btn-lg px-4" onclick="testAutomation()">
+                                    <i class="bi bi-play-circle me-2"></i>
+                                    Test Now
+                                </button>
+                                {% endif %}
+                            </div>
                         </div>
                     </div>
                 </form>
+                
+                <!-- Test Automation Function -->
+                <script>
+                function testAutomation() {
+                    if (confirm('This will run automated chart generation now. Continue?')) {
+                        fetch('{% url "test_automation" %}', {
+                            method: 'POST',
+                            headers: {
+                                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                                'Content-Type': 'application/json',
+                            }
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            alert(data.message || 'Test completed! Check console for details.');
+                        })
+                        .catch(error => {
+                            alert('Error: ' + error.message);
+                        });
+                    }
+                }
+                </script>
             </div>
         </div>
     </div>
 </div>
 
 <style>
+/* Dashboard Header Styling */
+.dashboard-header {
+    background: linear-gradient(135deg, #f8fafb 0%, #ffffff 100%);
+    border-bottom: 1px solid #e5e7eb;
+    padding: 2rem 0;
+    margin-bottom: 2rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.header-content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.dashboard-title {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #1f2937;
+    margin: 0;
+    display: flex;
+    align-items: center;
+}
+
+.dashboard-title i {
+    color: #3b82f6;
+    font-size: 1.75rem;
+}
+
+.dashboard-subtitle {
+    color: #6b7280;
+    font-size: 1rem;
+    margin: 0;
+    font-weight: 400;
+}
+
+.status-badge-container {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.75rem 1.5rem;
+    border-radius: 9999px;
+    font-weight: 600;
+    font-size: 0.875rem;
+    letter-spacing: 0.025em;
+    transition: all 0.2s ease;
+}
+
+.status-active {
+    background-color: #10b981;
+    color: white;
+    box-shadow: 0 4px 14px rgba(16, 185, 129, 0.39);
+}
+
+.status-inactive {
+    background-color: #6b7280;
+    color: white;
+    box-shadow: 0 4px 14px rgba(107, 114, 128, 0.39);
+}
+
+.status-badge:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+}
+
+/* Settings Header Styling - Match Settings Page */
+.settings-header {
+    background: linear-gradient(135deg, #f8f9ff 0%, #ffffff 100%);
+    border-radius: 12px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    border: 1px solid #e3e8f0;
+}
+
+.clean-card {
+    border-radius: 12px;
+    overflow: hidden;
+}
+
 /* Professional Toggle Card Styling */
 .professional-toggle-card {
     background: linear-gradient(135deg, #f8f9ff 0%, #ffffff 100%);
@@ -542,6 +708,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const selectAllBtn = document.getElementById('selectAllDays');
     const clearAllBtn = document.getElementById('clearAllDays');
     const dayCheckboxes = document.querySelectorAll('.day-checkbox');
+    const autoPortfolioToggle = document.getElementById('auto_add_to_portfolio');
+    const autoPortfolioStatus = document.getElementById('autoPortfolioStatus');
     
     // Toggle automation settings visibility
     if (toggleSwitch && autoGenSettings) {
@@ -554,6 +722,21 @@ document.addEventListener('DOMContentLoaded', function() {
                 autoGenSettings.style.display = 'none';
                 statusIcon.className = 'bi bi-gear text-secondary';
                 statusText.textContent = 'Automation Disabled';
+            }
+        });
+    }
+    
+    // Auto Portfolio Toggle
+    if (autoPortfolioToggle && autoPortfolioStatus) {
+        autoPortfolioToggle.addEventListener('change', function() {
+            if (this.checked) {
+                autoPortfolioStatus.textContent = 'Enabled';
+                autoPortfolioStatus.classList.remove('text-danger');
+                autoPortfolioStatus.classList.add('text-success');
+            } else {
+                autoPortfolioStatus.textContent = 'Disabled';
+                autoPortfolioStatus.classList.remove('text-success');
+                autoPortfolioStatus.classList.add('text-danger');
             }
         });
     }

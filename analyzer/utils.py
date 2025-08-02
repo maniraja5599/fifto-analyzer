@@ -7,7 +7,7 @@ import pandas as pd
 import requests
 import yfinance as yf
 import math, time, json, os, pytz, uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from collections import defaultdict
 import numpy as np
 from django.conf import settings
@@ -800,19 +800,188 @@ def generate_analysis(instrument_name, calculation_type, selected_expiry_str):
 
 # --- Trade Action Functions ---
 def add_to_analysis(analysis_data):
-    if not analysis_data or not analysis_data.get('df_data'): return "Generate an analysis first."
+    print("🔍 ADD_TO_ANALYSIS DEBUG START")
+    print(f"📊 Analysis data received: {analysis_data is not None}")
+    
+    if not analysis_data or not analysis_data.get('df_data'): 
+        print("❌ No analysis data or df_data")
+        return "Generate an analysis first."
+    
+    print(f"📈 df_data entries: {len(analysis_data.get('df_data', []))}")
+    print(f"📋 Sample df_data: {analysis_data.get('df_data', [])[:1]}")
+    
     trades = load_trades()
+    print(f"📊 Existing trades: {len(trades)}")
+    
+    # Show existing trade IDs for debugging
+    if trades:
+        print("🔍 Existing trade IDs:")
+        for trade in trades:
+            print(f"   - {trade.get('id', 'NO_ID')}")
+    
     new_trades_added = 0
     start_time = datetime.now().strftime("%Y-%m-%d %H:%M")
     day_name = datetime.now().strftime("%A")
     entry_tag = f"{day_name} Selling"
+    
+    # Add timestamp to make trade IDs more unique
+    timestamp_suffix = datetime.now().strftime("%H%M")
+    
+    print(f"🏷️ Entry tag: {entry_tag}")
+    print(f"⏰ Timestamp suffix: {timestamp_suffix}")
+    
+    for i, entry in enumerate(analysis_data['df_data']):
+        print(f"\n🔄 Processing entry {i+1}: {entry}")
+        
+        # Check if the entry has the required fields
+        if 'Entry' not in entry:
+            print(f"❌ Missing 'Entry' field in entry: {entry}")
+            continue
+            
+        # Generate more unique trade ID with timestamp
+        base_id = f"{analysis_data['instrument']}_{analysis_data['expiry']}_{entry['Entry'].replace(' ', '')}"
+        trade_id = f"{base_id}_{timestamp_suffix}"
+        print(f"🆔 Generated trade ID: {trade_id}")
+        
+        # Check for duplicates
+        existing_trade = any(t['id'] == trade_id for t in trades)
+        print(f"🔍 Duplicate check: {existing_trade}")
+        
+        if existing_trade: 
+            print(f"⚠️ Skipping duplicate trade: {trade_id}")
+            # Try without timestamp for backward compatibility
+            fallback_id = base_id
+            if not any(t['id'] == fallback_id for t in trades):
+                trade_id = fallback_id
+                print(f"🔄 Using fallback ID: {trade_id}")
+            else:
+                print(f"❌ Both IDs exist, skipping")
+                continue
+            
+        # Create trade object
+        new_trade = {
+            "id": trade_id, 
+            "start_time": start_time, 
+            "status": "Running", 
+            "entry_tag": entry_tag, 
+            "instrument": analysis_data['instrument'], 
+            "expiry": analysis_data['expiry'], 
+            "reward_type": entry['Entry'], 
+            "ce_strike": entry.get('CE Strike', 0), 
+            "pe_strike": entry.get('PE Strike', 0), 
+            "initial_premium": entry.get('Combined Premium', 0), 
+            "target_amount": entry.get('Target', 0), 
+            "stoploss_amount": entry.get('Stoploss', 0)
+        }
+        
+        print(f"✅ Adding trade: {new_trade}")
+        trades.append(new_trade)
+        new_trades_added += 1
+    
+    print(f"💾 Saving {len(trades)} total trades ({new_trades_added} new)")
+    save_trades(trades)
+    
+    # Verify the save worked
+    saved_trades = load_trades()
+    print(f"✅ Verification: {len(saved_trades)} trades now in file")
+    
+    result = f"Added {new_trades_added} new trade(s) tagged as '{entry_tag}'."
+    print(f"📝 Result: {result}")
+    print("🔍 ADD_TO_ANALYSIS DEBUG END\n")
+    
+    return result
+
+def auto_add_to_portfolio(analysis_data, auto_tag="Auto Generated"):
+    """
+    Automatically add generated charts to portfolio for trades that weren't manually added.
+    This function is called when automation generates charts and they need to be added to active trades.
+    """
+    if not analysis_data or not analysis_data.get('df_data'):
+        return "No analysis data to add to portfolio."
+    
+    trades = load_trades()
+    new_trades_added = 0
+    start_time = datetime.now().strftime("%Y-%m-%d %H:%M")
+    
+    # Check if any trades from this analysis already exist
+    existing_trade_ids = {t['id'] for t in trades}
+    
     for entry in analysis_data['df_data']:
         trade_id = f"{analysis_data['instrument']}_{analysis_data['expiry']}_{entry['Entry'].replace(' ', '')}"
-        if any(t['id'] == trade_id for t in trades): continue
-        trades.append({"id": trade_id, "start_time": start_time, "status": "Running", "entry_tag": entry_tag, "instrument": analysis_data['instrument'], "expiry": analysis_data['expiry'], "reward_type": entry['Entry'], "ce_strike": entry['CE Strike'], "pe_strike": entry['PE Strike'], "initial_premium": entry['Combined Premium'], "target_amount": entry['Target'], "stoploss_amount": entry['Stoploss']})
-        new_trades_added += 1
-    save_trades(trades)
-    return f"Added {new_trades_added} new trade(s) tagged as '{entry_tag}'."
+        
+        # Only add if this specific trade doesn't already exist
+        if trade_id not in existing_trade_ids:
+            new_trade = {
+                "id": trade_id,
+                "start_time": start_time,
+                "status": "Running",
+                "entry_tag": auto_tag,
+                "instrument": analysis_data['instrument'],
+                "expiry": analysis_data['expiry'],
+                "reward_type": entry['Entry'],
+                "ce_strike": entry['CE Strike'],
+                "pe_strike": entry['PE Strike'],
+                "initial_premium": entry['Combined Premium'],
+                "target_amount": entry['Target'],
+                "stoploss_amount": entry['Stoploss'],
+                "auto_added": True  # Flag to identify auto-added trades
+            }
+            trades.append(new_trade)
+            new_trades_added += 1
+    
+    if new_trades_added > 0:
+        save_trades(trades)
+        
+        # Send Telegram notification about auto-added trades
+        notification_message = f"""🤖 *Auto Portfolio Update*
+
+📊 Generated charts automatically added to portfolio:
+- Instrument: {analysis_data['instrument']}
+- Expiry: {analysis_data['expiry']}
+- Trades Added: {new_trades_added}
+- Tag: {auto_tag}
+
+These trades are now being monitored for target/stoploss alerts."""
+        
+        send_telegram_message(notification_message)
+        
+        return f"✅ Auto-added {new_trades_added} trade(s) to portfolio with tag '{auto_tag}'"
+    else:
+        return "No new trades to add - all strategies already exist in portfolio."
+
+def generate_and_auto_add_analysis(instrument_name, calculation_type, selected_expiry_str, auto_add=True):
+    """
+    Generate analysis and optionally auto-add to portfolio.
+    This is used by automation to ensure generated charts are always added to active trades.
+    """
+    # Generate the analysis first
+    analysis_data, status_message = generate_analysis(instrument_name, calculation_type, selected_expiry_str)
+    
+    if analysis_data and auto_add:
+        # Check if user hasn't manually added these trades
+        trades = load_trades()
+        manual_trade_exists = False
+        
+        for entry in analysis_data['df_data']:
+            trade_id = f"{analysis_data['instrument']}_{analysis_data['expiry']}_{entry['Entry'].replace(' ', '')}"
+            # Check if trade exists and was manually added (doesn't have auto_added flag)
+            for trade in trades:
+                if trade['id'] == trade_id and not trade.get('auto_added', False):
+                    manual_trade_exists = True
+                    break
+            if manual_trade_exists:
+                break
+        
+        if not manual_trade_exists:
+            # Auto-add to portfolio since user hasn't manually added
+            auto_tag = f"Auto {datetime.now().strftime('%d-%b')} {instrument_name}"
+            auto_add_result = auto_add_to_portfolio(analysis_data, auto_tag)
+            
+            # Combine status messages
+            combined_status = f"{status_message}\n{auto_add_result}"
+            return analysis_data, combined_status
+    
+    return analysis_data, status_message
 
 def close_selected_trade(trade_id_to_close):
     all_trades = load_trades()
@@ -846,6 +1015,109 @@ def send_daily_chart_to_telegram(analysis_data):
         message_lines.append(f"- {entry['Entry']}: ₹{amount:.2f}")
     return send_telegram_message("\n".join(message_lines), image_paths=[summary_path, payoff_path])
     return True
+
+def run_automated_chart_generation():
+    """
+    Run automated chart generation based on configured settings.
+    This function automatically generates charts and adds them to portfolio for users who haven't manually added them.
+    """
+    settings = load_settings()
+    
+    # Check if auto-generation is enabled
+    if not settings.get('enable_auto_generation', False):
+        print("Auto-generation is disabled")
+        return "Auto-generation is disabled"
+    
+    # Get automation settings
+    auto_gen_instruments = settings.get('auto_gen_instruments', [])
+    auto_gen_days = settings.get('auto_gen_days', [])
+    auto_gen_time = settings.get('auto_gen_time', '09:20')
+    nifty_calc_type = settings.get('nifty_calc_type', 'Weekly')
+    banknifty_calc_type = settings.get('banknifty_calc_type', 'Monthly')
+    
+    # Check if today is a scheduled day
+    today = datetime.now().strftime('%A').lower()
+    if today not in [day.lower() for day in auto_gen_days]:
+        print(f"Today ({today}) is not a scheduled day for auto-generation")
+        return f"Today ({today}) is not a scheduled day for auto-generation"
+    
+    # Get current time and check if it's time to generate
+    current_time = datetime.now().strftime('%H:%M')
+    if current_time < auto_gen_time:
+        print(f"Current time ({current_time}) is before scheduled time ({auto_gen_time})")
+        return f"Current time ({current_time}) is before scheduled time ({auto_gen_time})"
+    
+    results = []
+    
+    # Generate expiry date (next Thursday for weekly, next month end for monthly)
+    def get_next_expiry(calc_type):
+        today = datetime.now()
+        if calc_type == 'Weekly':
+            # Find next Thursday
+            days_ahead = 3 - today.weekday()  # Thursday is 3
+            if days_ahead <= 0:  # Thursday already passed
+                days_ahead += 7
+            next_expiry = today + timedelta(days=days_ahead)
+        else:  # Monthly
+            # Find last Thursday of current month or next month
+            next_month = today.replace(day=28) + timedelta(days=4)
+            last_day = next_month - timedelta(days=next_month.day)
+            # Find last Thursday
+            last_thursday = last_day - timedelta(days=(last_day.weekday() - 3) % 7)
+            if last_thursday <= today:
+                # Next month
+                next_month = (today.replace(day=28) + timedelta(days=4)).replace(day=1)
+                next_month_last = (next_month.replace(day=28) + timedelta(days=4)) - timedelta(days=(next_month.replace(day=28) + timedelta(days=4)).day)
+                next_expiry = next_month_last - timedelta(days=(next_month_last.weekday() - 3) % 7)
+            else:
+                next_expiry = last_thursday
+        
+        return next_expiry.strftime('%d-%b-%Y')
+    
+    for instrument in auto_gen_instruments:
+        try:
+            calc_type = nifty_calc_type if instrument == 'NIFTY' else banknifty_calc_type
+            expiry = get_next_expiry(calc_type)
+            
+            print(f"🤖 Auto-generating charts for {instrument} {calc_type} expiring {expiry}")
+            
+            # Generate analysis with auto-add to portfolio
+            analysis_data, status_message = generate_and_auto_add_analysis(
+                instrument, calc_type, expiry, auto_add=True
+            )
+            
+            if analysis_data:
+                # Send charts to Telegram if configured
+                telegram_result = send_daily_chart_to_telegram(analysis_data)
+                
+                result = f"✅ {instrument} {calc_type}: {status_message}"
+                if "sent" in telegram_result.lower():
+                    result += f"\n📱 Charts sent to Telegram"
+                
+                results.append(result)
+                print(result)
+            else:
+                error_result = f"❌ {instrument} {calc_type}: {status_message}"
+                results.append(error_result)
+                print(error_result)
+                
+        except Exception as e:
+            error_result = f"❌ Error generating {instrument}: {str(e)}"
+            results.append(error_result)
+            print(error_result)
+    
+    # Send summary notification
+    if results:
+        summary_message = f"""🤖 *Automated Chart Generation Complete*
+
+📅 Date: {datetime.now().strftime('%d-%b-%Y %H:%M')}
+📊 Results:
+
+""" + "\n\n".join(results)
+        
+        send_telegram_message(summary_message)
+    
+    return "\n".join(results) if results else "No instruments configured for auto-generation"
 
 # In analyzer/utils.py
 

@@ -3,34 +3,41 @@
 {% block title %}Closed Trades{% endblock %}
 
 {% block content %}
-<div class="container-fluid px-4">
-    <!-- Header Section -->
-    <div class="row mb-4">
-        <div class="col-md-8">
-            <div class="page-title">
-                <h1 class="h3 fw-bold mb-1">
-                    <i class="bi bi-archive-fill me-2 text-secondary"></i>
-                    Closed Trades History
-                </h1>
-                <p class="text-muted mb-0">Complete history of your closed trading positions</p>
+<!-- Dashboard Style Header -->
+<div class="dashboard-header">
+    <div class="container-fluid">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <div class="header-content">
+                    <h1 class="dashboard-title">
+                        <i class="bi bi-archive-fill me-3"></i>
+                        Closed Trades History
+                    </h1>
+                    <p class="dashboard-subtitle">Complete history of your closed trading positions</p>
+                </div>
             </div>
-        </div>
-        <div class="col-md-4 text-end">
-            <div class="btn-group" role="group">
-                <a href="{% url 'trades_list' %}" class="btn btn-outline-primary">
-                    <i class="bi bi-activity me-2"></i>Active Trades
-                </a>
-                <button type="button" class="btn btn-primary">
-                    <i class="bi bi-archive me-2"></i>Closed Trades
-                </button>
-                {% if closed_trades %}
-                <button type="button" class="btn btn-outline-danger ms-2" data-bs-toggle="modal" data-bs-target="#deleteAllModal">
-                    <i class="bi bi-trash me-2"></i>Delete All
-                </button>
-                {% endif %}
+            <div class="col-md-4 text-end">
+                <div class="header-controls d-flex align-items-center justify-content-end gap-3">
+                    <div class="btn-group" role="group">
+                        <a href="{% url 'trades_list' %}" class="btn btn-outline-primary">
+                            <i class="bi bi-activity me-2"></i>Active Trades
+                        </a>
+                        <button type="button" class="btn btn-primary">
+                            <i class="bi bi-archive me-2"></i>Closed Trades
+                        </button>
+                    </div>
+                    {% if closed_trades %}
+                    <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteAllModal">
+                        <i class="bi bi-trash me-2"></i>Delete All
+                    </button>
+                    {% endif %}
+                </div>
             </div>
         </div>
     </div>
+</div>
+
+<div class="container-fluid px-4">
 
     <!-- Statistics Cards -->
     <div class="row g-4 mb-4">
@@ -369,6 +376,57 @@ function exportToCSV() {
 
 .badge {
     font-size: 0.75rem;
+}
+
+/* Dashboard Header Styling */
+.dashboard-header {
+    background: linear-gradient(135deg, #f8fafb 0%, #ffffff 100%);
+    border-bottom: 1px solid #e5e7eb;
+    padding: 2rem 0;
+    margin-bottom: 2rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.header-content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.dashboard-title {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #1f2937;
+    margin: 0;
+    display: flex;
+    align-items: center;
+}
+
+.dashboard-title i {
+    color: #3b82f6;
+    font-size: 1.75rem;
+}
+
+.dashboard-subtitle {
+    color: #6b7280;
+    font-size: 1rem;
+    margin: 0;
+    font-weight: 400;
+}
+
+.header-controls {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.btn {
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.btn:hover {
+    transform: translateY(-1px);
 }
 </style>
 {% endblock %}

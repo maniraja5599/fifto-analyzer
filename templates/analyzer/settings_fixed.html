@@ -3,25 +3,23 @@
 {% block title %}Settings{% endblock %}
 
 {% block content %}
-<!-- Dashboard Style Header -->
-<div class="dashboard-header">
-    <div class="container-fluid">
-        <div class="row align-items-center">
-            <div class="col-md-8">
-                <div class="header-content">
-                    <h1 class="dashboard-title">
-                        <i class="bi bi-gear-fill me-3"></i>
-                        Application Settings
-                    </h1>
-                    <p class="dashboard-subtitle">Configure your trading preferences and system behavior</p>
-                </div>
+<!-- Clean Settings Header -->
+<div class="settings-header mb-4">
+    <div class="row align-items-center">
+        <div class="col-md-8">
+            <div class="page-title">
+                <h1 class="h3 fw-bold mb-1">
+                    <i class="bi bi-gear-fill me-2 text-primary"></i>
+                    Application Settings
+                </h1>
+                <p class="text-muted mb-0">Configure your trading preferences and system behavior</p>
             </div>
-            <div class="col-md-4 text-end">
-                <div class="status-badge-container">
-                    <span class="status-badge status-active">
-                        <i class="bi bi-check-circle me-2"></i>
-                        System Active
-                    </span>
+        </div>
+        <div class="col-md-4 text-end">
+            <div class="settings-status">
+                <div class="badge bg-success fs-6 px-3 py-2">
+                    <i class="bi bi-check-circle me-2"></i>
+                    System Active
                 </div>
             </div>
         </div>
@@ -283,75 +281,6 @@
 </div>
 
 <style>
-/* Dashboard Header Styling */
-.dashboard-header {
-    background: linear-gradient(135deg, #f8fafb 0%, #ffffff 100%);
-    border-bottom: 1px solid #e5e7eb;
-    padding: 2rem 0;
-    margin-bottom: 2rem;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-.header-content {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-}
-
-.dashboard-title {
-    font-size: 2rem;
-    font-weight: 700;
-    color: #1f2937;
-    margin: 0;
-    display: flex;
-    align-items: center;
-}
-
-.dashboard-title i {
-    color: #3b82f6;
-    font-size: 1.75rem;
-}
-
-.dashboard-subtitle {
-    color: #6b7280;
-    font-size: 1rem;
-    margin: 0;
-    font-weight: 400;
-}
-
-.status-badge-container {
-    display: flex;
-    justify-content: flex-end;
-}
-
-.status-badge {
-    display: inline-flex;
-    align-items: center;
-    padding: 0.75rem 1.5rem;
-    border-radius: 9999px;
-    font-weight: 600;
-    font-size: 0.875rem;
-    letter-spacing: 0.025em;
-    transition: all 0.2s ease;
-}
-
-.status-active {
-    background-color: #10b981;
-    color: white;
-    box-shadow: 0 4px 14px rgba(16, 185, 129, 0.39);
-}
-
-.status-inactive {
-    background-color: #6b7280;
-    color: white;
-    box-shadow: 0 4px 14px rgba(107, 114, 128, 0.39);
-}
-
-.status-badge:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
-}
-
 /* Settings specific styling */
 .settings-header {
     background: linear-gradient(135deg, #f8f9ff 0%, #ffffff 100%);

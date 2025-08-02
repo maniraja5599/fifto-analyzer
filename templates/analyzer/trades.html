@@ -3,31 +3,33 @@
 {% block title %}Active Trades{% endblock %}
 
 {% block content %}
-<!-- Clean Trades Header -->
-<div class="trades-header mb-4">
-    <div class="row align-items-center">
-        <div class="col-md-6">
-            <div class="page-title">
-                <h1 class="h3 fw-bold mb-1">
-                    <i class="bi bi-graph-up me-2 text-primary"></i>
-                    Active Monitored Trades
-                </h1>
-                <p class="text-muted mb-0">Total P&L: <span class="fw-semibold">₹{{ total_pnl|floatformat:2 }}</span></p>
+<!-- Dashboard Style Header -->
+<div class="dashboard-header">
+    <div class="container-fluid">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <div class="header-content">
+                    <h1 class="dashboard-title">
+                        <i class="bi bi-graph-up me-3"></i>
+                        Active Monitored Trades
+                    </h1>
+                    <p class="dashboard-subtitle">Total P&L: <span class="fw-semibold text-success">₹{{ total_pnl|floatformat:2 }}</span></p>
+                </div>
             </div>
-        </div>
-        <div class="col-md-6 text-end">
-            <div class="page-controls d-flex align-items-center justify-content-end">
-                <a href="{% url 'closed_trades' %}" class="btn btn-outline-secondary btn-sm me-3">
-                    <i class="bi bi-archive me-2"></i>Closed Trades
-                </a>
-                <span class="me-3 fw-semibold">Group by:</span>
-                <div class="btn-group" role="group">
-                    <a href="?group_by=batch" class="btn {% if group_by == 'batch' %}btn-primary{% else %}btn-outline-primary{% endif %} btn-sm">
-                        Batch
+            <div class="col-md-6 text-end">
+                <div class="header-controls d-flex align-items-center justify-content-end gap-3">
+                    <a href="{% url 'closed_trades' %}" class="btn btn-outline-primary">
+                        <i class="bi bi-archive me-2"></i>Closed Trades
                     </a>
-                    <a href="?group_by=expiry" class="btn {% if group_by == 'expiry' %}btn-primary{% else %}btn-outline-primary{% endif %} btn-sm">
-                        Expiry
-                    </a>
+                    <div class="group-controls d-flex align-items-center gap-2">
+                        <span class="fw-semibold text-gray-600">Group by:</span>
+                        <div class="btn-group" role="group">
+                            <a href="?group_by=batch" class="btn {% if group_by == 'batch' %}btn-primary{% else %}btn-outline-primary{% endif %} btn-sm">
+                                Batch
+                            </a>
+                            <a href="?group_by=expiry" class="btn {% if group_by == 'expiry' %}btn-primary{% else %}btn-outline-primary{% endif %} btn-sm">
+                                Expiry
+                            </a>
                 </div>
             </div>
         </div>
@@ -208,4 +210,68 @@
     </div>
     {% endfor %}
 {% endif %}
+
+<style>
+/* Dashboard Header Styling */
+.dashboard-header {
+    background: linear-gradient(135deg, #f8fafb 0%, #ffffff 100%);
+    border-bottom: 1px solid #e5e7eb;
+    padding: 2rem 0;
+    margin-bottom: 2rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.header-content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.dashboard-title {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #1f2937;
+    margin: 0;
+    display: flex;
+    align-items: center;
+}
+
+.dashboard-title i {
+    color: #3b82f6;
+    font-size: 1.75rem;
+}
+
+.dashboard-subtitle {
+    color: #6b7280;
+    font-size: 1rem;
+    margin: 0;
+    font-weight: 400;
+}
+
+.header-controls {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.group-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.text-gray-600 {
+    color: #6b7280;
+}
+
+.btn {
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.btn:hover {
+    transform: translateY(-1px);
+}
+</style>
+
 {% endblock %}

@@ -8,12 +8,18 @@ from django.views.decorators.http import require_http_methods
 from django.urls import reverse
 import json
 import pandas as pd
+import os
 from datetime import datetime
 from collections import defaultdict
 from . import utils
 from .utils import generate_analysis, load_settings, save_settings
 
 def index(request):
+    # Handle session clearing
+    if request.method == 'POST' and request.POST.get('clear_session'):
+        request.session.pop('analysis_data', None)
+        return JsonResponse({'status': 'cleared'})
+    
     analysis_data = request.session.get('analysis_data')
     instrument = request.GET.get('instrument', 'NIFTY')
     chain = utils.get_option_chain_data(instrument)
@@ -87,12 +93,66 @@ def check_task_status(request, task_id):
     })
 
 def add_trades(request):
+    """
+    Add analysis results to active trades portfolio
+    """
+    print("🚀 ADD_TRADES FUNCTION CALLED!")
+    
     analysis_data = request.session.get('analysis_data')
+    print(f"📊 Analysis data found: {analysis_data is not None}")
+    
+    if analysis_data:
+        print(f"📈 Analysis data keys: {list(analysis_data.keys())}")
+        print(f"📊 Instrument: {analysis_data.get('instrument', 'Not found')}")
+        print(f"📅 Expiry: {analysis_data.get('expiry', 'Not found')}")
+        print(f"📋 df_data length: {len(analysis_data.get('df_data', []))}")
+        if analysis_data.get('df_data'):
+            print(f"📝 Sample df_data entry: {analysis_data['df_data'][0] if analysis_data['df_data'] else 'Empty'}")
+    
     if not analysis_data:
-        messages.warning(request, 'No analysis data found to add trades.')
+        print("⚠️ No analysis data found in session")
+        messages.warning(request, 'Please generate an analysis first before adding to portfolio.')
         return redirect(reverse('index'))
-    status = utils.add_to_analysis(analysis_data)
-    messages.success(request, status)
+    
+    print(f"📈 Processing analysis for {analysis_data.get('instrument', 'Unknown')} {analysis_data.get('expiry', 'Unknown')}")
+    
+    # Check trades before adding
+    trades_before = utils.load_trades()
+    print(f"📊 Trades before adding: {len(trades_before)}")
+    
+    # Show existing trade IDs to check for duplicates
+    if trades_before:
+        print("🔍 Existing trade IDs:")
+        for trade in trades_before:
+            print(f"   - {trade.get('id', 'NO_ID')}")
+    
+    try:
+        status = utils.add_to_analysis(analysis_data)
+        print(f"📝 Add to analysis result: {status}")
+        
+        # Check trades after adding
+        trades_after = utils.load_trades()
+        print(f"📈 Trades after adding: {len(trades_after)}")
+        
+        if len(trades_after) > len(trades_before):
+            print("✅ New trades were added successfully!")
+            new_trades = trades_after[len(trades_before):]
+            for trade in new_trades:
+                print(f"   🔹 Added: {trade['id']} | Status: {trade['status']} | Tag: {trade['entry_tag']}")
+            
+            messages.success(request, f"✅ {status}")
+        else:
+            print("ℹ️ No new trades added (duplicates prevented)")
+            messages.info(request, f"ℹ️ {status}")
+            
+    except Exception as e:
+        error_msg = f"Error adding trades: {str(e)}"
+        print(f"❌ {error_msg}")
+        import traceback
+        traceback.print_exc()
+        messages.error(request, error_msg)
+    
+    print("🔄 Redirecting to trades_list")
     return redirect(reverse('trades_list'))
 
 
@@ -515,6 +575,7 @@ def automation_view(request):
         auto_gen_instruments = request.POST.getlist('auto_gen_instruments')
         nifty_calc_type = request.POST.get('nifty_calc_type', 'Weekly')
         banknifty_calc_type = request.POST.get('banknifty_calc_type', 'Monthly')
+        auto_add_to_portfolio = 'auto_add_to_portfolio' in request.POST
         
         # Load current settings and update automation settings
         current_settings = utils.load_settings()
@@ -526,6 +587,7 @@ def automation_view(request):
             'auto_gen_instruments': auto_gen_instruments,
             'nifty_calc_type': nifty_calc_type,
             'banknifty_calc_type': banknifty_calc_type,
+            'auto_add_to_portfolio': auto_add_to_portfolio,
         })
         
         try:
@@ -725,6 +787,23 @@ def closed_trades_view(request):
     }
     
     return render(request, 'analyzer/closed_trades.html', context)
+
+def test_automation_view(request):
+    """Test automation functionality manually."""
+    if request.method == 'POST':
+        try:
+            result = utils.run_automated_chart_generation()
+            return JsonResponse({
+                'success': True, 
+                'message': f'Automation test completed!\n\n{result}'
+            })
+        except Exception as e:
+            return JsonResponse({
+                'success': False, 
+                'message': f'Automation test failed: {str(e)}'
+            })
+    else:
+        return JsonResponse({'success': False, 'message': 'Only POST method allowed'})
 
 
 def close_trade(request, trade_id):

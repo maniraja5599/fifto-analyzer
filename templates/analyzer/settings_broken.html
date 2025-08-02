@@ -1,0 +1,1311 @@
+{% extends "analyzer/layout.html" %}
+
+{% block title %}Settings{% endblock %}
+
+{% block content %}
+<!-- Clean Settings Header -->
+<div class="settings-header mb-4">
+    <div class="row align-items-center">
+        <div class="col-md-8">
+            <div class="page-title">
+                <h1 class="h3 fw-bold mb-1">
+                    <i class="bi bi-gear-fill me-2 text-primary"></i>
+                    Application Settings
+                </h1>
+                <p class="text-muted mb-0">Configure your trading preferences and system behavior</p>
+            </div>
+        </div>
+        <div class="col-md-4 text-end">
+            <div class="settings-status">
+                <div class="badge bg-success fs-6 px-3 py-2">
+                    <i class="bi bi-check-circle me-2"></i>
+                    System Active
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <!-- Main Settings Card with Tabs -->
+        <div class="card clean-card border-0 shadow-sm mb-4">
+            <div class="card-header bg-light border-bottom">
+                <div class="d-flex align-items-center">
+                    <i class="bi bi-sliders text-primary me-3 fs-5"></i>
+                    <div>
+                        <h5 class="mb-0 fw-bold">Configuration Panel</h5>
+                        <p class="text-muted mb-0 small">Customize your trading experience</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Settings Navigation Tabs -->
+            <div class="card-body p-0">
+                <nav class="settings-tabs">
+                    <div class="nav nav-tabs border-0" id="settingsTabs" role="tablist">
+                        <button class="nav-link active" id="telegram-tab" data-bs-toggle="tab" data-bs-target="#telegram-config" type="button" role="tab">
+                            <i class="bi bi-telegram me-2"></i>Telegram Config
+                        </button>
+                        <button class="nav-link" id="alerts-tab" data-bs-toggle="tab" data-bs-target="#alerts-config" type="button" role="tab">
+                            <i class="bi bi-bell-fill me-2"></i>Alerts
+                        </button>
+                        <button class="nav-link" id="lotsize-tab" data-bs-toggle="tab" data-bs-target="#lotsize-config" type="button" role="tab">
+                            <i class="bi bi-calculator me-2"></i>Lot Size
+                        </button>
+                        <button class="nav-link" id="refresh-tab" data-bs-toggle="tab" data-bs-target="#refresh-config" type="button" role="tab">
+                            <i class="bi bi-clock-history me-2"></i>Refresh Intervals
+                        </button>
+                    </div>
+                </nav>
+                
+                <form method="POST" action="{% url 'settings' %}" class="settings-form">
+                    {% csrf_token %}
+                    
+                    <div class="tab-content" id="settingsTabContent">
+                        <!-- Telegram Configuration Tab -->
+                        <div class="tab-pane fade show active" id="telegram-config" role="tabpanel">
+                            <div class="p-4">
+                                <div class="d-flex align-items-center mb-4">
+                                    <i class="bi bi-telegram text-primary me-3 fs-4"></i>
+                                    <div>
+                                        <h6 class="fw-bold mb-1">Telegram Integration</h6>
+                                        <p class="text-muted mb-0 small">Configure Telegram bot for receiving trade alerts and updates</p>
+                                    </div>
+                                </div>
+                                
+                                <div class="row g-4">
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-semibold">
+                                            <i class="bi bi-robot me-2 text-primary"></i>Bot Token
+                                        </label>
+                                        <input type="text" class="form-control form-control-lg" name="bot_token" 
+                                               value="{{ settings.bot_token|default_if_none:'' }}" 
+                                               placeholder="Enter your Telegram Bot Token">
+                                        <small class="text-muted">
+                                            <i class="bi bi-info-circle me-1"></i>
+                                            Get your bot token from <a href="https://t.me/BotFather" target="_blank" class="text-primary">@BotFather</a>
+                                        </small>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-semibold">
+                                            <i class="bi bi-chat-dots me-2 text-primary"></i>Chat ID
+                                        </label>
+                                        <input type="text" class="form-control form-control-lg" name="chat_id" 
+                                               value="{{ settings.chat_id|default_if_none:'' }}" 
+                                               placeholder="Enter your Telegram Chat ID">
+                                        <small class="text-muted">
+                                            <i class="bi bi-info-circle me-1"></i>
+                                            Send a message to <a href="https://t.me/userinfobot" target="_blank" class="text-primary">@userinfobot</a> to get your Chat ID
+                                        </small>
+                                    </div>
+                                </div>
+                                
+                                <div class="row mt-4">
+                                    <div class="col-12">
+                                        <div class="card border-light bg-light">
+                                            <div class="card-body">
+                                                <h6 class="fw-bold mb-3">
+                                                    <i class="bi bi-info-circle text-info me-2"></i>Setup Instructions
+                                                </h6>
+                                                <ol class="small mb-0">
+                                                    <li class="mb-2">Create a new bot by messaging <strong>@BotFather</strong> on Telegram</li>
+                                                    <li class="mb-2">Use the command <code>/newbot</code> and follow the instructions</li>
+                                                    <li class="mb-2">Copy the bot token provided by BotFather</li>
+                                                    <li class="mb-2">Get your Chat ID by messaging <strong>@userinfobot</strong></li>
+                                                    <li>Paste both values above and save settings</li>
+                                                </ol>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Alerts Configuration Tab -->
+                        <div class="tab-pane fade" id="alerts-config" role="tabpanel">
+                            <div class="p-4">
+                                <div class="d-flex align-items-center mb-4">
+                                    <i class="bi bi-bell-fill text-primary me-3 fs-4"></i>
+                                    <div>
+                                        <h6 class="fw-bold mb-1">Alert Preferences</h6>
+                                        <p class="text-muted mb-0 small">Configure when and how you receive trading alerts</p>
+                                    </div>
+                                </div>
+                                
+                                <div class="row g-4">
+                                    <div class="col-md-6">
+                                        <div class="card border-light">
+                                            <div class="card-body">
+                                                <h6 class="card-title fw-bold mb-3">
+                                                    <i class="bi bi-bullseye text-success me-2"></i>Target Alerts
+                                                </h6>
+                                                <div class="form-check form-switch mb-2">
+                                                    <input class="form-check-input" type="checkbox" name="enable_target_alerts" 
+                                                           id="enable_target_alerts" {% if settings.enable_target_alerts %}checked{% endif %}>
+                                                    <label class="form-check-label fw-semibold" for="enable_target_alerts">
+                                                        Enable Target Hit Notifications
+                                                    </label>
+                                                </div>
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input" type="checkbox" name="auto_close_targets" 
+                                                           id="auto_close_targets" {% if settings.auto_close_targets %}checked{% endif %}>
+                                                    <label class="form-check-label fw-semibold" for="auto_close_targets">
+                                                        Auto-close trades when target is hit
+                                                    </label>
+                                                </div>
+                                                <small class="text-muted">Get instant notifications when your profits reach target levels</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="card border-light">
+                                            <div class="card-body">
+                                                <h6 class="card-title fw-bold mb-3">
+                                                    <i class="bi bi-exclamation-triangle text-danger me-2"></i>Stop Loss Alerts
+                                                </h6>
+                                                <div class="form-check form-switch mb-2">
+                                                    <input class="form-check-input" type="checkbox" name="enable_stoploss_alerts" 
+                                                           id="enable_stoploss_alerts" {% if settings.enable_stoploss_alerts %}checked{% endif %}>
+                                                    <label class="form-check-label fw-semibold" for="enable_stoploss_alerts">
+                                                        Enable Stop Loss Notifications
+                                                    </label>
+                                                </div>
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input" type="checkbox" name="auto_close_stoploss" 
+                                                           id="auto_close_stoploss" {% if settings.auto_close_stoploss %}checked{% endif %}>
+                                                    <label class="form-check-label fw-semibold" for="auto_close_stoploss">
+                                                        Auto-close trades when stop loss is hit
+                                                    </label>
+                                                </div>
+                                                <small class="text-muted">Get instant alerts to limit your losses effectively</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Additional Alert Options -->
+                                <div class="row g-4 mt-2">
+                                    <div class="col-md-12">
+                                        <div class="card border-light">
+                                            <div class="card-body">
+                                                <h6 class="card-title fw-bold mb-3">
+                                                    <i class="bi bi-gear text-info me-2"></i>Additional Alert Options
+                                                </h6>
+                                                <div class="row g-3">
+                                                    <div class="col-md-4">
+                                                        <div class="form-check form-switch">
+                                                            <input class="form-check-input" type="checkbox" name="enable_trade_alerts" 
+                                                                   id="enable_trade_alerts" {% if settings.enable_trade_alerts %}checked{% endif %}>
+                                                            <label class="form-check-label fw-semibold" for="enable_trade_alerts">
+                                                                New Trade Alerts
+                                                            </label>
+                                                        </div>
+                                                        <small class="text-muted">Notify when new trades are added</small>
+                                                    </div>
+                                                    <div class="col-md-4">
+                                                        <div class="form-check form-switch">
+                                                            <input class="form-check-input" type="checkbox" name="enable_bulk_alerts" 
+                                                                   id="enable_bulk_alerts" {% if settings.enable_bulk_alerts %}checked{% endif %}>
+                                                            <label class="form-check-label fw-semibold" for="enable_bulk_alerts">
+                                                                Bulk Operation Alerts
+                                                            </label>
+                                                        </div>
+                                                        <small class="text-muted">Notify for bulk delete/close operations</small>
+                                                    </div>
+                                                    <div class="col-md-4">
+                                                        <div class="form-check form-switch">
+                                                            <input class="form-check-input" type="checkbox" name="enable_summary_alerts" 
+                                                                   id="enable_summary_alerts" {% if settings.enable_summary_alerts %}checked{% endif %}>
+                                                            <label class="form-check-label fw-semibold" for="enable_summary_alerts">
+                                                                Daily Summary Alerts
+                                                            </label>
+                                                        </div>
+                                                        <small class="text-muted">Send end-of-day P&L summaries</small>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Lot Size Configuration Tab -->
+                        <div class="tab-pane fade" id="lotsize-config" role="tabpanel">
+                            <div class="p-4">
+                                <div class="d-flex align-items-center mb-4">
+                                    <i class="bi bi-calculator text-primary me-3 fs-4"></i>
+                                    <div>
+                                        <h6 class="fw-bold mb-1">Lot Size Configuration</h6>
+                                        <p class="text-muted mb-0 small">Configure lot sizes for different instruments used in premium calculations</p>
+                                    </div>
+                                </div>
+                                
+                                <div class="row g-4">
+                                    <div class="col-md-6">
+                                        <div class="card border-light">
+                                            <div class="card-body">
+                                                <label class="form-label fw-semibold">
+                                                    <i class="bi bi-graph-up text-info me-2"></i>NIFTY Lot Size
+                                                </label>
+                                                <div class="input-group input-group-lg">
+                                                    <input type="number" class="form-control" name="nifty_lot_size" 
+                                                           value="{{ settings.nifty_lot_size|default:75 }}" 
+                                                           min="1" max="1000" step="1" required>
+                                                    <span class="input-group-text">lots</span>
+                                                </div>
+                                                <small class="text-muted">
+                                                    <i class="bi bi-info-circle me-1"></i>
+                                                    Standard lot size for NIFTY options (typically 75)
+                                                </small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="card border-light">
+                                            <div class="card-body">
+                                                <label class="form-label fw-semibold">
+                                                    <i class="bi bi-graph-up text-warning me-2"></i>BANKNIFTY Lot Size
+                                                </label>
+                                                <div class="input-group input-group-lg">
+                                                    <input type="number" class="form-control" name="banknifty_lot_size" 
+                                                           value="{{ settings.banknifty_lot_size|default:35 }}" 
+                                                           min="1" max="1000" step="1" required>
+                                                    <span class="input-group-text">lots</span>
+                                                </div>
+                                                <small class="text-muted">
+                                                    <i class="bi bi-info-circle me-1"></i>
+                                                    Standard lot size for BANKNIFTY options (typically 35)
+                                                </small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="row mt-4">
+                                    <div class="col-12">
+                                        <div class="alert alert-info d-flex align-items-center" role="alert">
+                                            <i class="bi bi-lightbulb me-2"></i>
+                                            <div>
+                                                <strong>Important:</strong> These lot sizes are used for calculating premium amounts, P&L, and target/stoploss values. 
+                                                Make sure they match your broker's current lot sizes for accurate calculations.
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Refresh Intervals Tab -->
+                        <div class="tab-pane fade" id="refresh-config" role="tabpanel">
+                            <div class="p-4">
+                                <div class="d-flex align-items-center mb-4">
+                                    <i class="bi bi-clock-history text-primary me-3 fs-4"></i>
+                                    <div>
+                                        <h6 class="fw-bold mb-1">Data Refresh Configuration</h6>
+                                        <p class="text-muted mb-0 small">Configure P&L monitoring and alert frequencies</p>
+                                    </div>
+                                </div>
+                                
+                                <div class="row g-4">
+                                    <div class="col-md-6">
+                                        <div class="card border-light">
+                                            <div class="card-body">
+                                                <label class="form-label fw-semibold mb-3">P&L Data Refresh Interval</label>
+                                                <select class="form-select form-select-lg" name="pnl_refresh_interval">
+                                                    <option value="1min" {% if settings.pnl_refresh_interval == '1min' %}selected{% endif %}>1 Minute</option>
+                                                    <option value="3min" {% if settings.pnl_refresh_interval == '3min' %}selected{% endif %}>3 Minutes</option>
+                                                    <option value="5min" {% if settings.pnl_refresh_interval == '5min' %}selected{% endif %}>5 Minutes</option>
+                                                    <option value="10min" {% if settings.pnl_refresh_interval == '10min' %}selected{% endif %}>10 Minutes</option>
+                                                    <option value="15min" {% if settings.pnl_refresh_interval == '15min' %}selected{% endif %}>15 Minutes</option>
+                                                </select>
+                                                <small class="text-muted">How often to refresh P&L data for real-time monitoring</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="card border-light">
+                                            <div class="card-body">
+                                                <label class="form-label fw-semibold mb-3">Telegram Alert Frequency</label>
+                                                <select class="form-select form-select-lg" name="telegram_alert_interval">
+                                                    <option value="5min" {% if settings.telegram_alert_interval == '5min' %}selected{% endif %}>5 Minutes</option>
+                                                    <option value="10min" {% if settings.telegram_alert_interval == '10min' %}selected{% endif %}>10 Minutes</option>
+                                                    <option value="15min" {% if settings.telegram_alert_interval == '15min' %}selected{% endif %}>15 Minutes</option>
+                                                    <option value="30min" {% if settings.telegram_alert_interval == '30min' %}selected{% endif %}>30 Minutes</option>
+                                                    <option value="1hour" {% if settings.telegram_alert_interval == '1hour' %}selected{% endif %}>1 Hour</option>
+                                                </select>
+                                                <small class="text-muted">How often to send P&L updates via Telegram</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="row g-4 mt-3">
+                                    <div class="col-md-12">
+                                        <div class="card border-light">
+                                            <div class="card-body">
+                                                <h6 class="card-title fw-bold mb-3">
+                                                    <i class="bi bi-calendar-check text-success me-2"></i>End of Day Summary
+                                                </h6>
+                                                <div class="form-check form-switch mb-2">
+                                                    <input class="form-check-input" type="checkbox" name="enable_eod_summary" 
+                                                           id="enable_eod_summary" {% if settings.enable_eod_summary %}checked{% endif %}>
+                                                    <label class="form-check-label fw-semibold" for="enable_eod_summary">
+                                                        Send daily P&L summary at 3:30:01 PM
+                                                    </label>
+                                                </div>
+                                                <small class="text-muted">Automatically send comprehensive P&L summary at market close</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Save Settings Section -->
+                    <div class="p-4 border-top">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="text-start">
+                                <small class="text-muted">
+                                    <i class="bi bi-shield-check me-2 text-success"></i>
+                                    Settings are automatically saved and encrypted
+                                </small>
+                            </div>
+                            <div class="action-buttons">
+                                <button type="button" class="btn btn-outline-secondary me-2" onclick="location.reload()">
+                                    <i class="bi bi-arrow-clockwise me-2"></i>Reset
+                                </button>
+                                <button type="submit" class="btn btn-primary btn-lg px-4">
+                                    <i class="bi bi-check-circle me-2"></i>Save Settings
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Feature Information Cards -->
+        <div class="row g-4 mt-2">
+            <div class="col-md-4">
+                <div class="card clean-card h-100">
+                    <div class="card-body text-center">
+                        <div class="mb-3">
+                            <i class="bi bi-lightning-charge text-warning" style="font-size: 2.5rem;"></i>
+                        </div>
+                        <h6 class="fw-bold mb-2">Real-time Monitoring</h6>
+                        <p class="text-muted small mb-0">Get instant notifications when your trades hit targets or stop losses</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card clean-card h-100">
+                    <div class="card-body text-center">
+                        <div class="mb-3">
+                            <i class="bi bi-graph-up-arrow text-success" style="font-size: 2.5rem;"></i>
+                        </div>
+                        <h6 class="fw-bold mb-2">P&L Tracking</h6>
+                        <p class="text-muted small mb-0">Comprehensive profit and loss tracking with detailed analytics</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card clean-card h-100">
+                    <div class="card-body text-center">
+                        <div class="mb-3">
+                            <i class="bi bi-bell text-info" style="font-size: 2.5rem;"></i>
+                        </div>
+                        <h6 class="fw-bold mb-2">Smart Alerts</h6>
+                        <p class="text-muted small mb-0">Intelligent alerts based on your trading patterns and preferences</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Professional Settings UI with Modern Color Scheme */
+:root {
+    --primary-gradient: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    --secondary-gradient: linear-gradient(135deg, #64748b 0%, #475569 100%);
+    --success-gradient: linear-gradient(135deg, #059669 0%, #047857 100%);
+    --warning-gradient: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+    --danger-gradient: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+    --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    --card-shadow-hover: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    --border-color: #e2e8f0;
+    --text-primary: #1e293b;
+    --text-secondary: #64748b;
+    --bg-light: #f8fafc;
+}
+
+/* Settings Header */
+.settings-header {
+    margin-bottom: 2rem;
+    padding: 1.5rem 0;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.settings-header .page-title h1 {
+    color: var(--text-primary);
+    font-weight: 700;
+    font-size: 2.25rem;
+    margin-bottom: 0.5rem;
+}
+
+.settings-header .page-title p {
+    color: var(--text-secondary);
+    font-size: 1.125rem;
+    margin: 0;
+}
+
+.settings-header .settings-status .badge {
+    font-size: 0.875rem;
+    font-weight: 600;
+    padding: 0.75rem 1.5rem;
+    border-radius: 50px;
+    background: var(--success-gradient) !important;
+    color: white;
+    box-shadow: var(--card-shadow);
+}
+
+/* Main Settings Card */
+.card.clean-card {
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    box-shadow: var(--card-shadow);
+    overflow: hidden;
+}
+
+.card-header.bg-light {
+    background: linear-gradient(135deg, var(--bg-light) 0%, #ffffff 100%) !important;
+    border-bottom: 1px solid var(--border-color);
+    padding: 1.5rem 2rem;
+}
+
+.card-header h5 {
+    color: var(--text-primary) !important;
+    font-weight: 700;
+    font-size: 1.375rem;
+    margin: 0;
+}
+
+.card-header p {
+    color: var(--text-secondary) !important;
+    margin: 0;
+    font-size: 0.9rem;
+}
+
+/* Professional Tab Navigation */
+.settings-tabs .nav-tabs {
+    background: var(--primary-gradient);
+    padding: 0;
+    margin: 0;
+    border: none;
+    border-radius: 0;
+}
+
+.settings-tabs .nav-link {
+    background: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.85);
+    padding: 1.25rem 2rem;
+    font-weight: 600;
+    font-size: 0.95rem;
+    transition: all 0.3s ease;
+    border-radius: 0;
+    position: relative;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+}
+
+.settings-tabs .nav-link i {
+    font-size: 1.125rem;
+    margin-right: 0.75rem;
+}
+
+.settings-tabs .nav-link:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    transform: translateY(-1px);
+}
+
+.settings-tabs .nav-link.active {
+    background: white;
+    color: var(--text-primary);
+    box-shadow: var(--card-shadow);
+    border-bottom: 3px solid #2563eb;
+}
+
+.settings-tabs .nav-link.active::before {
+    content: '';
+    position: absolute;
+    bottom: -3px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 40px;
+    height: 3px;
+    background: #2563eb;
+    border-radius: 2px;
+}
+
+/* Tab Content */
+.tab-content {
+    background: white;
+    min-height: 500px;
+}
+
+.tab-pane {
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Section Headers in Tabs */
+.tab-pane .d-flex.align-items-center.mb-4 {
+    border-bottom: 2px solid var(--border-color);
+    padding-bottom: 1rem;
+    margin-bottom: 2rem !important;
+}
+
+.tab-pane .d-flex.align-items-center.mb-4 i {
+    color: #2563eb;
+    font-size: 1.5rem;
+    margin-right: 1rem;
+}
+
+.tab-pane .d-flex.align-items-center.mb-4 h6 {
+    color: var(--text-primary);
+    font-weight: 700;
+    font-size: 1.25rem;
+    margin: 0;
+}
+
+.tab-pane .d-flex.align-items-center.mb-4 p {
+    color: var(--text-secondary);
+    margin: 0;
+    font-size: 0.9rem;
+}
+
+/* Card Styling within tabs */
+.card.border-light {
+    border: 2px solid var(--border-color) !important;
+    border-radius: 12px;
+    background: linear-gradient(135deg, var(--bg-light) 0%, #ffffff 100%);
+    box-shadow: var(--card-shadow);
+    transition: all 0.3s ease;
+}
+
+.card.border-light:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--card-shadow-hover);
+    border-color: rgba(37, 99, 235, 0.3) !important;
+}
+
+.card.border-light .card-body {
+    padding: 1.5rem;
+}
+
+.card .card-title {
+    color: var(--text-primary) !important;
+    font-weight: 700;
+    font-size: 1.125rem;
+    margin-bottom: 1rem;
+}
+
+.card .card-title i {
+    margin-right: 0.75rem;
+    font-size: 1.125rem;
+}
+
+/* Form Controls */
+.form-control, .form-select {
+    color: var(--text-primary) !important;
+    background-color: #ffffff !important;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    font-weight: 500;
+    padding: 0.75rem 1rem;
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    outline: none;
+}
+
+.form-control-lg, .form-select-lg {
+    padding: 0.875rem 1.25rem;
+    font-size: 1rem;
+}
+
+/* Form Labels */
+.form-label {
+    color: var(--text-primary) !important;
+    font-weight: 700;
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+    margin-bottom: 0.75rem;
+}
+
+.form-label i {
+    margin-right: 0.5rem;
+    color: #2563eb;
+}
+
+/* Toggle Switches */
+.form-check-input {
+    width: 3rem;
+    height: 1.5rem;
+    border-radius: 25px;
+    border: 2px solid #d1d5db;
+    transition: all 0.2s ease;
+}
+
+.form-check-input:checked {
+    background-color: #2563eb;
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.form-check-label {
+    color: var(--text-primary) !important;
+    font-weight: 600;
+    margin-left: 0.75rem;
+}
+
+.form-check-label.fw-semibold {
+    color: var(--text-primary) !important;
+    font-weight: 600 !important;
+}
+
+/* Input Groups */
+.input-group-text {
+    background: var(--bg-light);
+    border: 2px solid #e2e8f0;
+    color: var(--text-secondary);
+    font-weight: 600;
+    border-left: none;
+}
+
+.input-group-lg .input-group-text {
+    padding: 0.875rem 1.25rem;
+}
+
+/* Alert Styling */
+.alert.alert-info {
+    background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+    border: 2px solid #93c5fd;
+    color: #1e40af;
+    border-radius: 12px;
+    padding: 1.25rem;
+    box-shadow: var(--card-shadow);
+}
+
+.alert.alert-info i {
+    color: #2563eb;
+    font-size: 1.25rem;
+    margin-right: 0.75rem;
+}
+
+/* Button Styling */
+.btn-primary {
+    background: var(--primary-gradient);
+    border: none;
+    border-radius: 8px;
+    font-weight: 700;
+    padding: 0.875rem 2.5rem;
+    transition: all 0.2s ease;
+    box-shadow: var(--card-shadow);
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+}
+
+.btn-primary:hover {
+    background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
+    transform: translateY(-1px);
+    box-shadow: var(--card-shadow-hover);
+}
+
+.btn-outline-secondary {
+    color: var(--text-secondary);
+    border: 2px solid #d1d5db;
+    border-radius: 8px;
+    font-weight: 600;
+    transition: all 0.2s ease;
+}
+
+.btn-outline-secondary:hover {
+    background-color: var(--text-secondary);
+    border-color: var(--text-secondary);
+    color: white;
+    transform: translateY(-1px);
+}
+
+/* Text Colors */
+.text-primary {
+    color: #2563eb !important;
+}
+
+.text-success {
+    color: #059669 !important;
+}
+
+.text-info {
+    color: #0ea5e9 !important;
+}
+
+.text-warning {
+    color: #d97706 !important;
+}
+
+.text-danger {
+    color: #dc2626 !important;
+}
+
+.text-muted {
+    color: var(--text-secondary) !important;
+}
+
+.fw-bold, .fw-semibold {
+    color: var(--text-primary) !important;
+}
+
+/* Card Body */
+.card .card-body {
+    color: var(--text-primary) !important;
+    padding: 1.5rem;
+}
+
+.card small.text-muted {
+    color: var(--text-secondary) !important;
+    font-size: 0.875rem;
+}
+
+/* Feature Cards at Bottom */
+.card.clean-card.h-100 {
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    box-shadow: var(--card-shadow);
+    transition: all 0.3s ease;
+    background: linear-gradient(135deg, #ffffff 0%, var(--bg-light) 100%);
+}
+
+.card.clean-card.h-100:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--card-shadow-hover);
+    border-color: rgba(37, 99, 235, 0.2);
+}
+
+.card.clean-card.h-100 .card-body {
+    text-align: center;
+    padding: 2rem;
+}
+
+.card.clean-card.h-100 .card-body i {
+    color: #2563eb;
+    margin-bottom: 1rem;
+}
+
+.card.clean-card.h-100 .card-body h6 {
+    color: var(--text-primary);
+    font-weight: 700;
+    margin-bottom: 1rem;
+}
+
+.card.clean-card.h-100 .card-body p {
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+/* Special styling for different card types */
+.card-target {
+    border-left: 4px solid #059669 !important;
+}
+
+.card-stoploss {
+    border-left: 4px solid #dc2626 !important;
+}
+
+.card-telegram {
+    border-left: 4px solid #0ea5e9 !important;
+}
+
+.card-lotsize {
+    border-left: 4px solid #d97706 !important;
+}
+
+/* Professional save section */
+.p-4.border-top {
+    background: linear-gradient(135deg, var(--bg-light) 0%, #ffffff 100%);
+    border-top: 2px solid var(--border-color) !important;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .settings-header .page-title h1 {
+        font-size: 1.875rem;
+    }
+    
+    .settings-tabs .nav-link {
+        padding: 1rem 1.5rem;
+        font-size: 0.875rem;
+    }
+    
+    .card .card-body {
+        padding: 1rem;
+    }
+    
+    .card-header.bg-light {
+        padding: 1rem 1.5rem;
+    }
+    
+    .settings-header .row {
+        text-align: center;
+    }
+    
+    .settings-header .col-md-4 {
+        margin-top: 1rem;
+    }
+    
+    .btn-primary {
+        padding: 0.75rem 2rem;
+        font-size: 0.875rem;
+    }
+}
+
+/* Enhanced hover effects for better UX */
+.form-check:hover {
+    background-color: rgba(37, 99, 235, 0.05);
+    border-radius: 8px;
+    padding: 0.5rem;
+    margin: -0.5rem;
+}
+
+/* Professional gradient backgrounds for status indicators */
+.bg-gradient-success {
+    background: var(--success-gradient) !important;
+}
+
+.bg-gradient-warning {
+    background: var(--warning-gradient) !important;
+}
+
+.bg-gradient-danger {
+    background: var(--danger-gradient) !important;
+}
+
+.bg-gradient-info {
+    background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%) !important;
+}
+</style>
+
+{% endblock %}
+
+                    <!-- Auto Chart Generation Section -->
+                    <div class="mb-5">
+                        <div class="d-flex align-items-center mb-4">
+                            <i class="bi bi-calendar2-week text-primary me-3 fs-5"></i>
+                            <div>
+                                <h6 class="fw-bold mb-1">Auto Chart Generation</h6>
+                                <p class="text-muted mb-0 small">Automatically generate analysis charts on specific days and times</p>
+                            </div>
+                        </div>
+                        
+                        <div class="card border-light">
+                            <div class="card-body">
+                                <div class="form-check form-switch mb-4">
+                                    <input class="form-check-input" type="checkbox" name="enable_auto_generation" 
+                                           id="enable_auto_generation" {% if settings.enable_auto_generation %}checked{% endif %}>
+                                    <label class="form-check-label fw-bold" for="enable_auto_generation">
+                                        Enable Automatic Chart Generation
+                                    </label>
+                                </div>
+                                
+                                <div id="autoGenSettings" style="{% if not settings.enable_auto_generation %}display: none;{% endif %}">
+                                    <div class="row g-4">
+                                        <div class="col-md-8">
+                                            <label class="form-label fw-semibold mb-3">Select Days of Week</label>
+                                            <div class="row g-2">
+                                                {% for day_code, day_name in weekdays %}
+                                                <div class="col-md-6">
+                                                    <div class="form-check">
+                                                        <input class="form-check-input" type="checkbox" name="auto_gen_days" value="{{ day_code }}" 
+                                                               id="day_{{ day_code }}" {% if day_code in settings.auto_gen_days %}checked{% endif %}>
+                                                        <label class="form-check-label fw-semibold" for="day_{{ day_code }}">
+                                                            {{ day_name }}
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                                {% endfor %}
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label fw-semibold mb-3">Generation Time</label>
+                                            <input type="time" class="form-control" name="auto_gen_time" 
+                                                   value="{{ settings.auto_gen_time|default:'09:20' }}">
+                                            <small class="text-muted">Time to automatically generate charts</small>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="row g-4 mt-3">
+                                        <div class="col-md-6">
+                                            <label class="form-label fw-semibold">Default Instrument</label>
+                                            <select class="form-select" name="auto_gen_instrument">
+                                                <option value="NIFTY" {% if settings.auto_gen_instrument == 'NIFTY' %}selected{% endif %}>NIFTY</option>
+                                                <option value="BANKNIFTY" {% if settings.auto_gen_instrument == 'BANKNIFTY' %}selected{% endif %}>BANKNIFTY</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label fw-semibold">Default Calculation Type</label>
+                                            <select class="form-select" name="auto_gen_calc_type">
+                                                <option value="Weekly" {% if settings.auto_gen_calc_type == 'Weekly' %}selected{% endif %}>Weekly</option>
+                                                <option value="Monthly" {% if settings.auto_gen_calc_type == 'Monthly' %}selected{% endif %}>Monthly</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Telegram Configuration Section -->
+                    <div class="mb-5">
+                        <div class="d-flex align-items-center mb-4">
+                            <i class="bi bi-telegram text-primary me-3 fs-5"></i>
+                            <div>
+                                <h6 class="fw-bold mb-1">Telegram Integration</h6>
+                                <p class="text-muted mb-0 small">Configure Telegram bot for receiving trade alerts and updates</p>
+                            </div>
+                        </div>
+                        
+                        <div class="row g-4">
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">
+                                    <i class="bi bi-robot me-2 text-primary"></i>Bot Token
+                                </label>
+                                <input type="text" class="form-control" name="bot_token" 
+                                       value="{{ settings.bot_token|default_if_none:'' }}" 
+                                       placeholder="Enter your Telegram Bot Token">
+                                <small class="text-muted">
+                                    <i class="bi bi-info-circle me-1"></i>
+                                    Get your bot token from <a href="https://t.me/BotFather" target="_blank" class="text-primary">@BotFather</a>
+                                </small>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">
+                                    <i class="bi bi-chat-dots me-2 text-primary"></i>Chat ID
+                                </label>
+                                <input type="text" class="form-control" name="chat_id" 
+                                       value="{{ settings.chat_id|default_if_none:'' }}" 
+                                       placeholder="Enter your Telegram Chat ID">
+                                <small class="text-muted">
+                                    <i class="bi bi-info-circle me-1"></i>
+                                    Send a message to <a href="https://t.me/userinfobot" target="_blank" class="text-primary">@userinfobot</a> to get your Chat ID
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Alert Preferences Section -->
+                    <div class="mb-5">
+                        <div class="d-flex align-items-center mb-4">
+                            <i class="bi bi-bell-fill text-primary me-3 fs-5"></i>
+                            <div>
+                                <h6 class="fw-bold mb-1">Alert Preferences</h6>
+                                <p class="text-muted mb-0 small">Configure when and how you receive trading alerts</p>
+                            </div>
+                        </div>
+                        
+                        <div class="row g-4">
+                            <div class="col-md-6">
+                                <div class="card border-light">
+                                    <div class="card-body">
+                                        <h6 class="card-title fw-bold mb-3">
+                                            <i class="bi bi-bullseye text-success me-2"></i>Target Alerts
+                                        </h6>
+                                        <div class="form-check form-switch mb-2">
+                                            <input class="form-check-input" type="checkbox" name="enable_target_alerts" 
+                                                   id="enable_target_alerts" {% if settings.enable_target_alerts %}checked{% endif %}>
+                                            <label class="form-check-label fw-semibold" for="enable_target_alerts">
+                                                Enable Target Hit Notifications
+                                            </label>
+                                        </div>
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" name="auto_close_targets" 
+                                                   id="auto_close_targets" {% if settings.auto_close_targets %}checked{% endif %}>
+                                            <label class="form-check-label fw-semibold" for="auto_close_targets">
+                                                Auto-close trades when target is hit
+                                            </label>
+                                        </div>
+                                        <small class="text-muted">Get instant notifications when your profits reach target levels</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card border-light">
+                                    <div class="card-body">
+                                        <h6 class="card-title fw-bold mb-3">
+                                            <i class="bi bi-exclamation-triangle text-danger me-2"></i>Stop Loss Alerts
+                                        </h6>
+                                        <div class="form-check form-switch mb-2">
+                                            <input class="form-check-input" type="checkbox" name="enable_stoploss_alerts" 
+                                                   id="enable_stoploss_alerts" {% if settings.enable_stoploss_alerts %}checked{% endif %}>
+                                            <label class="form-check-label fw-semibold" for="enable_stoploss_alerts">
+                                                Enable Stop Loss Notifications
+                                            </label>
+                                        </div>
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" name="auto_close_stoploss" 
+                                                   id="auto_close_stoploss" {% if settings.auto_close_stoploss %}checked{% endif %}>
+                                            <label class="form-check-label fw-semibold" for="auto_close_stoploss">
+                                                Auto-close trades when stop loss is hit
+                                            </label>
+                                        </div>
+                                        <small class="text-muted">Get instant alerts to limit your losses effectively</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Additional Alert Options -->
+                        <div class="row g-4 mt-2">
+                            <div class="col-md-12">
+                                <div class="card border-light">
+                                    <div class="card-body">
+                                        <h6 class="card-title fw-bold mb-3">
+                                            <i class="bi bi-gear text-info me-2"></i>Additional Alert Options
+                                        </h6>
+                                        <div class="row g-3">
+                                            <div class="col-md-4">
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input" type="checkbox" name="enable_trade_alerts" 
+                                                           id="enable_trade_alerts" {% if settings.enable_trade_alerts %}checked{% endif %}>
+                                                    <label class="form-check-label fw-semibold" for="enable_trade_alerts">
+                                                        New Trade Alerts
+                                                    </label>
+                                                </div>
+                                                <small class="text-muted">Notify when new trades are added</small>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input" type="checkbox" name="enable_bulk_alerts" 
+                                                           id="enable_bulk_alerts" {% if settings.enable_bulk_alerts %}checked{% endif %}>
+                                                    <label class="form-check-label fw-semibold" for="enable_bulk_alerts">
+                                                        Bulk Operation Alerts
+                                                    </label>
+                                                </div>
+                                                <small class="text-muted">Notify for bulk delete/close operations</small>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input" type="checkbox" name="enable_summary_alerts" 
+                                                           id="enable_summary_alerts" {% if settings.enable_summary_alerts %}checked{% endif %}>
+                                                    <label class="form-check-label fw-semibold" for="enable_summary_alerts">
+                                                        Daily Summary Alerts
+                                                    </label>
+                                                </div>
+                                                <small class="text-muted">Send end-of-day P&L summaries</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Lot Size Configuration Section -->
+                    <div class="mb-5">
+                        <div class="d-flex align-items-center mb-4">
+                            <i class="bi bi-calculator text-primary me-3 fs-5"></i>
+                            <div>
+                                <h6 class="fw-bold mb-1">Lot Size Configuration</h6>
+                                <p class="text-muted mb-0 small">Configure lot sizes for different instruments used in premium calculations</p>
+                            </div>
+                        </div>
+                        
+                        <div class="card border-light">
+                            <div class="card-body">
+                                <div class="row g-4">
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-semibold">
+                                            <i class="bi bi-graph-up text-info me-2"></i>NIFTY Lot Size
+                                        </label>
+                                        <div class="input-group">
+                                            <input type="number" class="form-control" name="nifty_lot_size" 
+                                                   value="{{ settings.nifty_lot_size|default:75 }}" 
+                                                   min="1" max="1000" step="1" required>
+                                            <span class="input-group-text">lots</span>
+                                        </div>
+                                        <small class="text-muted">
+                                            <i class="bi bi-info-circle me-1"></i>
+                                            Standard lot size for NIFTY options (typically 75)
+                                        </small>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-semibold">
+                                            <i class="bi bi-graph-up text-warning me-2"></i>BANKNIFTY Lot Size
+                                        </label>
+                                        <div class="input-group">
+                                            <input type="number" class="form-control" name="banknifty_lot_size" 
+                                                   value="{{ settings.banknifty_lot_size|default:35 }}" 
+                                                   min="1" max="1000" step="1" required>
+                                            <span class="input-group-text">lots</span>
+                                        </div>
+                                        <small class="text-muted">
+                                            <i class="bi bi-info-circle me-1"></i>
+                                            Standard lot size for BANKNIFTY options (typically 35)
+                                        </small>
+                                    </div>
+                                </div>
+                                
+                                <div class="row mt-4">
+                                    <div class="col-12">
+                                        <div class="alert alert-info d-flex align-items-center" role="alert">
+                                            <i class="bi bi-lightbulb me-2"></i>
+                                            <div>
+                                                <strong>Important:</strong> These lot sizes are used for calculating premium amounts, P&L, and target/stoploss values. 
+                                                Make sure they match your broker's current lot sizes for accurate calculations.
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Save Settings Section -->
+                    <div class="text-center pt-4 mt-4 border-top">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="text-start">
+                                <small class="text-muted">
+                                    <i class="bi bi-shield-check me-2 text-success"></i>
+                                    Settings are automatically saved and encrypted
+                                </small>
+                            </div>
+                            <div class="action-buttons">
+                                <button type="button" class="btn btn-outline-secondary me-2" onclick="location.reload()">
+                                    <i class="bi bi-arrow-clockwise me-2"></i>Reset
+                                </button>
+                                <button type="submit" class="btn btn-primary btn-lg px-4">
+                                    <i class="bi bi-check-circle me-2"></i>Save Settings
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Feature Information Cards -->
+        <div class="row g-4 mt-2">
+            <div class="col-md-4">
+                <div class="card clean-card h-100">
+                    <div class="card-body text-center">
+                        <div class="mb-3">
+                            <i class="bi bi-lightning-charge text-warning" style="font-size: 2.5rem;"></i>
+                        </div>
+                        <h6 class="fw-bold mb-2">Real-time Monitoring</h6>
+                        <p class="text-muted small mb-0">Get instant notifications when your trades hit targets or stop losses</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card clean-card h-100">
+                    <div class="card-body text-center">
+                        <div class="mb-3">
+                            <i class="bi bi-graph-up-arrow text-success" style="font-size: 2.5rem;"></i>
+                        </div>
+                        <h6 class="fw-bold mb-2">P&L Tracking</h6>
+                        <p class="text-muted small mb-0">Comprehensive profit and loss tracking with detailed analytics</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card clean-card h-100">
+                    <div class="card-body text-center">
+                        <div class="mb-3">
+                            <i class="bi bi-bell text-info" style="font-size: 2.5rem;"></i>
+                        </div>
+                        <h6 class="fw-bold mb-2">Smart Alerts</h6>
+                        <p class="text-muted small mb-0">Intelligent alerts based on your trading patterns and preferences</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Fix text visibility in alert preference cards */
+.card .card-body {
+    color: #333 !important;
+}
+
+.card .card-title {
+    color: #333 !important;
+}
+
+.form-check-label {
+    color: #333 !important;
+}
+
+.card small.text-muted {
+    color: #666 !important;
+}
+
+/* Dark cards for better contrast */
+.card.border-light .card-body {
+    background-color: #f8f9fa;
+    border-radius: 8px;
+}
+
+/* Ensure form labels are visible */
+.form-label {
+    color: #333 !important;
+}
+
+/* Input text visibility */
+.form-control {
+    color: #333 !important;
+    background-color: #fff !important;
+}
+
+/* Switch labels */
+.form-check-label.fw-semibold {
+    color: #2c3e50 !important;
+    font-weight: 600 !important;
+}
+
+/* Help text */
+small.text-muted {
+    color: #6c757d !important;
+}
+
+/* Card titles in alert sections */
+.card-title.fw-bold {
+    color: #2c3e50 !important;
+}
+</style>
+
+<script>
+    // Auto generation toggle functionality
+    document.getElementById('enable_auto_generation').addEventListener('change', function() {
+        const autoGenSettings = document.getElementById('autoGenSettings');
+        if (this.checked) {
+            autoGenSettings.style.display = 'block';
+        } else {
+            autoGenSettings.style.display = 'none';
+        }
+    });
+</script>
+
+{% endblock %}
