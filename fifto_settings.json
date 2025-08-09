@@ -1,0 +1,49 @@
+{
+  "multiple_schedules": [
+    {
+      "id": "1723186800",
+      "name": "Morning NIFTY Strategy",
+      "enabled": true,
+      "time": "09:20",
+      "instruments": [
+        "NIFTY"
+      ],
+      "nifty_calc_type": "Weekly",
+      "banknifty_calc_type": "Monthly",
+      "active_days": [
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday"
+      ],
+      "telegram_alerts": true,
+      "created_at": "2025-08-09T11:37:23.232622",
+      "last_run": null,
+      "last_result": null
+    },
+    {
+      "id": "1723186801",
+      "name": "BANKNIFTY Auto Trade",
+      "enabled": false,
+      "time": "09:30",
+      "instruments": [
+        "BANKNIFTY"
+      ],
+      "nifty_calc_type": "Weekly",
+      "banknifty_calc_type": "Weekly",
+      "active_days": [
+        "monday",
+        "wednesday",
+        "friday"
+      ],
+      "telegram_alerts": false,
+      "created_at": "2025-08-09T11:37:23.232628",
+      "last_run": null,
+      "last_result": null
+    }
+  ],
+  "auto_add_to_portfolio": true,
+  "telegram_bot_token": "",
+  "telegram_chat_id": ""
+}

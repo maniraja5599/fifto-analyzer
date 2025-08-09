@@ -1021,12 +1021,48 @@ def run_automated_chart_generation():
     Run automated chart generation based on configured settings.
     This function automatically generates charts and adds them to portfolio for users who haven't manually added them.
     """
+    from django.utils import timezone
+    import pytz
+    
     settings = load_settings()
     
     # Check if auto-generation is enabled
     if not settings.get('enable_auto_generation', False):
         print("Auto-generation is disabled")
         return "Auto-generation is disabled"
+    
+    # System readiness check
+    try:
+        # Check if required settings exist
+        required_settings = ['auto_gen_instruments', 'auto_gen_days', 'auto_gen_time']
+        for setting in required_settings:
+            if not settings.get(setting):
+                print(f"Missing required setting: {setting}")
+                return f"System not ready: Missing {setting} configuration"
+        
+        # Get current time in IST timezone
+        ist_tz = pytz.timezone('Asia/Kolkata')
+        current_time = timezone.now().astimezone(ist_tz)
+        
+        # Check market hours (9:15 AM to 3:30 PM IST on weekdays) - Only for notification
+        market_open = current_time.replace(hour=9, minute=15, second=0, microsecond=0)
+        market_close = current_time.replace(hour=15, minute=30, second=0, microsecond=0)
+        
+        # Determine market status for notification
+        market_status = ""
+        if current_time.weekday() >= 5:  # Weekend
+            market_status = f"⚠️ WEEKEND: Market is closed - IST Time: {current_time.strftime('%Y-%m-%d %H:%M:%S')}"
+        elif current_time < market_open or current_time > market_close:
+            market_status = f"⚠️ AFTER HOURS: Market is closed - IST Time: {current_time.strftime('%H:%M')}"
+        else:
+            market_status = f"✅ MARKET HOURS: Active trading time - IST Time: {current_time.strftime('%H:%M')}"
+        
+        print(market_status)
+        # Continue execution regardless of market hours
+            
+    except Exception as e:
+        print(f"System readiness check failed: {str(e)}")
+        return f"System readiness check failed: {str(e)}"
     
     # Get automation settings
     auto_gen_instruments = settings.get('auto_gen_instruments', [])
@@ -1035,17 +1071,30 @@ def run_automated_chart_generation():
     nifty_calc_type = settings.get('nifty_calc_type', 'Weekly')
     banknifty_calc_type = settings.get('banknifty_calc_type', 'Monthly')
     
-    # Check if today is a scheduled day
-    today = datetime.now().strftime('%A').lower()
+    # Run automation on ALL DAYS - Check day only for information
+    today = current_time.strftime('%A').lower()
     if today not in [day.lower() for day in auto_gen_days]:
-        print(f"Today ({today}) is not a scheduled day for auto-generation")
-        return f"Today ({today}) is not a scheduled day for auto-generation"
+        day_status = f"📅 NON-SCHEDULED DAY: Today ({today}) is not in scheduled days ({auto_gen_days}) but running anyway"
+        print(day_status)
+    else:
+        day_status = f"📅 SCHEDULED DAY: Today ({today}) is a scheduled day for auto-generation"
+        print(day_status)
     
-    # Get current time and check if it's time to generate
-    current_time = datetime.now().strftime('%H:%M')
-    if current_time < auto_gen_time:
-        print(f"Current time ({current_time}) is before scheduled time ({auto_gen_time})")
-        return f"Current time ({current_time}) is before scheduled time ({auto_gen_time})"
+    # Enhanced time check with proper scheduling logic (using IST)
+    schedule_hour, schedule_minute = map(int, auto_gen_time.split(':'))
+    
+    # Create scheduled time for today in IST
+    scheduled_time = current_time.replace(hour=schedule_hour, minute=schedule_minute, second=0, microsecond=0)
+    
+    # Check if we're within 15 minutes of scheduled time (to handle scheduler delays)
+    time_diff = (current_time - scheduled_time).total_seconds() / 60  # minutes
+    
+    if time_diff < -15:  # More than 15 minutes before scheduled time
+        print(f"Current IST time ({current_time.strftime('%H:%M')}) is before scheduled time ({auto_gen_time}) - waiting...")
+        return f"Current IST time ({current_time.strftime('%H:%M')}) is before scheduled time ({auto_gen_time})"
+    elif time_diff > 60:  # More than 1 hour after scheduled time
+        print(f"Scheduled time ({auto_gen_time}) has passed by more than 1 hour - skipping for today")
+        return f"Scheduled time ({auto_gen_time}) has passed by more than 1 hour - skipping for today"
     
     results = []
     
@@ -1081,43 +1130,32 @@ def run_automated_chart_generation():
             
             print(f"🤖 Auto-generating charts for {instrument} {calc_type} expiring {expiry}")
             
-            # Generate analysis with auto-add to portfolio
-            analysis_data, status_message = generate_and_auto_add_analysis(
-                instrument, calc_type, expiry, auto_add=True
-            )
+            # Use the updated chart generation function
+            chart_result = generate_chart_for_instrument(instrument, calc_type)
+            results.append(f"{instrument}: {chart_result}")
+            print(f"Chart generation result: {chart_result}")
             
-            if analysis_data:
-                # Send charts to Telegram if configured
-                telegram_result = send_daily_chart_to_telegram(analysis_data)
-                
-                result = f"✅ {instrument} {calc_type}: {status_message}"
-                if "sent" in telegram_result.lower():
-                    result += f"\n📱 Charts sent to Telegram"
-                
-                results.append(result)
-                print(result)
-            else:
-                error_result = f"❌ {instrument} {calc_type}: {status_message}"
-                results.append(error_result)
-                print(error_result)
-                
         except Exception as e:
-            error_result = f"❌ Error generating {instrument}: {str(e)}"
+            error_result = f"❌ {instrument}: Error - {str(e)}"
             results.append(error_result)
             print(error_result)
     
-    # Send summary notification
+    # Prepare final result with market status notification
     if results:
-        summary_message = f"""🤖 *Automated Chart Generation Complete*
-
-📅 Date: {datetime.now().strftime('%d-%b-%Y %H:%M')}
-📊 Results:
-
-""" + "\n\n".join(results)
+        final_message = f"🤖 Automated Chart Generation Complete\n{market_status}\n" + "\n".join(results)
         
-        send_telegram_message(summary_message)
-    
-    return "\n".join(results) if results else "No instruments configured for auto-generation"
+        # Send to Telegram if configured
+        try:
+            send_telegram_message(final_message)
+            print("📱 Results sent to Telegram")
+        except Exception as e:
+            print(f"⚠️ Failed to send to Telegram: {str(e)}")
+        
+        return final_message
+    else:
+        no_instruments_message = f"🤖 Automation Run Complete\n{market_status}\nNo instruments selected for generation"
+        send_telegram_message(no_instruments_message)
+        return no_instruments_message
 
 # In analyzer/utils.py
 
@@ -1187,3 +1225,287 @@ def monitor_trades(is_eod_report=False):
 
     # Save any status changes
     save_trades(active_trades + completed_trades)
+
+def test_specific_automation(automation_config):
+    """Test a specific automation configuration."""
+    try:
+        print(f"[DEBUG] Testing automation: {automation_config['name']}")
+        
+        # Prepare test parameters
+        test_instruments = automation_config.get('instruments', [])
+        nifty_calc_type = automation_config.get('nifty_calc_type', 'Weekly')
+        banknifty_calc_type = automation_config.get('banknifty_calc_type', 'Monthly')
+        
+        if not test_instruments:
+            return "No instruments selected for testing"
+        
+        # Run chart generation for selected instruments
+        result_messages = []
+        
+        if 'NIFTY' in test_instruments:
+            print(f"[DEBUG] Generating NIFTY chart with {nifty_calc_type} calculation")
+            nifty_result = generate_chart_for_instrument('NIFTY', nifty_calc_type)
+            result_messages.append(f"NIFTY ({nifty_calc_type}): {nifty_result}")
+        
+        if 'BANKNIFTY' in test_instruments:
+            print(f"[DEBUG] Generating BANKNIFTY chart with {banknifty_calc_type} calculation")
+            banknifty_result = generate_chart_for_instrument('BANKNIFTY', banknifty_calc_type)
+            result_messages.append(f"BANKNIFTY ({banknifty_calc_type}): {banknifty_result}")
+        
+        final_result = "\n".join(result_messages) if result_messages else "No charts generated"
+        print(f"[DEBUG] Test automation completed: {final_result}")
+        return final_result
+        
+    except Exception as e:
+        error_msg = f"Test automation failed: {str(e)}"
+        print(f"[ERROR] {error_msg}")
+        return error_msg
+
+def generate_chart_for_instrument(instrument, calc_type):
+    """Generate chart for a specific instrument and calculation type."""
+    try:
+        print(f"🚀 Starting chart generation for {instrument} with {calc_type} calculation")
+        
+        # Get next expiry date based on calculation type
+        today = datetime.now()
+        if calc_type == 'Weekly':
+            # Find next Thursday
+            days_ahead = 3 - today.weekday()  # Thursday is 3
+            if days_ahead <= 0:  # Thursday already passed
+                days_ahead += 7
+            next_expiry = today + timedelta(days=days_ahead)
+        else:  # Monthly
+            # Find last Thursday of next month
+            if today.month == 12:
+                next_month = today.replace(year=today.year + 1, month=1, day=1)
+            else:
+                next_month = today.replace(month=today.month + 1, day=1)
+            last_day = (next_month + timedelta(days=31)).replace(day=1) - timedelta(days=1)
+            last_thursday = last_day - timedelta(days=(last_day.weekday() - 3) % 7)
+            next_expiry = last_thursday
+        
+        expiry_str = next_expiry.strftime('%d-%b-%Y')
+        print(f"📅 Using expiry date: {expiry_str}")
+        
+        # Call the actual analysis function
+        analysis_data, status_message = generate_analysis(instrument, calc_type, expiry_str)
+        
+        if analysis_data:
+            print(f"✅ Chart generation successful for {instrument}")
+            
+            # Auto-add to portfolio if enabled
+            try:
+                settings = load_settings()
+                if settings.get('auto_portfolio_enabled', False):
+                    add_result = add_to_analysis(analysis_data)
+                    print(f"📊 Auto-added to portfolio: {add_result}")
+            except Exception as e:
+                print(f"⚠️ Failed to auto-add to portfolio: {str(e)}")
+            
+            return f"✅ Chart generated successfully for {instrument} ({calc_type}) - {status_message}"
+        else:
+            print(f"❌ Chart generation failed for {instrument}: {status_message}")
+            return f"❌ Failed to generate chart for {instrument}: {status_message}"
+            
+    except Exception as e:
+        error_msg = f"❌ Chart generation error for {instrument}: {str(e)}"
+        print(error_msg)
+        return error_msg
+
+def start_permanent_schedule(schedule):
+    """Start a permanent schedule that runs daily until manually turned off."""
+    try:
+        from apscheduler.schedulers.background import BackgroundScheduler
+        import atexit
+        
+        # Create or get the global scheduler
+        if not hasattr(start_permanent_schedule, 'scheduler'):
+            start_permanent_schedule.scheduler = BackgroundScheduler()
+            start_permanent_schedule.scheduler.start()
+            atexit.register(lambda: start_permanent_schedule.scheduler.shutdown())
+        
+        scheduler = start_permanent_schedule.scheduler
+        job_id = f"permanent_schedule_{schedule['id']}"
+        
+        # Remove existing job if any
+        try:
+            scheduler.remove_job(job_id)
+        except:
+            pass
+        
+        # Schedule the job to run daily
+        hour, minute = schedule['time'].split(':')
+        scheduler.add_job(
+            func=run_permanent_schedule,
+            trigger='cron',
+            hour=int(hour),
+            minute=int(minute),
+            id=job_id,
+            args=[schedule],
+            replace_existing=True
+        )
+        
+        print(f"[+] Started permanent schedule '{schedule['name']}' at {schedule['time']} daily")
+        return True
+        
+    except Exception as e:
+        print(f"[ERROR] Failed to start permanent schedule: {str(e)}")
+        return False
+
+def stop_permanent_schedule(schedule_id):
+    """Stop a permanent schedule."""
+    try:
+        if hasattr(start_permanent_schedule, 'scheduler'):
+            scheduler = start_permanent_schedule.scheduler
+            job_id = f"permanent_schedule_{schedule_id}"
+            scheduler.remove_job(job_id)
+            print(f"[+] Stopped permanent schedule {schedule_id}")
+            return True
+    except Exception as e:
+        print(f"[ERROR] Failed to stop permanent schedule {schedule_id}: {str(e)}")
+        return False
+
+def run_permanent_schedule(schedule):
+    """Execute a permanent schedule."""
+    try:
+        print(f"[+] Running permanent schedule: {schedule['name']}")
+        
+        # Check if enabled
+        if not schedule.get('enabled', False):
+            print(f"[!] Schedule '{schedule['name']}' is disabled, skipping")
+            return
+        
+        # Get current time and check market status
+        current_time = datetime.now(pytz.timezone('Asia/Kolkata'))
+        
+        # Check market hours for notification
+        market_open = current_time.replace(hour=9, minute=15, second=0, microsecond=0)
+        market_close = current_time.replace(hour=15, minute=30, second=0, microsecond=0)
+        
+        # Determine market status
+        if current_time.weekday() >= 5:  # Weekend
+            market_status = f"⚠️ WEEKEND: Market is closed"
+        elif current_time < market_open or current_time > market_close:
+            market_status = f"⚠️ AFTER HOURS: Market is closed"
+        else:
+            market_status = f"✅ MARKET HOURS: Active trading time"
+        
+        print(f"Market Status: {market_status}")
+        
+        # Generate charts for selected instruments
+        results = []
+        
+        if 'NIFTY' in schedule.get('instruments', []):
+            nifty_result = generate_chart_for_instrument('NIFTY', schedule.get('nifty_calc_type', 'Weekly'))
+            results.append(f"NIFTY: {nifty_result}")
+        
+        if 'BANKNIFTY' in schedule.get('instruments', []):
+            banknifty_result = generate_chart_for_instrument('BANKNIFTY', schedule.get('banknifty_calc_type', 'Monthly'))
+            results.append(f"BANKNIFTY: {banknifty_result}")
+        
+        # Update schedule with last run information
+        schedule['last_run'] = current_time.isoformat()
+        if results:
+            schedule['last_result'] = "Success: Charts generated"
+        else:
+            schedule['last_result'] = "No instruments selected"
+        
+        # Save updated schedule
+        settings = load_settings()
+        multiple_schedules = settings.get('multiple_schedules', [])
+        for i, sched in enumerate(multiple_schedules):
+            if sched.get('id') == schedule.get('id'):
+                multiple_schedules[i] = schedule
+                break
+        settings['multiple_schedules'] = multiple_schedules
+        save_settings(settings)
+        
+        # Send results to Telegram with market status
+        if results:
+            message = f"🤖 Automated Chart Generation - {schedule['name']}\n{market_status}\n" + "\n".join(results)
+            send_telegram_message(message)
+        else:
+            message = f"🤖 Automated Schedule Run - {schedule['name']}\n{market_status}\nNo instruments selected for generation"
+            send_telegram_message(message)
+        
+        print(f"[+] Completed permanent schedule: {schedule['name']}")
+        
+    except Exception as e:
+        error_msg = f"[ERROR] Permanent schedule '{schedule['name']}' failed: {str(e)}"
+        print(error_msg)
+        
+        # Update schedule with error information
+        current_time = datetime.now(pytz.timezone('Asia/Kolkata'))
+        schedule['last_run'] = current_time.isoformat()
+        schedule['last_result'] = f"Error: {str(e)}"
+        
+        # Save updated schedule
+        try:
+            settings = load_settings()
+            multiple_schedules = settings.get('multiple_schedules', [])
+            for i, sched in enumerate(multiple_schedules):
+                if sched.get('id') == schedule.get('id'):
+                    multiple_schedules[i] = schedule
+                    break
+            settings['multiple_schedules'] = multiple_schedules
+            save_settings(settings)
+        except:
+            pass
+        
+        send_telegram_message(f"❌ Automation Error: {error_msg}")
+
+def run_test_automation_now():
+    """Run a quick test of automation system."""
+    try:
+        print(f"[DEBUG] Running quick automation test")
+        
+        # Test with default settings
+        nifty_result = generate_chart_for_instrument('NIFTY', 'Weekly')
+        banknifty_result = generate_chart_for_instrument('BANKNIFTY', 'Monthly')
+        
+        result = f"NIFTY (Weekly): {nifty_result}\nBANKNIFTY (Monthly): {banknifty_result}"
+        print(f"[DEBUG] Quick test completed: {result}")
+        return result
+        
+    except Exception as e:
+        error_msg = f"Quick test failed: {str(e)}"
+        print(f"[ERROR] {error_msg}")
+        return error_msg
+
+def add_automation_activity(title, description, status='success'):
+    """Add an automation activity to recent activities log."""
+    try:
+        settings = load_settings()
+        activities = settings.get('automation_activities', [])
+        
+        # Create new activity
+        activity = {
+            'title': title,
+            'description': description,
+            'status': status,
+            'time': datetime.now().strftime('%d %b %Y, %I:%M %p'),
+            'timestamp': datetime.now().isoformat()
+        }
+        
+        # Add to beginning of list
+        activities.insert(0, activity)
+        
+        # Keep only last 50 activities
+        activities = activities[:50]
+        
+        # Save back to settings
+        settings['automation_activities'] = activities
+        save_settings(settings)
+        
+    except Exception as e:
+        print(f"[ERROR] Failed to add automation activity: {str(e)}")
+
+def get_recent_automation_activities(limit=10):
+    """Get recent automation activities."""
+    try:
+        settings = load_settings()
+        activities = settings.get('automation_activities', [])
+        return activities[:limit]
+    except Exception as e:
+        print(f"[ERROR] Failed to get automation activities: {str(e)}")
+        return []

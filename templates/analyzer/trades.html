@@ -18,21 +18,52 @@
             </div>
             <div class="col-md-6 text-end">
                 <div class="header-controls d-flex align-items-center justify-content-end gap-3">
-                    <a href="{% url 'closed_trades' %}" class="btn btn-outline-primary">
+                    <a href="{% url 'closed_trades' %}" class="btn btn-outline-primary btn-lg px-4">
                         <i class="bi bi-archive me-2"></i>Closed Trades
                     </a>
-                    <div class="group-controls d-flex align-items-center gap-2">
-                        <span class="fw-semibold text-gray-600">Group by:</span>
-                        <div class="btn-group" role="group">
-                            <a href="?group_by=batch" class="btn {% if group_by == 'batch' %}btn-primary{% else %}btn-outline-primary{% endif %} btn-sm">
-                                Batch
-                            </a>
-                            <a href="?group_by=expiry" class="btn {% if group_by == 'expiry' %}btn-primary{% else %}btn-outline-primary{% endif %} btn-sm">
-                                Expiry
-                            </a>
+                    
+                    <!-- Enhanced Sorting and Filter Controls -->
+                    <div class="sorting-controls d-flex align-items-center gap-2">
+                        <!-- Group By Controls -->
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="fw-semibold text-muted small">Group by:</span>
+                            <div class="btn-group" role="group">
+                                <a href="?group_by=automation_batch&instrument={{ request.GET.instrument|default:'all' }}" 
+                                   class="btn {% if group_by == 'automation_batch' %}btn-primary{% else %}btn-outline-primary{% endif %} btn-sm px-3">
+                                    Auto Batch
+                                </a>
+                                <a href="?group_by=day&instrument={{ request.GET.instrument|default:'all' }}" 
+                                   class="btn {% if group_by == 'day' %}btn-primary{% else %}btn-outline-primary{% endif %} btn-sm px-3">
+                                    Day
+                                </a>
+                                <a href="?group_by=expiry&instrument={{ request.GET.instrument|default:'all' }}" 
+                                   class="btn {% if group_by == 'expiry' %}btn-primary{% else %}btn-outline-primary{% endif %} btn-sm px-3">
+                                    Expiry
+                                </a>
+                            </div>
+                        </div>
+                        
+                        <!-- Instrument Filter -->
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="fw-semibold text-muted small">Filter:</span>
+                            <div class="btn-group" role="group">
+                                <a href="?group_by={{ group_by }}&instrument=all" 
+                                   class="btn {% if request.GET.instrument == 'all' or not request.GET.instrument %}btn-secondary{% else %}btn-outline-secondary{% endif %} btn-sm px-3">
+                                    All
+                                </a>
+                                <a href="?group_by={{ group_by }}&instrument=NIFTY" 
+                                   class="btn {% if request.GET.instrument == 'NIFTY' %}btn-info{% else %}btn-outline-info{% endif %} btn-sm px-3">
+                                    NIFTY
+                                </a>
+                                <a href="?group_by={{ group_by }}&instrument=BANKNIFTY" 
+                                   class="btn {% if request.GET.instrument == 'BANKNIFTY' %}btn-warning{% else %}btn-outline-warning{% endif %} btn-sm px-3">
+                                    BANKNIFTY
+                                </a>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </div>
     </div>
 </div>
 
@@ -46,7 +77,7 @@
                 </div>
                 <h5 class="fw-bold mb-2">No active trades found</h5>
                 <p class="text-muted mb-4">Start by generating an analysis and adding trades to monitor.</p>
-                <a href="{% url 'index' %}" class="btn btn-primary">
+                <a href="{% url 'index' %}" class="btn btn-primary btn-lg px-4">
                     <i class="bi bi-plus-circle me-2"></i>Generate Analysis
                 </a>
             </div>
@@ -61,13 +92,21 @@
                 <div class="d-flex justify-content-between align-items-center">
                     <div class="group-info">
                         <h6 class="fw-bold mb-1 text-primary">
-                            {% if group_by == 'batch' %}
-                                <i class="bi bi-calendar me-2"></i>Batch {{ group_key }}
-                            {% else %}
+                            {% if group_by == 'automation_batch' %}
+                                <i class="bi bi-robot me-2"></i>{{ group_key }}
+                            {% elif group_by == 'day' %}
+                                <i class="bi bi-calendar-day me-2"></i>{{ group_key }}
+                            {% elif group_by == 'expiry' %}
                                 <i class="bi bi-calendar-event me-2"></i>{{ group_key }}
+                            {% else %}
+                                <i class="bi bi-collection me-2"></i>{{ group_key }}
                             {% endif %}
                         </h6>
-                        <small class="text-muted">{{ group_data.count }} trade{{ group_data.count|pluralize }}</small>
+                        <small class="text-muted">{{ group_data.count }} trade{{ group_data.count|pluralize }}
+                            {% if group_data.instruments %}
+                                • {{ group_data.instruments|join:", " }}
+                            {% endif %}
+                        </small>
                     </div>
                     <div class="group-stats d-flex align-items-center">
                         <span class="badge {% if group_data.total_pnl >= 0 %}bg-success{% else %}bg-danger{% endif %} me-3">
@@ -83,8 +122,10 @@
                                         {% csrf_token %}
                                         <input type="hidden" name="action" value="close_group">
                                         <input type="hidden" name="group_by" value="{{ group_by }}">
-                                        {% if group_by == 'batch' %}
+                                        {% if group_by == 'automation_batch' %}
                                             <input type="hidden" name="batch_tag" value="{{ group_key }}">
+                                        {% elif group_by == 'day' %}
+                                            <input type="hidden" name="day_group" value="{{ group_key }}">
                                         {% else %}
                                             <input type="hidden" name="expiry_date" value="{{ group_key }}">
                                         {% endif %}
@@ -99,8 +140,10 @@
                                         {% csrf_token %}
                                         <input type="hidden" name="action" value="delete_batch">
                                         <input type="hidden" name="group_by" value="{{ group_by }}">
-                                        {% if group_by == 'batch' %}
+                                        {% if group_by == 'automation_batch' %}
                                             <input type="hidden" name="batch_tag" value="{{ group_key }}">
+                                        {% elif group_by == 'day' %}
+                                            <input type="hidden" name="day_group" value="{{ group_key }}">
                                         {% else %}
                                             <input type="hidden" name="expiry_date" value="{{ group_key }}">
                                         {% endif %}
@@ -172,8 +215,8 @@
                                 </td>
                                 <td>
                                     <div class="dropdown">
-                                        <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                                            <i class="bi bi-gear"></i>
+                                        <button class="btn btn-outline-secondary btn-sm dropdown-toggle px-3" type="button" data-bs-toggle="dropdown">
+                                            <i class="bi bi-gear me-1"></i>Actions
                                         </button>
                                         <ul class="dropdown-menu">
                                             <li>
@@ -271,6 +314,24 @@
 
 .btn:hover {
     transform: translateY(-1px);
+}
+
+/* Extra small button styling */
+.btn-xs {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+    line-height: 1.2;
+    border-radius: 0.375rem;
+}
+
+/* Compact sorting controls */
+.sorting-controls {
+    font-size: 0.875rem;
+}
+
+.sorting-controls .small {
+    font-size: 0.75rem;
+    font-weight: 600;
 }
 </style>
 

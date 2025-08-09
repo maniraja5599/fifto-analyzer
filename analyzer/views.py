@@ -315,7 +315,7 @@ def trades_list(request):
         elif action == 'close_group':
             closed_count = 0
             total_pnl = 0
-            if group_by == 'batch':
+            if group_by == 'automation_batch':
                 batch_tag = request.POST.get('batch_tag')
                 for trade in trades:
                     if trade.get('entry_tag', 'General Trades') == batch_tag and trade.get('status') == 'Running':
@@ -327,8 +327,27 @@ def trades_list(request):
                         closed_count += 1
                 utils.save_trades(trades)
                 # Send Telegram notification
-                utils.send_telegram_message(f"📝 Batch Close: {closed_count} trades from '{batch_tag}' closed with total P&L ₹{total_pnl:.2f}")
-                messages.success(request, f'Closed {closed_count} trades from batch "{batch_tag}" with total P&L ₹{total_pnl:.2f}.')
+                utils.send_telegram_message(f"📝 Automation Batch Close: {closed_count} trades from '{batch_tag}' closed with total P&L ₹{total_pnl:.2f}")
+                messages.success(request, f'Closed {closed_count} trades from automation batch "{batch_tag}" with total P&L ₹{total_pnl:.2f}.')
+            elif group_by == 'day':
+                day_group = request.POST.get('day_group')
+                for trade in trades:
+                    try:
+                        start_dt = datetime.strptime(trade['start_time'], "%Y-%m-%d %H:%M")
+                        trade_day = start_dt.strftime('%d-%b-%Y')
+                        if trade_day == day_group and trade.get('status') == 'Running':
+                            current_pnl = trade.get('pnl', 0)
+                            trade['status'] = 'Manually Closed'
+                            trade['final_pnl'] = current_pnl
+                            trade['closed_date'] = datetime.now().isoformat()
+                            total_pnl += current_pnl
+                            closed_count += 1
+                    except (ValueError, KeyError):
+                        continue
+                utils.save_trades(trades)
+                # Send Telegram notification
+                utils.send_telegram_message(f"📝 Day Close: {closed_count} trades from '{day_group}' closed with total P&L ₹{total_pnl:.2f}")
+                messages.success(request, f'Closed {closed_count} trades from day "{day_group}" with total P&L ₹{total_pnl:.2f}.')
             else:  # expiry grouping
                 expiry_date = request.POST.get('expiry_date')
                 for trade in trades:
@@ -346,15 +365,33 @@ def trades_list(request):
             return redirect('trades_list')
             
         elif action == 'delete_batch':
-            if group_by == 'batch':
+            if group_by == 'automation_batch':
                 batch_tag = request.POST.get('batch_tag')
                 original_count = len(trades)
                 trades = [t for t in trades if t.get('entry_tag', 'General Trades') != batch_tag]
                 deleted_count = original_count - len(trades)
                 utils.save_trades(trades)
                 # Send Telegram notification
-                utils.send_telegram_message(f"🗑️ Batch Delete: {deleted_count} trades from '{batch_tag}' deleted")
-                messages.success(request, f'Deleted {deleted_count} trades from batch "{batch_tag}".')
+                utils.send_telegram_message(f"🗑️ Automation Batch Delete: {deleted_count} trades from '{batch_tag}' deleted")
+                messages.success(request, f'Deleted {deleted_count} trades from automation batch "{batch_tag}".')
+            elif group_by == 'day':
+                day_group = request.POST.get('day_group')
+                original_count = len(trades)
+                filtered_trades = []
+                for trade in trades:
+                    try:
+                        start_dt = datetime.strptime(trade['start_time'], "%Y-%m-%d %H:%M")
+                        trade_day = start_dt.strftime('%d-%b-%Y')
+                        if trade_day != day_group:
+                            filtered_trades.append(trade)
+                    except (ValueError, KeyError):
+                        filtered_trades.append(trade)
+                trades = filtered_trades
+                deleted_count = original_count - len(trades)
+                utils.save_trades(trades)
+                # Send Telegram notification
+                utils.send_telegram_message(f"🗑️ Day Delete: {deleted_count} trades from '{day_group}' deleted")
+                messages.success(request, f'Deleted {deleted_count} trades from day "{day_group}".')
             else:  # expiry grouping
                 expiry_date = request.POST.get('expiry_date')
                 original_count = len(trades)
@@ -437,9 +474,17 @@ def trades_list(request):
             trade['pnl'] = "N/A"
             trade['current_premium'] = "N/A"
         
-        # Group by batch or expiry
-        if group_by == 'batch':
+        # Group by automation_batch, day, or expiry
+        if group_by == 'automation_batch':
+            # Group by automation generation (one automation creates one batch)
             group_key = trade.get('entry_tag', 'General Trades')
+        elif group_by == 'day':
+            # Group by day
+            try:
+                start_dt = datetime.strptime(trade['start_time'], "%Y-%m-%d %H:%M")
+                group_key = start_dt.strftime('%d-%b-%Y')
+            except (ValueError, KeyError):
+                group_key = 'Unknown Date'
         else:  # expiry grouping
             group_key = trade.get('expiry', 'Unknown Expiry')
         
@@ -465,7 +510,7 @@ def trades_list(request):
         'total_pnl': total_pnl,
         'has_active_trades': len(grouped_trades) > 0,
         'group_by': group_by,
-        'group_type_display': 'Batch' if group_by == 'batch' else 'Expiry Date',
+        'group_type_display': 'Automation Batch' if group_by == 'automation_batch' else ('Day' if group_by == 'day' else 'Expiry Date'),
         'instrument_filter': instrument_filter,
         'tag_filter': tag_filter,
         'all_instruments': all_instruments,
@@ -557,7 +602,7 @@ def settings_view(request):
 
 
 def automation_view(request):
-    """Handle automation configuration for auto chart generation."""
+    """Handle multiple automation schedules with enhanced functionality."""
     weekdays = [
         ('monday', 'Monday'),
         ('tuesday', 'Tuesday'),
@@ -565,52 +610,179 @@ def automation_view(request):
         ('thursday', 'Thursday'),
         ('friday', 'Friday'),
         ('saturday', 'Saturday'),
+        ('sunday', 'Sunday'),
     ]
-
+    
     if request.method == 'POST':
-        # Auto-generation settings
-        enable_auto_generation = 'enable_auto_generation' in request.POST
-        auto_gen_days = request.POST.getlist('auto_gen_days')
-        auto_gen_time = request.POST.get('auto_gen_time', '09:20')
-        auto_gen_instruments = request.POST.getlist('auto_gen_instruments')
-        nifty_calc_type = request.POST.get('nifty_calc_type', 'Weekly')
-        banknifty_calc_type = request.POST.get('banknifty_calc_type', 'Monthly')
-        auto_add_to_portfolio = 'auto_add_to_portfolio' in request.POST
+        action = request.POST.get('action')
         
-        # Load current settings and update automation settings
-        current_settings = utils.load_settings()
-        current_settings.update({
-            # Auto-generation settings
-            'enable_auto_generation': enable_auto_generation,
-            'auto_gen_days': auto_gen_days,
-            'auto_gen_time': auto_gen_time,
-            'auto_gen_instruments': auto_gen_instruments,
-            'nifty_calc_type': nifty_calc_type,
-            'banknifty_calc_type': banknifty_calc_type,
-            'auto_add_to_portfolio': auto_add_to_portfolio,
-        })
+        # Load current settings
+        settings = utils.load_settings()
+        multiple_schedules = settings.get('multiple_schedules', [])
         
         try:
-            utils.save_settings(current_settings)
-            if enable_auto_generation:
-                if auto_gen_instruments:
-                    instrument_list = ', '.join([f"{inst} ({nifty_calc_type if inst == 'NIFTY' else banknifty_calc_type})" for inst in auto_gen_instruments])
-                    messages.success(request, f'Automation enabled successfully! Charts will be generated for {instrument_list} as scheduled.')
+            if action == 'create':
+                # Create new schedule
+                schedule_id = str(len(multiple_schedules) + int(datetime.now().timestamp()))  # Unique ID
+                new_schedule = {
+                    'id': schedule_id,
+                    'name': request.POST.get('name', f'Schedule {len(multiple_schedules) + 1}'),
+                    'enabled': 'enabled' in request.POST,
+                    'time': request.POST.get('time', '09:20'),
+                    'instruments': request.POST.getlist('instruments'),
+                    'nifty_calc_type': request.POST.get('nifty_calc_type', 'Weekly'),
+                    'banknifty_calc_type': request.POST.get('banknifty_calc_type', 'Monthly'),
+                    'active_days': request.POST.getlist('active_days'),
+                    'telegram_alerts': 'telegram_alerts' in request.POST,
+                    'auto_add_portfolio': 'auto_add_portfolio' in request.POST,
+                    'created_at': datetime.now().isoformat(),
+                    'last_run': None,
+                    'last_result': None,
+                }
+                multiple_schedules.append(new_schedule)
+                
+                settings['multiple_schedules'] = multiple_schedules
+                utils.save_settings(settings)
+                
+                # Start the permanent schedule
+                if new_schedule['enabled']:
+                    utils.start_permanent_schedule(new_schedule)
+                
+                # Add to recent activities
+                utils.add_automation_activity('Schedule Created', f"Created new schedule: {new_schedule['name']}", 'success')
+                
+                return JsonResponse({'success': True, 'message': 'Schedule created and started successfully!'})
+                
+            elif action == 'update':
+                # Update existing schedule
+                schedule_id = request.POST.get('schedule_id')
+                schedule_index = next((i for i, s in enumerate(multiple_schedules) if s['id'] == schedule_id), None)
+                
+                if schedule_index is not None:
+                    old_schedule = multiple_schedules[schedule_index].copy()
+                    multiple_schedules[schedule_index].update({
+                        'name': request.POST.get('name', f'Schedule {schedule_index + 1}'),
+                        'enabled': 'enabled' in request.POST,
+                        'time': request.POST.get('time', '09:20'),
+                        'instruments': request.POST.getlist('instruments'),
+                        'nifty_calc_type': request.POST.get('nifty_calc_type', 'Weekly'),
+                        'banknifty_calc_type': request.POST.get('banknifty_calc_type', 'Monthly'),
+                        'active_days': request.POST.getlist('active_days'),
+                        'telegram_alerts': 'telegram_alerts' in request.POST,
+                        'auto_add_portfolio': 'auto_add_portfolio' in request.POST,
+                    })
+                    
+                    settings['multiple_schedules'] = multiple_schedules
+                    utils.save_settings(settings)
+                    
+                    # Restart schedule if enabled
+                    utils.stop_permanent_schedule(schedule_id)
+                    if multiple_schedules[schedule_index]['enabled']:
+                        utils.start_permanent_schedule(multiple_schedules[schedule_index])
+                    
+                    # Add to recent activities
+                    utils.add_automation_activity('Schedule Updated', f"Updated schedule: {multiple_schedules[schedule_index]['name']}", 'success')
+                    
+                    return JsonResponse({'success': True, 'message': 'Schedule updated successfully!'})
                 else:
-                    messages.warning(request, 'Automation enabled but no instruments selected. Please select NIFTY and/or BANKNIFTY.')
-            else:
-                messages.info(request, 'Automation disabled. No automatic chart generation will occur.')
+                    return JsonResponse({'success': False, 'message': 'Invalid schedule ID'})
+                    
+            elif action == 'get_schedule':
+                # Get schedule data for editing
+                schedule_id = request.POST.get('schedule_id')
+                schedule = next((s for s in multiple_schedules if s['id'] == schedule_id), None)
+                
+                if schedule:
+                    return JsonResponse({'success': True, 'schedule': schedule})
+                else:
+                    return JsonResponse({'success': False, 'message': 'Schedule not found'})
+                    
+            elif action == 'toggle':
+                # Toggle schedule enabled/disabled
+                schedule_id = request.POST.get('schedule_id')
+                enabled = request.POST.get('enabled') == 'true'
+                
+                schedule_index = next((i for i, s in enumerate(multiple_schedules) if s['id'] == schedule_id), None)
+                if schedule_index is not None:
+                    multiple_schedules[schedule_index]['enabled'] = enabled
+                    settings['multiple_schedules'] = multiple_schedules
+                    utils.save_settings(settings)
+                    
+                    if enabled:
+                        utils.start_permanent_schedule(multiple_schedules[schedule_index])
+                    else:
+                        utils.stop_permanent_schedule(schedule_id)
+                    
+                    # Add to recent activities
+                    action_text = "enabled" if enabled else "disabled"
+                    utils.add_automation_activity(f'Schedule {action_text.title()}', f"Schedule '{multiple_schedules[schedule_index]['name']}' {action_text}", 'success')
+                    
+                    return JsonResponse({'success': True, 'message': f'Schedule {"enabled" if enabled else "disabled"} successfully!'})
+                else:
+                    return JsonResponse({'success': False, 'message': 'Invalid schedule ID'})
+                    
+            elif action == 'delete':
+                # Delete schedule
+                schedule_id = request.POST.get('schedule_id')
+                schedule_index = next((i for i, s in enumerate(multiple_schedules) if s['id'] == schedule_id), None)
+                
+                if schedule_index is not None:
+                    schedule_name = multiple_schedules[schedule_index]['name']
+                    utils.stop_permanent_schedule(schedule_id)
+                    del multiple_schedules[schedule_index]
+                    
+                    settings['multiple_schedules'] = multiple_schedules
+                    utils.save_settings(settings)
+                    
+                    # Add to recent activities
+                    utils.add_automation_activity('Schedule Deleted', f"Deleted schedule: {schedule_name}", 'warning')
+                    
+                    return JsonResponse({'success': True, 'message': 'Schedule deleted successfully!'})
+                else:
+                    return JsonResponse({'success': False, 'message': 'Invalid schedule ID'})
+                    
+            elif action == 'get_recent_activities':
+                # Get recent automation activities
+                activities = utils.get_recent_automation_activities(limit=10)
+                return JsonResponse({'success': True, 'activities': activities})
+                
+            elif action == 'simulate_automation':
+                # Simulate automation completion for testing notifications
+                import random
+                instruments = ['NIFTY', 'BANKNIFTY']
+                selected_instrument = random.choice(instruments)
+                
+                utils.add_automation_activity(
+                    'Charts Generated', 
+                    f'{selected_instrument} charts generated successfully via automation',
+                    'success'
+                )
+                
+                return JsonResponse({
+                    'success': True, 
+                    'message': f'Simulated {selected_instrument} automation completion'
+                })
+                    
         except Exception as e:
-            messages.error(request, f'Error saving automation settings: {str(e)}')
-        
-        return redirect('automation')
-
+            import traceback
+            traceback.print_exc()
+            return JsonResponse({'success': False, 'message': f'Error: {str(e)}'})
+    
     # Load current settings for display
     current_settings = utils.load_settings()
+    multiple_schedules = current_settings.get('multiple_schedules', [])
+    
+    # Add last run information to schedules
+    for schedule in multiple_schedules:
+        if 'last_run' not in schedule:
+            schedule['last_run'] = None
+        if 'last_result' not in schedule:
+            schedule['last_result'] = None
     
     context = {
+        'multiple_schedules': multiple_schedules,
+        'weekdays': weekdays,
         'settings': current_settings,
-        'weekdays': weekdays
     }
     return render(request, 'analyzer/automation.html', context)
 
@@ -792,11 +964,90 @@ def test_automation_view(request):
     """Test automation functionality manually."""
     if request.method == 'POST':
         try:
-            result = utils.run_automated_chart_generation()
+            # For testing, we'll create a special test mode
+            settings = utils.load_settings()
+            
+            # Check if automation is enabled
+            if not settings.get('enable_auto_generation', False):
+                return JsonResponse({
+                    'success': False, 
+                    'message': 'Automation is disabled. Please enable automation first.'
+                })
+            
+            # Check if instruments are selected
+            auto_gen_instruments = settings.get('auto_gen_instruments', [])
+            if not auto_gen_instruments:
+                return JsonResponse({
+                    'success': False, 
+                    'message': 'No instruments selected. Please select NIFTY and/or BANKNIFTY.'
+                })
+            
+            # For testing - bypass market hours and day checks
+            from datetime import datetime
+            from django.utils import timezone
+            import pytz
+            
+            ist_tz = pytz.timezone('Asia/Kolkata')
+            current_time = timezone.now().astimezone(ist_tz)
+            
+            results = []
+            nifty_calc_type = settings.get('nifty_calc_type', 'Weekly')
+            banknifty_calc_type = settings.get('banknifty_calc_type', 'Monthly')
+            
+            # Generate expiry date (next Thursday for weekly, next month end for monthly)
+            def get_next_expiry(calc_type):
+                from datetime import timedelta
+                today = current_time
+                if calc_type == 'Weekly':
+                    # Find next Thursday
+                    days_ahead = 3 - today.weekday()  # Thursday is 3
+                    if days_ahead <= 0:  # Thursday already passed
+                        days_ahead += 7
+                    next_expiry = today + timedelta(days=days_ahead)
+                else:  # Monthly
+                    # Find last Thursday of current month or next month
+                    next_month = today.replace(day=28) + timedelta(days=4)
+                    last_day = next_month - timedelta(days=next_month.day)
+                    # Find last Thursday
+                    last_thursday = last_day - timedelta(days=(last_day.weekday() - 3) % 7)
+                    if last_thursday <= today:
+                        # Next month
+                        next_month = (today.replace(day=28) + timedelta(days=4)).replace(day=1)
+                        next_month_last = (next_month.replace(day=28) + timedelta(days=4)) - timedelta(days=(next_month.replace(day=28) + timedelta(days=4)).day)
+                        next_expiry = next_month_last - timedelta(days=(next_month_last.weekday() - 3) % 7)
+                    else:
+                        next_expiry = last_thursday
+                
+                return next_expiry.strftime('%d-%b-%Y')
+            
+            for instrument in auto_gen_instruments:
+                try:
+                    calc_type = nifty_calc_type if instrument == 'NIFTY' else banknifty_calc_type
+                    expiry = get_next_expiry(calc_type)
+                    
+                    # Generate analysis with auto-add to portfolio
+                    analysis_data, status_message = utils.generate_and_auto_add_analysis(
+                        instrument, calc_type, expiry, auto_add=True
+                    )
+                    
+                    if analysis_data:
+                        result = f"✅ {instrument} {calc_type}: {status_message}"
+                        results.append(result)
+                    else:
+                        error_result = f"❌ {instrument} {calc_type}: {status_message}"
+                        results.append(error_result)
+                        
+                except Exception as e:
+                    error_result = f"❌ {instrument}: Error - {str(e)}"
+                    results.append(error_result)
+            
+            final_result = f"🧪 TEST MODE - Manual Automation Run\n\n" + "\n".join(results)
+            
             return JsonResponse({
                 'success': True, 
-                'message': f'Automation test completed!\n\n{result}'
+                'message': final_result
             })
+            
         except Exception as e:
             return JsonResponse({
                 'success': False, 
@@ -819,3 +1070,110 @@ def send_charts(request):
     status = utils.send_daily_chart_to_telegram(analysis_data)
     messages.info(request, f"Telegram status: {status}")
     return redirect(reverse('index'))
+
+def automation_multiple_view(request):
+    """Handle multiple automation configurations."""
+    weekdays = [
+        ('monday', 'Monday'),
+        ('tuesday', 'Tuesday'),
+        ('wednesday', 'Wednesday'),
+        ('thursday', 'Thursday'),
+        ('friday', 'Friday'),
+        ('saturday', 'Saturday'),
+    ]
+    
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        
+        # Load current multiple automations
+        settings = utils.load_settings()
+        multiple_automations = settings.get('multiple_automations', [])
+        
+        try:
+            if action == 'create':
+                # Create new automation
+                new_automation = {
+                    'id': len(multiple_automations),
+                    'name': request.POST.get('name', f'Schedule {len(multiple_automations) + 1}'),
+                    'enabled': 'enabled' in request.POST,
+                    'days': request.POST.getlist('days'),
+                    'time': request.POST.get('time', '09:20'),
+                    'instruments': request.POST.getlist('instruments'),
+                    'nifty_calc_type': request.POST.get('nifty_calc_type', 'Weekly'),
+                    'banknifty_calc_type': request.POST.get('banknifty_calc_type', 'Monthly'),
+                }
+                multiple_automations.append(new_automation)
+                
+                settings['multiple_automations'] = multiple_automations
+                utils.save_settings(settings)
+                
+                return JsonResponse({'success': True, 'message': 'Automation created successfully!'})
+                
+            elif action == 'update':
+                # Update existing automation
+                automation_id = int(request.POST.get('automation_id'))
+                if 0 <= automation_id < len(multiple_automations):
+                    multiple_automations[automation_id].update({
+                        'name': request.POST.get('name', f'Schedule {automation_id + 1}'),
+                        'enabled': 'enabled' in request.POST,
+                        'days': request.POST.getlist('days'),
+                        'time': request.POST.get('time', '09:20'),
+                        'instruments': request.POST.getlist('instruments'),
+                        'nifty_calc_type': request.POST.get('nifty_calc_type', 'Weekly'),
+                        'banknifty_calc_type': request.POST.get('banknifty_calc_type', 'Monthly'),
+                    })
+                    
+                    settings['multiple_automations'] = multiple_automations
+                    utils.save_settings(settings)
+                    
+                    return JsonResponse({'success': True, 'message': 'Automation updated successfully!'})
+                else:
+                    return JsonResponse({'success': False, 'message': 'Invalid automation ID'})
+                    
+            elif action == 'delete':
+                # Delete automation
+                automation_id = int(request.POST.get('automation_id'))
+                if 0 <= automation_id < len(multiple_automations):
+                    del multiple_automations[automation_id]
+                    
+                    # Reindex remaining automations
+                    for i, automation in enumerate(multiple_automations):
+                        automation['id'] = i
+                    
+                    settings['multiple_automations'] = multiple_automations
+                    utils.save_settings(settings)
+                    
+                    return JsonResponse({'success': True, 'message': 'Automation deleted successfully!'})
+                else:
+                    return JsonResponse({'success': False, 'message': 'Invalid automation ID'})
+                    
+            elif action == 'test':
+                # Test specific automation
+                automation_id = int(request.POST.get('automation_id'))
+                if 0 <= automation_id < len(multiple_automations):
+                    automation = multiple_automations[automation_id]
+                    
+                    if not automation['enabled']:
+                        return JsonResponse({'success': False, 'message': 'This automation schedule is disabled'})
+                    
+                    if not automation['instruments']:
+                        return JsonResponse({'success': False, 'message': 'No instruments selected for this schedule'})
+                    
+                    # Test the automation
+                    result = utils.test_specific_automation(automation)
+                    return JsonResponse({'success': True, 'message': f"Test completed for '{automation['name']}':\n\n{result}"})
+                else:
+                    return JsonResponse({'success': False, 'message': 'Invalid automation ID'})
+                    
+        except Exception as e:
+            return JsonResponse({'success': False, 'message': f'Error: {str(e)}'})
+    
+    # Load current settings for display
+    current_settings = utils.load_settings()
+    multiple_automations = current_settings.get('multiple_automations', [])
+    
+    context = {
+        'automations': multiple_automations,
+        'weekdays': weekdays
+    }
+    return render(request, 'analyzer/automation_multiple.html', context)

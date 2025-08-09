@@ -42,22 +42,46 @@ class Command(BaseCommand):
         auto_gen_days = app_settings.get('auto_gen_days', [])
         
         if app_settings.get('enable_auto_generation', False) and auto_gen_days:
-            hour, minute = auto_gen_time.split(':')
-            hour, minute = int(hour), int(minute)
-            
-            # Convert day names to scheduler format
-            day_mapping = {
-                'monday': 'mon', 'tuesday': 'tue', 'wednesday': 'wed',
-                'thursday': 'thu', 'friday': 'fri', 'saturday': 'sat', 'sunday': 'sun'
-            }
-            scheduled_days = ','.join([day_mapping.get(day.lower(), day.lower()[:3]) for day in auto_gen_days])
-            
-            scheduler.add_job(
-                utils.run_automated_chart_generation, 'cron',
-                day_of_week=scheduled_days, hour=hour, minute=minute, 
-                id='auto_chart_generation', replace_existing=True
-            )
-            self.stdout.write(self.style.SUCCESS(f"Scheduled automated chart generation at {auto_gen_time} on {', '.join(auto_gen_days)}."))
+            try:
+                hour, minute = auto_gen_time.split(':')
+                hour, minute = int(hour), int(minute)
+                
+                # Validate time is within market hours (9:15 AM to 3:30 PM)
+                if hour < 9 or (hour == 9 and minute < 15) or hour > 15 or (hour == 15 and minute > 30):
+                    self.stdout.write(self.style.WARNING(f"Warning: Scheduled time {auto_gen_time} is outside market hours (9:15 AM - 3:30 PM)"))
+                
+                # Convert day names to scheduler format
+                day_mapping = {
+                    'monday': 'mon', 'tuesday': 'tue', 'wednesday': 'wed',
+                    'thursday': 'thu', 'friday': 'fri', 'saturday': 'sat', 'sunday': 'sun'
+                }
+                scheduled_days = ','.join([day_mapping.get(day.lower(), day.lower()[:3]) for day in auto_gen_days])
+                
+                # Add main job
+                scheduler.add_job(
+                    utils.run_automated_chart_generation, 'cron',
+                    day_of_week=scheduled_days, hour=hour, minute=minute, 
+                    id='auto_chart_generation', replace_existing=True,
+                    max_instances=1,  # Prevent overlapping executions
+                    coalesce=True     # Combine missed executions
+                )
+                
+                # Add a retry job 5 minutes later in case the main job fails
+                retry_minute = (minute + 5) % 60
+                retry_hour = hour + ((minute + 5) // 60)
+                
+                scheduler.add_job(
+                    utils.run_automated_chart_generation, 'cron',
+                    day_of_week=scheduled_days, hour=retry_hour, minute=retry_minute, 
+                    id='auto_chart_generation_retry', replace_existing=True,
+                    max_instances=1,
+                    coalesce=True
+                )
+                
+                self.stdout.write(self.style.SUCCESS(f"Scheduled automated chart generation at {auto_gen_time} (with retry at {retry_hour:02d}:{retry_minute:02d}) on {', '.join(auto_gen_days)}."))
+                
+            except Exception as e:
+                self.stdout.write(self.style.ERROR(f"Failed to schedule automation: {str(e)}"))
         else:
             self.stdout.write(self.style.WARNING("Automated chart generation is disabled or no days configured."))
 

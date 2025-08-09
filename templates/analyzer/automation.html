@@ -3,6 +3,11 @@
 {% block title %}Automation{% endblock %}
 
 {% block content %}
+<!-- Hidden form for CSRF token -->
+<form style="display: none;">
+    {% csrf_token %}
+</form>
+
 <!-- Dashboard Style Header -->
 <div class="dashboard-header">
     <div class="container-fluid">
@@ -10,18 +15,28 @@
             <div class="col-md-8">
                 <div class="header-content">
                     <h1 class="dashboard-title">
-                        <i class="bi bi-gear-fill me-3"></i>
+                        <i class="bi bi-gear-fill me-3 text-success"></i>
                         Automation Center
                     </h1>
-                    <p class="dashboard-subtitle">Configure automated chart generation and scheduled tasks</p>
+                    <p class="dashboard-subtitle">Create and manage multiple automation schedules</p>
                 </div>
             </div>
             <div class="col-md-4 text-end">
-                <div class="status-badge-container">
-                    <span class="status-badge {% if settings.enable_auto_generation %}status-active{% else %}status-inactive{% endif %}">
-                        <i class="bi bi-check-circle me-2"></i>
-                        {% if settings.enable_auto_generation %}System Active{% else %}System Inactive{% endif %}
-                    </span>
+                <div class="btn-group">
+                    <button type="button" class="btn btn-outline-secondary btn-sm dropdown-toggle" data-bs-toggle="dropdown" title="Test Notifications">
+                        <i class="bi bi-bell me-1"></i>Test
+                    </button>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="javascript:void(0)" onclick="testNotification()">
+                            <i class="bi bi-bell me-2"></i>Test Popup
+                        </a></li>
+                        <li><a class="dropdown-item" href="javascript:void(0)" onclick="simulateAutomation()">
+                            <i class="bi bi-gear me-2"></i>Simulate Automation
+                        </a></li>
+                    </ul>
+                    <button type="button" class="btn btn-primary" onclick="showAddScheduleModal()">
+                        <i class="bi bi-plus-circle me-2"></i>Add New Schedule
+                    </button>
                 </div>
             </div>
         </div>
@@ -30,734 +45,799 @@
 
 <div class="row">
     <div class="col-12">
-        <!-- Main Automation Card -->
+        <!-- Multiple Schedules Management -->
         <div class="card clean-card border-0 shadow-sm mb-4">
             <div class="card-header bg-light border-bottom">
                 <div class="d-flex align-items-center">
-                    <i class="bi bi-sliders text-primary me-3 fs-5"></i>
+                    <i class="bi bi-layers text-primary me-3 fs-5"></i>
                     <div>
-                        <h5 class="mb-0 fw-bold">Configuration Panel</h5>
-                        <p class="text-muted mb-0 small">Configure automated chart generation settings</p>
+                        <h5 class="mb-0 fw-bold">Automation Schedules</h5>
+                        <p class="text-muted mb-0 small">Schedules run daily until manually turned off</p>
                     </div>
                 </div>
             </div>
             
-            <!-- Automation Content -->
-            <div class="card-body p-0">
-                <div class="p-4">
-                    <form method="POST" action="{% url 'automation' %}" class="automation-form">
-                    {% csrf_token %}
-                    
-                    <!-- Portfolio Management Section (inside form) -->
-                    <div class="row mb-4">
-                        <div class="col-12">
-                            <div class="card border-0 shadow-sm">
-                                <div class="card-header bg-light border-bottom">
-                                    <div class="d-flex align-items-center">
-                                        <i class="bi bi-briefcase text-warning me-3 fs-5"></i>
-                                        <div>
-                                            <h5 class="mb-0 fw-bold">Portfolio Management</h5>
-                                            <p class="text-muted mb-0 small">Configure automatic portfolio addition for generated charts</p>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="card-body">
+            <div class="card-body">
+                <!-- Existing Schedules -->
+                <div id="schedulesContainer">
+                    {% if multiple_schedules %}
+                        {% for schedule in multiple_schedules %}
+                        <div class="schedule-card mb-3" data-schedule-id="{{ schedule.id }}">
+                            <div class="card border-0 shadow-sm bg-white">
+                                <div class="card-body bg-white">
                                     <div class="row align-items-center">
-                                        <div class="col-md-8">
-                                            <div class="portfolio-option-info">
-                                                <h6 class="mb-2 fw-bold">
-                                                    <i class="bi bi-plus-circle me-2 text-success"></i>
-                                                    Auto-Add to Portfolio
-                                                </h6>
-                                                <p class="text-muted mb-0 small">
-                                                    Automatically add generated charts to your active portfolio if they haven't been manually added by traders. 
-                                                    This ensures all automated charts are tracked for P&L monitoring and alerts.
-                                                </p>
-                                            </div>
+                                        <div class="col-md-3">
+                                            <h6 class="mb-1 fw-bold text-dark">{{ schedule.name }}</h6>
+                                            <small class="text-muted">Daily at {{ schedule.time }}</small>
+                                            {% if schedule.last_run %}
+                                            <br><small class="text-success">
+                                                <i class="bi bi-check-circle me-1"></i>Last run: {{ schedule.last_run|date:"d M Y H:i" }}
+                                            </small>
+                                            {% endif %}
                                         </div>
-                                        <div class="col-md-4 text-end">
+                                        <div class="col-md-3">
+                                            <div class="d-flex flex-wrap gap-1 mb-2">
+                                                {% for instrument in schedule.instruments %}
+                                                <span class="badge bg-primary">{{ instrument }}</span>
+                                                {% endfor %}
+                                            </div>
+                                            {% if schedule.last_result %}
+                                            <small class="text-success">
+                                                <i class="bi bi-graph-up me-1"></i>Charts generated successfully
+                                            </small>
+                                            {% endif %}
+                                        </div>
+                                        <div class="col-md-2">
                                             <div class="form-check form-switch">
-                                                <input class="form-check-input" type="checkbox" name="auto_add_to_portfolio" id="auto_add_to_portfolio" 
-                                                       {% if settings.auto_add_to_portfolio %}checked{% endif %}>
-                                                <label class="form-check-label fw-bold" for="auto_add_to_portfolio">
-                                                    <span id="autoPortfolioStatus">
-                                                        {% if settings.auto_add_to_portfolio %}Enabled{% else %}Disabled{% endif %}
-                                                    </span>
+                                                <input class="form-check-input" type="checkbox" 
+                                                       {% if schedule.enabled %}checked{% endif %}
+                                                       onchange="toggleSchedule('{{ schedule.id }}', this.checked)">
+                                                <label class="form-check-label small text-dark">
+                                                    {% if schedule.enabled %}Active{% else %}Inactive{% endif %}
                                                 </label>
                                             </div>
                                         </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Professional Enable/Disable Toggle -->
-                    <div class="row mb-4">
-                        <div class="col-12">
-                            <div class="professional-toggle-card">
-                                <div class="toggle-container">
-                                    <div class="toggle-content">
-                                        <div class="toggle-info">
-                                            <h4 class="toggle-title">
-                                                <i class="bi bi-robot me-2"></i>
-                                                Automatic Chart Generation
-                                            </h4>
-                                            <p class="toggle-description">
-                                                Enable intelligent automation to generate analysis charts on scheduled times
-                                            </p>
-                                            <div class="toggle-status">
-                                                <span class="status-indicator" id="statusIndicator">
-                                                    <i class="bi {% if settings.enable_auto_generation %}bi-gear-fill text-success{% else %}bi-gear text-secondary{% endif %}" id="statusIcon"></i>
-                                                    <span id="statusText">{% if settings.enable_auto_generation %}Automation Active{% else %}Automation Disabled{% endif %}</span>
-                                                </span>
+                                        <div class="col-md-4 text-end">
+                                            <div class="btn-group btn-group-sm">
+                                                <button type="button" class="btn btn-outline-secondary" 
+                                                        onclick="editSchedule('{{ schedule.id }}')">
+                                                    <i class="bi bi-pencil me-1"></i>Edit
+                                                </button>
+                                                <button type="button" class="btn btn-outline-danger" 
+                                                        onclick="deleteSchedule('{{ schedule.id }}')">
+                                                    <i class="bi bi-trash me-1"></i>Delete
+                                                </button>
                                             </div>
                                         </div>
-                                        <div class="toggle-switch-container">
-                                            <label class="professional-switch">
-                                                <input type="checkbox" name="enable_auto_generation" id="enable_auto_generation" 
-                                                       {% if settings.enable_auto_generation %}checked{% endif %}>
-                                                <span class="switch-slider">
-                                                    <span class="switch-handle">
-                                                        <i class="bi bi-power switch-icon"></i>
-                                                    </span>
-                                                </span>
-                                            </label>
-                                        </div>
                                     </div>
-                                    <div class="toggle-footer">
-                                        <small class="text-muted">
-                                            <i class="bi bi-info-circle me-1"></i>
-                                            Configure schedule and instruments below after enabling automation
-                                        </small>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Configuration Settings -->
-                    <div id="autoGenSettings" class="schedule-cards" style="{% if not settings.enable_auto_generation %}display: none;{% endif %}">
-                        <!-- Schedule Configuration -->
-                        <div class="row g-4 mb-4">
-                            <div class="col-md-8">
-                                <div class="card border-0 shadow-sm" style="background-color: #6c757d;">
-                                    <div class="card-header" style="background-color: #5a6268; border-bottom: 1px solid #495057;">
-                                        <h6 class="mb-0 fw-bold text-white">
-                                            <i class="bi bi-calendar-check text-white me-2"></i>Schedule Configuration
-                                        </h6>
-                                    </div>
-                                    <div class="card-body" style="background-color: #6c757d; color: white;">
-                                        <!-- Days Selection with Select All -->
-                                        <div class="mb-4">
-                                            <label class="form-label fw-bold mb-3 text-white">
-                                                <i class="bi bi-calendar3 me-2 text-white"></i>Select Days
-                                            </label>
-                                            <div class="d-flex justify-content-between align-items-center mb-3">
-                                                <span class="text-light small">Choose which days to run automation</span>
-                                                <div class="btn-group btn-group-sm">
-                                                    <button type="button" class="btn btn-light btn-sm" id="selectAllDays">
-                                                        <i class="bi bi-check-all me-1"></i>Select All
-                                                    </button>
-                                                    <button type="button" class="btn btn-outline-light btn-sm" id="clearAllDays">
-                                                        <i class="bi bi-x-lg me-1"></i>Clear All
-                                                    </button>
-                                                </div>
-                                            </div>
-                                            <div class="days-grid">
-                                                {% for day_value, day_name in weekdays %}
-                                                <div class="day-item">
-                                                    <input type="checkbox" name="auto_gen_days" value="{{ day_value }}" 
-                                                           id="day_{{ day_value }}" class="day-checkbox"
-                                                           {% if day_value in settings.auto_gen_days %}checked{% endif %}>
-                                                    <label for="day_{{ day_value }}" class="day-label">
-                                                        <span class="day-name">{{ day_name }}</span>
-                                                        <span class="check-indicator">
-                                                            <i class="bi bi-check-lg"></i>
-                                                        </span>
-                                                    </label>
-                                                </div>
-                                                {% endfor %}
-                                            </div>
-                                        </div>
-                                        
-                                        <!-- Time Selection -->
-                                        <div class="mb-3">
-                                            <label for="auto_gen_time" class="form-label fw-bold text-white">
-                                                <i class="bi bi-clock me-2 text-white"></i>Generation Time
-                                            </label>
-                                            <input type="time" class="form-control form-control-lg" name="auto_gen_time" 
-                                                   id="auto_gen_time" value="{{ settings.auto_gen_time|default:'09:20' }}">
-                                            <small class="text-light">Charts will be generated at this time on selected days</small>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <!-- Instruments Selection -->
-                            <div class="col-md-4">
-                                <div class="card border-0 shadow-sm" style="background-color: #6c757d;">
-                                    <div class="card-header" style="background-color: #5a6268; border-bottom: 1px solid #495057;">
-                                        <h6 class="mb-0 fw-bold text-white">
-                                            <i class="bi bi-graph-up text-white me-2"></i>Instruments
-                                        </h6>
-                                    </div>
-                                    <div class="card-body" style="background-color: #6c757d; color: white;">
-                                        <div class="mb-3">
-                                            <label class="form-label fw-bold text-white">Select Instruments</label>
-                                            
-                                            <!-- NIFTY Selection -->
-                                            <div class="instrument-card mb-3">
-                                                <div class="form-check">
-                                                    <input type="checkbox" name="auto_gen_instruments" value="NIFTY" 
-                                                           id="nifty_instrument" class="form-check-input"
-                                                           {% if 'NIFTY' in settings.auto_gen_instruments %}checked{% endif %}>
-                                                    <label for="nifty_instrument" class="form-check-label">
-                                                        <div class="instrument-info">
-                                                            <span class="instrument-name">NIFTY</span>
-                                                            <span class="instrument-desc">Stock Index</span>
-                                                        </div>
-                                                    </label>
-                                                </div>
-                                                <div class="calc-type-selection">
-                                                    <select name="nifty_calc_type" class="form-select form-select-sm">
-                                                        <option value="Weekly" {% if settings.nifty_calc_type == 'Weekly' %}selected{% endif %}>Weekly</option>
-                                                        <option value="Monthly" {% if settings.nifty_calc_type == 'Monthly' %}selected{% endif %}>Monthly</option>
-                                                    </select>
-                                                </div>
-                                            </div>
-                                            
-                                            <!-- BANKNIFTY Selection -->
-                                            <div class="instrument-card">
-                                                <div class="form-check">
-                                                    <input type="checkbox" name="auto_gen_instruments" value="BANKNIFTY" 
-                                                           id="banknifty_instrument" class="form-check-input"
-                                                           {% if 'BANKNIFTY' in settings.auto_gen_instruments %}checked{% endif %}>
-                                                    <label for="banknifty_instrument" class="form-check-label">
-                                                        <div class="instrument-info">
-                                                            <span class="instrument-name">BANKNIFTY</span>
-                                                            <span class="instrument-desc">Bank Index</span>
-                                                        </div>
-                                                    </label>
-                                                </div>
-                                                <div class="calc-type-selection">
-                                                    <select name="banknifty_calc_type" class="form-select form-select-sm">
-                                                        <option value="Weekly" {% if settings.banknifty_calc_type == 'Weekly' %}selected{% endif %}>Weekly</option>
-                                                        <option value="Monthly" {% if settings.banknifty_calc_type == 'Monthly' %}selected{% endif %}>Monthly</option>
-                                                    </select>
-                                                </div>
-                                            </div>
+                                    <div class="row mt-2">
+                                        <div class="col-12">
+                                            <small class="text-muted">
+                                                <i class="bi bi-repeat me-1"></i>Runs daily until manually turned off • Instruments: {{ schedule.instruments|join:", " }}
+                                                {% if schedule.auto_add_portfolio %}
+                                                • <span class="text-success"><i class="bi bi-plus-circle me-1"></i>Auto-add to Portfolio</span>
+                                                {% else %}
+                                                • <span class="text-warning"><i class="bi bi-dash-circle me-1"></i>Manual Portfolio Add</span>
+                                                {% endif %}
+                                            </small>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
-                    
-                    <!-- Save Button -->
-                    <div class="p-4 border-top bg-light">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div class="text-muted small">
-                                <i class="bi bi-info-circle me-1"></i>
-                                Changes will be applied immediately after saving
-                            </div>
-                            <div class="btn-group">
-                                <button type="submit" class="btn btn-primary btn-lg px-5">
-                                    <i class="bi bi-check-circle me-2"></i>
-                                    Save All Settings
-                                </button>
-                                {% if settings.enable_auto_generation %}
-                                <button type="button" class="btn btn-success btn-lg px-4" onclick="testAutomation()">
-                                    <i class="bi bi-play-circle me-2"></i>
-                                    Test Now
-                                </button>
-                                {% endif %}
-                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center py-5" id="noSchedulesMessage">
+                            <i class="bi bi-calendar-x text-muted fs-1"></i>
+                            <h5 class="text-muted mt-3">No automation schedules created yet</h5>
+                            <p class="text-muted">Click "Add New Schedule" to create your first automation schedule</p>
                         </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Notifications Panel -->
+        <div class="card clean-card border-0 shadow-sm mb-4" id="notificationsPanel" style="display: none;">
+            <div class="card-header bg-success text-white border-bottom">
+                <div class="d-flex align-items-center">
+                    <i class="bi bi-bell-fill me-3 fs-5"></i>
+                    <div>
+                        <h5 class="mb-0 fw-bold">Recent Automation Activity</h5>
+                        <p class="mb-0 small opacity-75">Latest chart generation results</p>
                     </div>
-                </form>
-                
-                <!-- Test Automation Function -->
-                <script>
-                function testAutomation() {
-                    if (confirm('This will run automated chart generation now. Continue?')) {
-                        fetch('{% url "test_automation" %}', {
-                            method: 'POST',
-                            headers: {
-                                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
-                                'Content-Type': 'application/json',
-                            }
-                        })
-                        .then(response => response.json())
-                        .then(data => {
-                            alert(data.message || 'Test completed! Check console for details.');
-                        })
-                        .catch(error => {
-                            alert('Error: ' + error.message);
-                        });
-                    }
-                }
-                </script>
+                </div>
+            </div>
+            <div class="card-body">
+                <div id="notificationsList">
+                    <!-- Notifications will be populated here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Activities -->
+        <div class="card clean-card border-0 shadow-sm">
+            <div class="card-header bg-light border-bottom">
+                <div class="d-flex align-items-center">
+                    <i class="bi bi-clock-history text-info me-3 fs-5"></i>
+                    <div>
+                        <h5 class="mb-0 fw-bold">Recent Activities</h5>
+                        <p class="text-muted mb-0 small">Last 10 automation generations</p>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <div id="recentActivitiesList">
+                    <!-- Recent activities will be loaded here -->
+                    <div class="text-center text-muted py-3">
+                        <i class="bi bi-hourglass-split"></i>
+                        Loading recent activities...
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 </div>
 
-<style>
-/* Dashboard Header Styling */
-.dashboard-header {
-    background: linear-gradient(135deg, #f8fafb 0%, #ffffff 100%);
-    border-bottom: 1px solid #e5e7eb;
-    padding: 2rem 0;
-    margin-bottom: 2rem;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-.header-content {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-}
-
-.dashboard-title {
-    font-size: 2rem;
-    font-weight: 700;
-    color: #1f2937;
-    margin: 0;
-    display: flex;
-    align-items: center;
-}
-
-.dashboard-title i {
-    color: #3b82f6;
-    font-size: 1.75rem;
-}
-
-.dashboard-subtitle {
-    color: #6b7280;
-    font-size: 1rem;
-    margin: 0;
-    font-weight: 400;
-}
-
-.status-badge-container {
-    display: flex;
-    justify-content: flex-end;
-}
-
-.status-badge {
-    display: inline-flex;
-    align-items: center;
-    padding: 0.75rem 1.5rem;
-    border-radius: 9999px;
-    font-weight: 600;
-    font-size: 0.875rem;
-    letter-spacing: 0.025em;
-    transition: all 0.2s ease;
-}
-
-.status-active {
-    background-color: #10b981;
-    color: white;
-    box-shadow: 0 4px 14px rgba(16, 185, 129, 0.39);
-}
-
-.status-inactive {
-    background-color: #6b7280;
-    color: white;
-    box-shadow: 0 4px 14px rgba(107, 114, 128, 0.39);
-}
-
-.status-badge:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
-}
-
-/* Settings Header Styling - Match Settings Page */
-.settings-header {
-    background: linear-gradient(135deg, #f8f9ff 0%, #ffffff 100%);
-    border-radius: 12px;
-    padding: 2rem;
-    margin-bottom: 2rem;
-    border: 1px solid #e3e8f0;
-}
-
-.clean-card {
-    border-radius: 12px;
-    overflow: hidden;
-}
-
-/* Professional Toggle Card Styling */
-.professional-toggle-card {
-    background: linear-gradient(135deg, #f8f9ff 0%, #ffffff 100%);
-    border: 2px solid #e3e8f0;
-    border-radius: 16px;
-    padding: 2rem;
-    transition: all 0.3s ease;
-    position: relative;
-    overflow: hidden;
-}
-
-.professional-toggle-card::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 4px;
-    background: linear-gradient(90deg, #6366f1, #8b5cf6, #06b6d4);
-    background-size: 200% 100%;
-    animation: shimmer 3s ease-in-out infinite;
-}
-
-@keyframes shimmer {
-    0%, 100% { background-position: 200% 0; }
-    50% { background-position: -200% 0; }
-}
-
-.toggle-container {
-    position: relative;
-}
-
-.toggle-content {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 2rem;
-}
-
-.toggle-info {
-    flex: 1;
-}
-
-.toggle-title {
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: #1e293b;
-    margin-bottom: 0.75rem;
-    display: flex;
-    align-items: center;
-}
-
-.toggle-title i {
-    color: #6366f1;
-    font-size: 1.75rem;
-}
-
-.toggle-description {
-    color: #64748b;
-    font-size: 1rem;
-    line-height: 1.6;
-    margin-bottom: 1rem;
-}
-
-.toggle-status {
-    display: flex;
-    align-items: center;
-}
-
-.status-indicator {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-weight: 600;
-    font-size: 0.95rem;
-}
-
-.toggle-switch-container {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-/* Professional Switch Styling */
-.professional-switch {
-    position: relative;
-    display: inline-block;
-    width: 80px;
-    height: 40px;
-    cursor: pointer;
-}
-
-.professional-switch input {
-    opacity: 0;
-    width: 0;
-    height: 0;
-}
-
-.switch-slider {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%);
-    border-radius: 25px;
-    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 
-        inset 0 2px 4px rgba(0, 0, 0, 0.1),
-        0 2px 8px rgba(0, 0, 0, 0.05);
-    border: 2px solid #e2e8f0;
-}
-
-.switch-handle {
-    position: absolute;
-    top: 3px;
-    left: 3px;
-    width: 30px;
-    height: 30px;
-    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
-    border-radius: 50%;
-    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 
-        0 4px 12px rgba(0, 0, 0, 0.15),
-        0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.switch-icon {
-    font-size: 0.875rem;
-    color: #64748b;
-    transition: all 0.3s ease;
-}
-
-/* Active State */
-.professional-switch input:checked + .switch-slider {
-    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-    border-color: #10b981;
-    box-shadow: 
-        inset 0 2px 4px rgba(0, 0, 0, 0.1),
-        0 2px 16px rgba(16, 185, 129, 0.3);
-}
-
-.professional-switch input:checked + .switch-slider .switch-handle {
-    transform: translateX(40px);
-    background: linear-gradient(135deg, #ffffff 0%, #f0fdf4 100%);
-    box-shadow: 
-        0 6px 20px rgba(16, 185, 129, 0.3),
-        0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.professional-switch input:checked + .switch-slider .switch-icon {
-    color: #10b981;
-    transform: rotate(360deg);
-}
-
-/* Hover Effects */
-.professional-switch:hover .switch-slider {
-    transform: scale(1.02);
-}
-
-.professional-switch:hover input:checked + .switch-slider {
-    box-shadow: 
-        inset 0 2px 4px rgba(0, 0, 0, 0.1),
-        0 4px 20px rgba(16, 185, 129, 0.4);
-}
-
-.toggle-footer {
-    margin-top: 1.5rem;
-    padding-top: 1rem;
-    border-top: 1px solid #e2e8f0;
-}
-
-/* Days Grid Styling */
-.days-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-    gap: 12px;
-}
-
-.day-item {
-    position: relative;
-}
-
-.day-checkbox {
-    position: absolute;
-    opacity: 0;
-    pointer-events: none;
-}
-
-.day-label {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 12px 16px;
-    background: #f8fafc;
-    border: 2px solid #e2e8f0;
-    border-radius: 10px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    user-select: none;
-    min-height: 50px;
-}
-
-.day-name {
-    font-weight: 600;
-    color: #475569;
-    font-size: 0.9rem;
-}
-
-.check-indicator {
-    width: 20px;
-    height: 20px;
-    border-radius: 50%;
-    background: #e2e8f0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.3s ease;
-}
-
-.check-indicator i {
-    font-size: 0.75rem;
-    color: transparent;
-    transition: all 0.3s ease;
-}
-
-/* Checked State */
-.day-checkbox:checked + .day-label {
-    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-    border-color: #10b981;
-    color: white;
-    transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(16, 185, 129, 0.3);
-}
-
-.day-checkbox:checked + .day-label .day-name {
-    color: white;
-}
-
-.day-checkbox:checked + .day-label .check-indicator {
-    background: white;
-}
-
-.day-checkbox:checked + .day-label .check-indicator i {
-    color: #10b981;
-}
-
-/* Hover Effects */
-.day-label:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-}
-
-.day-checkbox:checked + .day-label:hover {
-    box-shadow: 0 8px 30px rgba(16, 185, 129, 0.4);
-}
-
-/* Instrument Cards */
-.instrument-card {
-    background: #f8fafc;
-    border: 2px solid #e2e8f0;
-    border-radius: 12px;
-    padding: 15px;
-    transition: all 0.3s ease;
-}
-
-.instrument-info {
-    display: flex;
-    flex-direction: column;
-}
-
-.instrument-name {
-    font-weight: 700;
-    color: #1e293b;
-    font-size: 1rem;
-}
-
-.instrument-desc {
-    font-size: 0.75rem;
-    color: #64748b;
-}
-
-.calc-type-selection {
-    margin-top: 10px;
-}
-
-/* Card and gradient styling */
-.bg-gradient-primary {
-    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%) !important;
-}
-
-.clean-card {
-    border-radius: 12px;
-    overflow: hidden;
-}
-
-/* Professional border radius for consistency */
-.rounded-professional {
-    border-radius: 12px !important;
-}
-
-/* Select All/Deselect All buttons styling */
-.btn-group-sm .btn {
-    font-size: 0.75rem;
-    padding: 0.375rem 0.75rem;
-    border-radius: 4px;
-}
-</style>
+<!-- Add/Edit Schedule Modal -->
+<div class="modal fade" id="scheduleModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="scheduleModalTitle">Add New Schedule</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="scheduleForm">
+                    {% csrf_token %}
+                    <input type="hidden" id="scheduleId" name="schedule_id">
+                    <input type="hidden" name="action" value="create" id="formAction">
+                    
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="mb-3">
+                                <label for="scheduleName" class="form-label fw-bold">Schedule Name</label>
+                                <div class="input-group">
+                                    <input type="text" class="form-control" id="scheduleName" name="name" required>
+                                    <button type="button" class="btn btn-outline-secondary" onclick="generateScheduleName()">
+                                        <i class="bi bi-magic me-1"></i>Auto Generate
+                                    </button>
+                                </div>
+                                <small class="text-muted">Example: NIFTY 03AUG25 09:20:00 AM</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="scheduleTime" class="form-label fw-bold">Time</label>
+                                <input type="time" class="form-control" id="scheduleTime" name="time" value="09:20" required>
+                                <small class="text-muted">Daily generation time</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Telegram Alerts</label>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="telegramAlerts" name="telegram_alerts" checked>
+                                    <label class="form-check-label" for="telegramAlerts">
+                                        Send alerts after trade addition
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Auto-add to Portfolio</label>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="autoAddPortfolio" name="auto_add_portfolio" checked>
+                                    <label class="form-check-label" for="autoAddPortfolio">
+                                        Automatically add generated charts to portfolio
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <!-- Empty column for spacing -->
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Active Days</label>
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="active_days" value="monday" id="dayMonday">
+                                    <label class="form-check-label" for="dayMonday">Monday</label>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="active_days" value="tuesday" id="dayTuesday">
+                                    <label class="form-check-label" for="dayTuesday">Tuesday</label>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="active_days" value="wednesday" id="dayWednesday">
+                                    <label class="form-check-label" for="dayWednesday">Wednesday</label>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="active_days" value="thursday" id="dayThursday">
+                                    <label class="form-check-label" for="dayThursday">Thursday</label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row mt-2">
+                            <div class="col-md-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="active_days" value="friday" id="dayFriday">
+                                    <label class="form-check-label" for="dayFriday">Friday</label>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="active_days" value="saturday" id="daySaturday">
+                                    <label class="form-check-label" for="daySaturday">Saturday</label>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="active_days" value="sunday" id="daySunday">
+                                    <label class="form-check-label" for="daySunday">Sunday</label>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="text-center">
+                                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="selectAllDays()">
+                                        Select All
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <small class="text-muted">Select days when automation should run</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Instruments</label>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="instruments" value="NIFTY" id="instNifty">
+                                    <label class="form-check-label" for="instNifty">NIFTY</label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="instruments" value="BANKNIFTY" id="instBankNifty">
+                                    <label class="form-check-label" for="instBankNifty">BANKNIFTY</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="niftyCalcType" class="form-label fw-bold">NIFTY Calculation</label>
+                                <select class="form-select" id="niftyCalcType" name="nifty_calc_type">
+                                    <option value="Weekly">Weekly</option>
+                                    <option value="Monthly">Monthly</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="bankniftyCalcType" class="form-label fw-bold">BANKNIFTY Calculation</label>
+                                <select class="form-select" id="bankniftyCalcType" name="banknifty_calc_type">
+                                    <option value="Weekly">Weekly</option>
+                                    <option value="Monthly" selected>Monthly</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="scheduleEnabled" name="enabled" checked>
+                        <label class="form-check-label fw-bold" for="scheduleEnabled">
+                            Enable this schedule
+                        </label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="saveSchedule()">Save Schedule</button>
+            </div>
+        </div>
+    </div>
+</div>
 
 <script>
+// Define all functions directly in global scope for onclick handlers
+function showAddScheduleModal() {
+    console.log('showAddScheduleModal called');
+    try {
+        document.getElementById('scheduleModalTitle').textContent = 'Add New Schedule';
+        document.getElementById('formAction').value = 'create';
+        document.getElementById('scheduleForm').reset();
+        document.getElementById('scheduleEnabled').checked = true;
+        document.getElementById('autoAddPortfolio').checked = true; // Default ON
+        // Auto-generate name
+        generateScheduleName();
+        const modal = new bootstrap.Modal(document.getElementById('scheduleModal'));
+        modal.show();
+        console.log('Modal should be showing now');
+    } catch (error) {
+        console.error('Error in showAddScheduleModal:', error);
+        alert('Error opening modal: ' + error.message);
+    }
+}
+
+function editSchedule(scheduleId) {
+    console.log('editSchedule called with ID:', scheduleId);
+    document.getElementById('scheduleModalTitle').textContent = 'Edit Schedule';
+    document.getElementById('formAction').value = 'update';
+    document.getElementById('scheduleId').value = scheduleId;
+    
+    const formData = new FormData();
+    formData.append('action', 'get_schedule');
+    formData.append('schedule_id', scheduleId);
+    formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+    
+    fetch('{% url "automation" %}', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success && data.schedule) {
+            const schedule = data.schedule;
+            document.getElementById('scheduleName').value = schedule.name || '';
+            document.getElementById('scheduleTime').value = schedule.time || '09:20';
+            document.getElementById('scheduleEnabled').checked = schedule.enabled || false;
+            document.getElementById('telegramAlerts').checked = schedule.telegram_alerts !== false;
+            document.getElementById('autoAddPortfolio').checked = schedule.auto_add_portfolio !== false;
+            
+            document.getElementById('instNifty').checked = schedule.instruments.includes('NIFTY');
+            document.getElementById('instBankNifty').checked = schedule.instruments.includes('BANKNIFTY');
+            
+            document.getElementById('niftyCalcType').value = schedule.nifty_calc_type || 'Weekly';
+            document.getElementById('bankniftyCalcType').value = schedule.banknifty_calc_type || 'Monthly';
+            
+            const dayCheckboxes = document.querySelectorAll('input[name="active_days"]');
+            dayCheckboxes.forEach(checkbox => {
+                checkbox.checked = schedule.active_days && schedule.active_days.includes(checkbox.value);
+            });
+            
+            const modal = new bootstrap.Modal(document.getElementById('scheduleModal'));
+            modal.show();
+        } else {
+            showPopNotification('Error loading schedule data', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error loading schedule:', error);
+        showPopNotification('Error loading schedule data', 'error');
+    });
+}
+
+function deleteSchedule(scheduleId) {
+    console.log('deleteSchedule called with ID:', scheduleId);
+    if (confirm('Are you sure you want to delete this schedule?')) {
+        const formData = new FormData();
+        formData.append('action', 'delete');
+        formData.append('schedule_id', scheduleId);
+        formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+        
+        fetch('{% url "automation" %}', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showPopNotification('Schedule deleted successfully', 'success');
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                showPopNotification('Error deleting schedule: ' + data.message, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error deleting schedule:', error);
+            showPopNotification('Error deleting schedule', 'error');
+        });
+    }
+}
+
+function toggleSchedule(scheduleId, enabled) {
+    console.log('toggleSchedule called with ID:', scheduleId, 'enabled:', enabled);
+    const formData = new FormData();
+    formData.append('action', 'toggle');
+    formData.append('schedule_id', scheduleId);
+    formData.append('enabled', enabled);
+    formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+    
+    fetch('{% url "automation" %}', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showPopNotification(data.message, 'success');
+        } else {
+            showPopNotification('Error: ' + data.message, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error toggling schedule:', error);
+        showPopNotification('Error toggling schedule', 'error');
+    });
+}
+
+function saveSchedule() {
+    console.log('saveSchedule called');
+    try {
+        const form = document.getElementById('scheduleForm');
+        const formData = new FormData(form);
+        
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
+        if (csrfToken) {
+            formData.append('csrfmiddlewaretoken', csrfToken.value);
+            console.log('CSRF token added');
+        } else {
+            console.error('CSRF token not found');
+        }
+        
+        console.log('Sending form data...');
+        fetch('{% url "automation" %}', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            }
+        })
+        .then(response => {
+            console.log('Response received:', response.status);
+            return response.json();
+        })
+        .then(data => {
+            console.log('Response data:', data);
+            if (data.success) {
+                showPopNotification(data.message, 'success');
+                const modal = bootstrap.Modal.getInstance(document.getElementById('scheduleModal'));
+                modal.hide();
+                setTimeout(() => location.reload(), 1500);
+            } else {
+                showPopNotification('Error: ' + data.message, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showPopNotification('An error occurred while saving the schedule', 'error');
+        });
+    } catch (error) {
+        console.error('Error in saveSchedule:', error);
+        alert('Error in saveSchedule: ' + error.message);
+    }
+}
+
+function generateScheduleName() {
+    const today = new Date();
+    const day = String(today.getDate()).padStart(2, '0');
+    const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 
+                   'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+    const month = months[today.getMonth()];
+    const year = String(today.getFullYear()).slice(-2);
+    
+    const timeInput = document.getElementById('scheduleTime');
+    const timeValue = timeInput.value || '09:20';
+    const [hours, minutes] = timeValue.split(':');
+    const timeObj = new Date();
+    timeObj.setHours(parseInt(hours), parseInt(minutes));
+    const timeFormatted = timeObj.toLocaleTimeString('en-US', { 
+        hour: '2-digit', 
+        minute: '2-digit', 
+        second: '2-digit',
+        hour12: true 
+    });
+    
+    const niftySelected = document.getElementById('instNifty').checked;
+    const bankniftySelected = document.getElementById('instBankNifty').checked;
+    
+    let name = '';
+    if (niftySelected && bankniftySelected) {
+        name = `NIFTY+BANKNIFTY ${day}${month}${year} ${timeFormatted}`;
+    } else if (niftySelected) {
+        name = `NIFTY ${day}${month}${year} ${timeFormatted}`;
+    } else if (bankniftySelected) {
+        name = `BANKNIFTY ${day}${month}${year} ${timeFormatted}`;
+    } else {
+        name = `SCHEDULE ${day}${month}${year} ${timeFormatted}`;
+    }
+    
+    document.getElementById('scheduleName').value = name;
+}
+
+function selectAllDays() {
+    const dayCheckboxes = document.querySelectorAll('input[name="active_days"]');
+    dayCheckboxes.forEach(checkbox => {
+        checkbox.checked = true;
+    });
+}
+
+// Pop notification function (keep original as it's used by other functions)
+function showPopNotification(message, type = 'success') {
+    // Remove existing notifications
+    const existingNotifications = document.querySelectorAll('.pop-notification');
+    existingNotifications.forEach(notification => notification.remove());
+    
+    // Create notification
+    const notification = document.createElement('div');
+    notification.className = `pop-notification alert alert-${type} alert-dismissible fade show position-fixed`;
+    notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px; box-shadow: 0 4px 8px rgba(0,0,0,0.2);';
+    notification.innerHTML = `
+        <strong>${type === 'success' ? '✅' : type === 'warning' ? '⚠️' : '❌'}</strong> ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.remove();
+        }
+    }, 5000);
+}
+
+// Load recent activities
+function loadRecentActivities() {
+    fetch('/automation/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        },
+        body: 'action=get_recent_activities'
+    })
+    .then(response => response.json())
+    .then(data => {
+        const activitiesList = document.getElementById('recentActivitiesList');
+        
+        if (data.activities && data.activities.length > 0) {
+            let html = '';
+            data.activities.forEach(activity => {
+                const iconClass = activity.status === 'success' ? 'bi-check-circle-fill text-success' : 'bi-x-circle-fill text-danger';
+                html += `
+                    <div class="activity-item d-flex align-items-start mb-3 pb-3 border-bottom">
+                        <div class="activity-icon me-3 mt-1">
+                            <i class="bi ${iconClass}"></i>
+                        </div>
+                        <div class="flex-grow-1">
+                            <div class="fw-semibold">${activity.title}</div>
+                            <small class="text-muted">${activity.description}</small>
+                            <div class="text-muted small mt-1">
+                                <i class="bi bi-clock me-1"></i>${activity.time}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            activitiesList.innerHTML = html;
+        } else {
+            activitiesList.innerHTML = `
+                <div class="text-center text-muted py-3">
+                    <i class="bi bi-inbox"></i>
+                    <div class="mt-2">No recent activities found</div>
+                </div>
+            `;
+        }
+    })
+    .catch(error => {
+        console.error('Error loading activities:', error);
+        document.getElementById('recentActivitiesList').innerHTML = `
+            <div class="text-center text-muted py-3">
+                <i class="bi bi-exclamation-triangle"></i>
+                <div class="mt-2">Error loading activities</div>
+            </div>
+        `;
+    });
+}
+
+// Update name when instruments change
 document.addEventListener('DOMContentLoaded', function() {
-    const toggleSwitch = document.getElementById('enable_auto_generation');
-    const autoGenSettings = document.getElementById('autoGenSettings');
-    const statusIcon = document.getElementById('statusIcon');
-    const statusText = document.getElementById('statusText');
-    const selectAllBtn = document.getElementById('selectAllDays');
-    const clearAllBtn = document.getElementById('clearAllDays');
-    const dayCheckboxes = document.querySelectorAll('.day-checkbox');
-    const autoPortfolioToggle = document.getElementById('auto_add_to_portfolio');
-    const autoPortfolioStatus = document.getElementById('autoPortfolioStatus');
+    const instNifty = document.getElementById('instNifty');
+    const instBankNifty = document.getElementById('instBankNifty');
     
-    // Toggle automation settings visibility
-    if (toggleSwitch && autoGenSettings) {
-        toggleSwitch.addEventListener('change', function() {
-            if (this.checked) {
-                autoGenSettings.style.display = 'block';
-                statusIcon.className = 'bi bi-gear-fill text-success';
-                statusText.textContent = 'Automation Active';
-            } else {
-                autoGenSettings.style.display = 'none';
-                statusIcon.className = 'bi bi-gear text-secondary';
-                statusText.textContent = 'Automation Disabled';
-            }
-        });
-    }
-    
-    // Auto Portfolio Toggle
-    if (autoPortfolioToggle && autoPortfolioStatus) {
-        autoPortfolioToggle.addEventListener('change', function() {
-            if (this.checked) {
-                autoPortfolioStatus.textContent = 'Enabled';
-                autoPortfolioStatus.classList.remove('text-danger');
-                autoPortfolioStatus.classList.add('text-success');
-            } else {
-                autoPortfolioStatus.textContent = 'Disabled';
-                autoPortfolioStatus.classList.remove('text-success');
-                autoPortfolioStatus.classList.add('text-danger');
-            }
-        });
-    }
-    
-    // Select All Days functionality
-    if (selectAllBtn) {
-        selectAllBtn.addEventListener('click', function() {
-            dayCheckboxes.forEach(checkbox => {
-                checkbox.checked = true;
-            });
-        });
-    }
-    
-    // Clear All Days functionality
-    if (clearAllBtn) {
-        clearAllBtn.addEventListener('click', function() {
-            dayCheckboxes.forEach(checkbox => {
-                checkbox.checked = false;
-            });
-        });
-    }
+    if (instNifty) instNifty.addEventListener('change', generateScheduleName);
+    if (instBankNifty) instBankNifty.addEventListener('change', generateScheduleName);
 });
+
+// Explicitly assign functions to window object for onclick accessibility
+window.showAddScheduleModal = showAddScheduleModal;
+window.editSchedule = editSchedule;
+window.deleteSchedule = deleteSchedule;
+window.toggleSchedule = toggleSchedule;
+window.saveSchedule = saveSchedule;
+
+// Test notification function
+function testNotification() {
+    const testActivity = {
+        title: 'Charts Generated',
+        description: 'Test notification: NIFTY charts generated successfully',
+        time: new Date().toLocaleString('en-US', {
+            day: '2-digit',
+            month: 'short', 
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true
+        }),
+        timestamp: new Date().toISOString()
+    };
+    
+    showAutoGenerationNotification(testActivity);
+    showPopNotification('Test notification triggered!', 'info');
+}
+
+// Simulate automation completion (for testing)
+function simulateAutomation() {
+    // Add a real activity to the database via AJAX
+    const formData = new FormData();
+    formData.append('action', 'simulate_automation');
+    formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+    
+    fetch('/automation/', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showPopNotification('Simulated automation activity added!', 'success');
+            // The periodic check will pick this up and show notification
+        }
+    })
+    .catch(error => {
+        console.error('Error simulating automation:', error);
+    });
+}
+
+window.testNotification = testNotification;
+window.simulateAutomation = simulateAutomation;
+
+// Auto-generation notification system
+let lastCheckedActivity = localStorage.getItem('lastCheckedActivity');
+let isFirstLoad = true;
+
+function checkForNewAutomationResults() {
+    fetch('/automation/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        },
+        body: 'action=get_recent_activities'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.activities && data.activities.length > 0) {
+            const latestActivity = data.activities[0];
+            const latestTimestamp = latestActivity.timestamp;
+            
+            // Skip notification on first load
+            if (isFirstLoad) {
+                lastCheckedActivity = latestTimestamp;
+                localStorage.setItem('lastCheckedActivity', latestTimestamp);
+                isFirstLoad = false;
+                return;
+            }
+            
+            // Check if there's a new activity since last check
+            if (lastCheckedActivity && latestTimestamp > lastCheckedActivity) {
+                // Show notification for auto-generation activities
+                if (latestActivity.title.includes('Charts Generated') || 
+                    latestActivity.title.includes('Auto Generation') ||
+                    latestActivity.title.includes('Portfolio Updated')) {
+                    
+                    showAutoGenerationNotification(latestActivity);
+                }
+                
+                // Update last checked timestamp
+                lastCheckedActivity = latestTimestamp;
+                localStorage.setItem('lastCheckedActivity', latestTimestamp);
+                
+                // Refresh recent activities display
+                loadRecentActivities();
+            }
+        }
+    })
+    .catch(error => {
+        console.log('Background check error (ignored):', error);
+    });
+}
+
+function showAutoGenerationNotification(activity) {
+    // Create notification popup
+    const notification = document.createElement('div');
+    notification.className = 'alert alert-success alert-dismissible fade show position-fixed shadow-lg';
+    notification.style.cssText = `
+        top: 20px;
+        right: 20px;
+        z-index: 9999;
+        max-width: 400px;
+        border-left: 4px solid #28a745;
+        animation: slideIn 0.3s ease-out;
+    `;
+    
+    notification.innerHTML = `
+        <div class="d-flex align-items-start">
+            <div class="me-3">
+                <i class="bi bi-check-circle-fill text-success fs-4"></i>
+            </div>
+            <div class="flex-grow-1">
+                <div class="fw-bold">🚀 Automation Complete!</div>
+                <div class="small mb-2">${activity.description}</div>
+                <div class="text-muted small">
+                    <i class="bi bi-clock me-1"></i>${activity.time}
+                </div>
+            </div>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+    
+    // Add CSS animation
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+    `;
+    document.head.appendChild(style);
+    
+    document.body.appendChild(notification);
+    
+    // Auto-remove after 8 seconds
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.classList.remove('show');
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.parentNode.removeChild(notification);
+                }
+            }, 300);
+        }
+    }, 8000);
+    
+    // Play notification sound (optional)
+    try {
+        const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEBACAAAQBKAAAEBAAAEGRUYXRHAAACAAAAAAAABAAAAPAA');
+        audio.volume = 0.3;
+        audio.play().catch(() => {}); // Ignore errors if audio fails
+    } catch (e) {
+        // Ignore audio errors
+    }
+}
+
+// Start checking for new automation results every 30 seconds
+document.addEventListener('DOMContentLoaded', function() {
+    // Load recent activities immediately
+    loadRecentActivities();
+    
+    // Set up periodic checks
+    setInterval(checkForNewAutomationResults, 30000); // Check every 30 seconds
+    
+    console.log('🔔 Auto-generation notification system started');
+});
+
 </script>
 {% endblock %}

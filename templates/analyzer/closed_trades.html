@@ -42,12 +42,12 @@
     <!-- Statistics Cards -->
     <div class="row g-4 mb-4">
         <div class="col-xl-3 col-lg-6">
-            <div class="card stats-card" style="background: linear-gradient(135deg, #059669, #16a34a); border: none; box-shadow: 0 8px 32px rgba(5, 150, 105, 0.25);">
-                <div class="card-body text-white">
+            <div class="card stats-card clean-card-style">
+                <div class="card-body">
                     <div class="d-flex align-items-center">
                         <div class="flex-grow-1">
-                            <h6 class="text-white mb-1 fw-semibold">Total Profit</h6>
-                            <h4 class="mb-0 fw-bold text-white">₹{{ total_profit|floatformat:2 }}</h4>
+                            <h6 class="text-success mb-1 fw-semibold">Total Profit</h6>
+                            <h4 class="mb-0 fw-bold text-success">₹{{ total_profit|floatformat:2 }}</h4>
                         </div>
                         <div class="icon-lg">
                             <i class="bi bi-trending-up text-white" style="font-size: 2.5rem; opacity: 0.9;"></i>
@@ -57,45 +57,45 @@
             </div>
         </div>
         <div class="col-xl-3 col-lg-6">
-            <div class="card stats-card" style="background: linear-gradient(135deg, #dc2626, #ef4444); border: none; box-shadow: 0 8px 32px rgba(220, 38, 38, 0.25);">
-                <div class="card-body text-white">
+            <div class="card stats-card clean-card-style">
+                <div class="card-body">
                     <div class="d-flex align-items-center">
                         <div class="flex-grow-1">
-                            <h6 class="text-white mb-1 fw-semibold">Total Loss</h6>
-                            <h4 class="mb-0 fw-bold text-white">₹{{ total_loss|floatformat:2 }}</h4>
+                            <h6 class="text-danger mb-1 fw-semibold">Total Loss</h6>
+                            <h4 class="mb-0 fw-bold text-danger">₹{{ total_loss|floatformat:2 }}</h4>
                         </div>
                         <div class="icon-lg">
-                            <i class="bi bi-trending-down text-white" style="font-size: 2.5rem; opacity: 0.9;"></i>
+                            <i class="bi bi-trending-down text-danger" style="font-size: 2.5rem; opacity: 0.9;"></i>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
         <div class="col-xl-3 col-lg-6">
-            <div class="card stats-card" style="background: linear-gradient(135deg, #0284c7, #0ea5e9); border: none; box-shadow: 0 8px 32px rgba(2, 132, 199, 0.25);">
-                <div class="card-body text-white">
+            <div class="card stats-card clean-card-style">
+                <div class="card-body">
                     <div class="d-flex align-items-center">
                         <div class="flex-grow-1">
-                            <h6 class="text-white mb-1 fw-semibold">Net P&L</h6>
-                            <h4 class="mb-0 fw-bold text-white">₹{{ net_pnl|floatformat:2 }}</h4>
+                            <h6 class="text-info mb-1 fw-semibold">Net P&L</h6>
+                            <h4 class="mb-0 fw-bold {% if net_pnl >= 0 %}text-success{% else %}text-danger{% endif %}">₹{{ net_pnl|floatformat:2 }}</h4>
                         </div>
                         <div class="icon-lg">
-                            <i class="bi bi-graph-up text-white" style="font-size: 2.5rem; opacity: 0.9;"></i>
+                            <i class="bi bi-graph-up {% if net_pnl >= 0 %}text-success{% else %}text-danger{% endif %}" style="font-size: 2.5rem; opacity: 0.9;"></i>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
         <div class="col-xl-3 col-lg-6">
-            <div class="card stats-card" style="background: linear-gradient(135deg, #d97706, #f59e0b); border: none; box-shadow: 0 8px 32px rgba(217, 119, 6, 0.25);">
-                <div class="card-body text-white">
+            <div class="card stats-card clean-card-style">
+                <div class="card-body">
                     <div class="d-flex align-items-center">
                         <div class="flex-grow-1">
-                            <h6 class="text-white mb-1 fw-semibold">Win Rate</h6>
-                            <h4 class="mb-0 fw-bold text-white">{{ win_rate|floatformat:1 }}%</h4>
+                            <h6 class="text-warning mb-1 fw-semibold">Win Rate</h6>
+                            <h4 class="mb-0 fw-bold text-warning">{{ win_rate|floatformat:1 }}%</h4>
                         </div>
                         <div class="icon-lg">
-                            <i class="bi bi-award text-white" style="font-size: 2.5rem; opacity: 0.9;"></i>
+                            <i class="bi bi-award text-warning" style="font-size: 2.5rem; opacity: 0.9;"></i>
                         </div>
                     </div>
                 </div>
@@ -348,6 +348,29 @@ function exportToCSV() {
     transform: translateY(-2px);
 }
 
+/* Clean card styling with thick top borders */
+.clean-card-style {
+    background: white !important;
+    border-top: 5px solid;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.clean-card-style:nth-child(1) {
+    border-top-color: #16a34a; /* Green for profit */
+}
+
+.clean-card-style:nth-child(2) {
+    border-top-color: #dc2626; /* Red for loss */
+}
+
+.clean-card-style:nth-child(3) {
+    border-top-color: #0ea5e9; /* Blue for net P&L */
+}
+
+.clean-card-style:nth-child(4) {
+    border-top-color: #f59e0b; /* Orange for win rate */
+}
+
 .icon-lg {
     font-size: 2.5rem;
     opacity: 0.8;
@@ -367,11 +390,23 @@ function exportToCSV() {
     border-top: none;
     font-size: 0.875rem;
     white-space: nowrap;
+    border-bottom: 2px solid #e5e7eb;
 }
 
 .table td {
     font-size: 0.875rem;
     vertical-align: middle;
+    border-bottom: none;
+    border-top: 1px solid #e5e7eb;
+    background: transparent !important;
+}
+
+.table tbody tr {
+    background: transparent !important;
+}
+
+.table tbody tr:hover {
+    background: rgba(59, 130, 246, 0.05) !important;
 }
 
 .badge {

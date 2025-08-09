@@ -1292,3 +1292,139 @@ body {
 .frequency-option input[type="radio"]:checked + .frequency-card-clean .frequency-icon {
     color: white;
 }
+
+/* Automation Page Styles - Clean Light Theme */
+.automation-form {
+    color: #1f2937 !important;
+}
+
+.automation-form .card {
+    background-color: #ffffff !important;
+    border: 1px solid #e5e7eb !important;
+    color: #1f2937 !important;
+}
+
+.automation-form .card-header {
+    background-color: #f9fafb !important;
+    border-bottom: 1px solid #e5e7eb !important;
+    color: #1f2937 !important;
+}
+
+.automation-form .card-body {
+    background-color: #ffffff !important;
+    color: #1f2937 !important;
+}
+
+/* Days Grid Styling */
+.days-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 0.75rem;
+    margin-top: 1rem;
+}
+
+.day-item {
+    position: relative;
+}
+
+.day-checkbox {
+    display: none;
+}
+
+.day-label {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.75rem;
+    border: 2px solid #e5e7eb;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background-color: #ffffff;
+    color: #6b7280;
+    font-weight: 500;
+    text-align: center;
+    min-height: 60px;
+}
+
+.day-label:hover {
+    border-color: #3b82f6;
+    background-color: #f0f9ff;
+    color: #1e40af;
+}
+
+.day-checkbox:checked + .day-label {
+    border-color: #16a34a;
+    background-color: #16a34a;
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(22, 163, 74, 0.3);
+}
+
+.check-indicator {
+    margin-left: 0.5rem;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.day-checkbox:checked + .day-label .check-indicator {
+    opacity: 1;
+}
+
+/* Instrument Cards */
+.instrument-card {
+    transition: all 0.3s ease;
+}
+
+.instrument-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.instrument-name {
+    font-size: 1.1rem;
+}
+
+.instrument-desc {
+    font-size: 0.875rem;
+}
+
+/* Override any dark theme styles for automation */
+.automation-form * {
+    color: inherit !important;
+}
+
+.automation-form .text-white {
+    color: #1f2937 !important;
+}
+
+.automation-form .text-light {
+    color: #6b7280 !important;
+}
+
+.automation-form .bg-light {
+    background-color: #f9fafb !important;
+    color: #1f2937 !important;
+}
+
+/* Schedule status indicators */
+.status-badge {
+    padding: 0.5rem 1rem;
+    border-radius: 2rem;
+    font-weight: 600;
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.status-active {
+    background-color: #dcfce7;
+    color: #166534;
+    border: 1px solid #bbf7d0;
+}
+
+.status-inactive {
+    background-color: #fee2e2;
+    color: #991b1b;
+    border: 1px solid #fca5a5;
+}
