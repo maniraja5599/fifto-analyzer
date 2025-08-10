@@ -4,7 +4,7 @@
 
 {% block content %}
 <!-- Dashboard Style Header -->
-<div class="dashboard-header">
+<div class="dashboard-header modern">
     <div class="container-fluid">
         <div class="row align-items-center">
             <div class="col-md-8">
@@ -283,13 +283,17 @@
 </div>
 
 <style>
+/* Modern unified dashboard header style */
+.dashboard-header.modern {background:linear-gradient(140deg,#f0fdf4 0%,#dcfce7 55%,#d1fae5 100%);border:1px solid #bbf7d0;border-radius:22px;padding:1.8rem 2.2rem;margin-bottom:2.2rem;box-shadow:0 6px 18px -6px rgba(16,185,129,.25),0 2px 4px rgba(0,0,0,.04);position:relative;overflow:hidden;}
+.dashboard-header.modern:before {content:"";position:absolute;inset:0;background:radial-gradient(circle at 85% 15%,rgba(16,185,129,.15),transparent 60%);pointer-events:none;}
+.dashboard-title i {color:#059669;font-size:1.9rem;}
 /* Dashboard Header Styling */
 .dashboard-header {
-    background: linear-gradient(135deg, #f8fafb 0%, #ffffff 100%);
-    border-bottom: 1px solid #e5e7eb;
-    padding: 2rem 0;
-    margin-bottom: 2rem;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    background: linear-gradient(135deg,#f0fdf4 0%,#dcfce7 100%);
+    border-bottom:1px solid #bbf7d0;
+    padding:2rem 0;
+    margin-bottom:2rem;
+    box-shadow:0 1px 3px rgba(0,0,0,.06);
 }
 
 .header-content {

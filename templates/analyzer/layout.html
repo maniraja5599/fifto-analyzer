@@ -13,6 +13,421 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="{% static 'style.css' %}">
+    <style>
+    /* Brand styling + enhanced animations */
+    .brand-name{display:inline-flex;gap:0;align-items:flex-end;font-weight:800;font-size:1.55rem;letter-spacing:-0.03em;line-height:1.1;position:relative;}
+    /* Moving gradient on FiFT */
+    .brand-name .brand-fift{background:linear-gradient(90deg,#059669 0%,#10b981 25%,#34d399 50%,#10b981 75%,#059669 100%);background-size:220% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;position:relative;animation:gradientSlide 7s linear infinite, fiftGlow 5.5s ease-in-out infinite;}
+    /* Pulsing + slight breathing on O */
+    .brand-name .brand-o{margin-left:2px;background:linear-gradient(180deg,#ef4444 0%,#dc2626 60%,#b91c1c 100%);-webkit-background-clip:text;background-clip:text;color:transparent;position:relative;animation:pulseO 3.4s ease-in-out infinite, oHue 9s linear infinite;will-change:transform,filter;}
+    .brand-name .brand-o:after{content:"";position:absolute;left:0;right:0;bottom:-2px;height:2px;border-radius:2px;background:linear-gradient(90deg,#f87171,#dc2626);opacity:.7;}
+    /* Sheen sweep over entire word */
+    .brand-name:after{content:"";position:absolute;top:0;left:-130%;width:55%;height:100%;background:linear-gradient(75deg,rgba(255,255,255,0) 0%,rgba(255,255,255,.55) 48%,rgba(255,255,255,0) 100%);transform:skewX(-18deg);animation:sheen 6.2s ease-in-out infinite;pointer-events:none;mix-blend-mode:overlay;}
+    .sidebar-brand:hover .brand-name .brand-fift{filter:drop-shadow(0 2px 6px rgba(16,185,129,.35));}
+    .sidebar-brand:hover .brand-name .brand-o{filter:drop-shadow(0 2px 6px rgba(239,68,68,.5));}
+
+    @keyframes gradientSlide {0%{background-position:0% 50%;}100%{background-position:100% 50%;}}
+    @keyframes fiftGlow {0%,100%{text-shadow:0 0 0 rgba(16,185,129,0);}45%{text-shadow:0 4px 14px rgba(16,185,129,.45);}60%{text-shadow:0 2px 8px rgba(16,185,129,.35);}}
+    @keyframes pulseO {0%{transform:translateY(0) scale(1);filter:drop-shadow(0 0 0 rgba(239,68,68,0));}40%{transform:translateY(-2px) scale(1.12);filter:drop-shadow(0 4px 10px rgba(239,68,68,.55));}55%{transform:translateY(-2px) scale(1.12);}100%{transform:translateY(0) scale(1);filter:drop-shadow(0 2px 6px rgba(239,68,68,.4));}}
+    @keyframes oHue {0%{filter:hue-rotate(0deg) drop-shadow(0 2px 6px rgba(239,68,68,.4));}50%{filter:hue-rotate(-8deg) drop-shadow(0 3px 10px rgba(239,68,68,.55));}100%{filter:hue-rotate(0deg) drop-shadow(0 2px 6px rgba(239,68,68,.4));}}
+    @keyframes sheen {0%{left:-130%;}55%{left:130%;}100%{left:130%;}}
+
+    /* Respect reduced motion */
+    @media (prefers-reduced-motion: reduce){
+        .brand-name .brand-fift,.brand-name .brand-o,.brand-name:after{animation:none;}
+        .brand-name .brand-fift,.brand-name .brand-o{text-shadow:none;}
+    }
+    
+    /* Fix Navigation Panel Horizontal Scroll */
+    .sidebar {
+        overflow-x: hidden !important;
+        max-width: 260px;
+        white-space: nowrap;
+    }
+    
+    .sidebar-nav {
+        overflow-x: hidden !important;
+        width: 100%;
+    }
+    
+    .nav-link {
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        max-width: 100% !important;
+    }
+    
+    .nav-link span {
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        white-space: nowrap !important;
+    }
+    
+    .brand-content {
+        overflow: hidden !important;
+        max-width: 200px;
+    }
+    
+    .brand-tagline {
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+    }
+    
+    /* Ensure main content doesn't overflow horizontally */
+    .main-content {
+        overflow-x: hidden !important;
+        max-width: calc(100% - 260px) !important;
+    }
+    
+    .dashboard-container {
+        overflow-x: hidden !important;
+    }
+    
+    /* Global Notification System */
+    .notification-center-toggle {
+        position: fixed;
+        bottom: 2rem;
+        right: 2rem;
+        z-index: 1000;
+    }
+    
+    .notification-btn {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        border: none;
+        border-radius: 50px;
+        width: 60px;
+        height: 60px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 1.5rem;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        transition: all 0.3s ease;
+        position: relative;
+        cursor: pointer;
+    }
+    
+    .notification-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.6);
+        background: linear-gradient(135deg, #5a67d8, #6b46c1);
+    }
+    
+    .notification-badge {
+        position: absolute;
+        top: -5px;
+        right: -5px;
+        background: #ef4444;
+        color: white;
+        border-radius: 50%;
+        min-width: 24px;
+        height: 24px;
+        font-size: 0.75rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        border: 3px solid white;
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.1); }
+    }
+    
+    .notification-panel {
+        position: fixed;
+        top: 0;
+        right: -400px;
+        width: 380px;
+        height: 100vh;
+        background: white;
+        box-shadow: -5px 0 25px rgba(0, 0, 0, 0.15);
+        z-index: 1050;
+        transition: right 0.3s ease;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .notification-panel.show {
+        right: 0;
+    }
+    
+    .notification-header {
+        padding: 1.5rem;
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    
+    .notification-header h5 {
+        margin: 0;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .btn-close-notification {
+        background: rgba(255, 255, 255, 0.2);
+        border: none;
+        color: white;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s ease;
+        cursor: pointer;
+    }
+    
+    .btn-close-notification:hover {
+        background: rgba(255, 255, 255, 0.3);
+        transform: rotate(90deg);
+    }
+    
+    .notification-body {
+        flex: 1;
+        overflow-y: auto;
+        padding: 1rem;
+    }
+    
+    .notification-item {
+        background: #f8fafc;
+        border-radius: 12px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        border-left: 4px solid;
+        transition: all 0.2s ease;
+        cursor: pointer;
+    }
+    
+    .notification-item:hover {
+        transform: translateX(5px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+    
+    .notification-item.success { border-left-color: #10b981; }
+    .notification-item.error { border-left-color: #ef4444; }
+    .notification-item.warning { border-left-color: #f59e0b; }
+    .notification-item.info { border-left-color: #3b82f6; }
+    
+    .notification-item.unread {
+        background: #eff6ff;
+        box-shadow: 0 2px 8px rgba(59, 130, 246, 0.15);
+    }
+    
+    .notification-content {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.75rem;
+    }
+    
+    .notification-icon {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1rem;
+        color: white;
+        flex-shrink: 0;
+    }
+    
+    .notification-icon.success { background: #10b981; }
+    .notification-icon.error { background: #ef4444; }
+    .notification-icon.warning { background: #f59e0b; }
+    .notification-icon.info { background: #3b82f6; }
+    
+    .notification-text {
+        flex: 1;
+    }
+    
+    .notification-title {
+        font-weight: 600;
+        color: #1f2937;
+        margin-bottom: 0.25rem;
+        font-size: 0.9rem;
+    }
+    
+    .notification-message {
+        color: #6b7280;
+        font-size: 0.85rem;
+        line-height: 1.4;
+        margin-bottom: 0.5rem;
+    }
+    
+    .notification-time {
+        color: #9ca3af;
+        font-size: 0.75rem;
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+        flex-wrap: wrap;
+    }
+    
+    .notification-time .text-muted {
+        font-size: 0.7rem;
+        color: #a1a1aa !important;
+        font-weight: 400;
+    }
+    
+    .notification-footer {
+        padding: 1rem 1.5rem;
+        background: #f9fafb;
+        border-top: 1px solid #e5e7eb;
+        display: flex;
+        gap: 0.75rem;
+    }
+    
+    .notification-footer .btn {
+        flex: 1;
+        font-size: 0.85rem;
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        font-weight: 500;
+    }
+    
+    /* Toast Notifications */
+    .toast-container {
+        position: fixed;
+        top: 1rem;
+        right: 1rem;
+        z-index: 1060;
+        max-width: 400px;
+        pointer-events: none;
+    }
+    
+    .custom-toast {
+        background: white;
+        border: none;
+        border-radius: 12px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+        margin-bottom: 0.75rem;
+        border-left: 4px solid;
+        animation: slideInFromTop 0.4s ease-out;
+        pointer-events: auto;
+        min-width: 320px;
+        max-width: 400px;
+    }
+    
+    .custom-toast.success { 
+        border-left-color: #10b981; 
+        background: linear-gradient(135deg, #ecfdf5 0%, #f0fdf4 100%);
+    }
+    .custom-toast.error { 
+        border-left-color: #ef4444; 
+        background: linear-gradient(135deg, #fef2f2 0%, #fef1f1 100%);
+    }
+    .custom-toast.warning { 
+        border-left-color: #f59e0b; 
+        background: linear-gradient(135deg, #fffbeb 0%, #fefce8 100%);
+    }
+    .custom-toast.info { 
+        border-left-color: #3b82f6; 
+        background: linear-gradient(135deg, #eff6ff 0%, #f0f9ff 100%);
+    }
+    
+    .custom-toast .toast-header {
+        background: transparent;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+        padding: 1rem 1rem 0.75rem;
+    }
+    
+    .custom-toast .toast-body {
+        padding: 0.75rem 1rem 1rem;
+        font-size: 0.9rem;
+        line-height: 1.5;
+    }
+    
+    .custom-toast.success .toast-header,
+    .custom-toast.success .toast-body {
+        color: #065f46;
+    }
+    
+    .custom-toast.error .toast-header,
+    .custom-toast.error .toast-body {
+        color: #991b1b;
+    }
+    
+    .custom-toast.warning .toast-header,
+    .custom-toast.warning .toast-body {
+        color: #92400e;
+    }
+    
+    .custom-toast.info .toast-header,
+    .custom-toast.info .toast-body {
+        color: #1e40af;
+    }
+    
+    @keyframes slideInFromTop {
+        from { 
+            transform: translateX(100%) translateY(-20px); 
+            opacity: 0; 
+            scale: 0.95;
+        }
+        to { 
+            transform: translateX(0) translateY(0); 
+            opacity: 1; 
+            scale: 1;
+        }
+    }
+    
+    @keyframes slideOutToTop {
+        from { 
+            transform: translateX(0) translateY(0); 
+            opacity: 1; 
+            scale: 1;
+        }
+        to { 
+            transform: translateX(100%) translateY(-20px); 
+            opacity: 0; 
+            scale: 0.95;
+        }
+    }
+    
+    .custom-toast.hiding {
+        animation: slideOutToTop 0.3s ease-in forwards;
+    }
+    
+    /* Mobile Responsive */
+    @media (max-width: 768px) {
+        .notification-panel {
+            width: 100%;
+            right: -100%;
+        }
+        
+        .notification-center-toggle {
+            bottom: 1rem;
+            right: 1rem;
+        }
+        
+        .notification-btn {
+            width: 50px;
+            height: 50px;
+            font-size: 1.25rem;
+        }
+        
+        .toast-container {
+            top: 0.5rem;
+            right: 0.5rem;
+            left: 0.5rem;
+            max-width: none;
+        }
+        
+        .custom-toast {
+            min-width: auto;
+            max-width: none;
+        }
+    }
+    </style>
 </head>
 <body>
     <div class="dashboard-container">
@@ -125,7 +540,7 @@
                         </svg>
                     </div>
                     <div class="brand-content">
-                        <span class="brand-name">FiFTO</span>
+                        <span class="brand-name"><span class="brand-fift">FiFT</span><span class="brand-o">O</span></span>
                         <div class="brand-tagline">Your trusted partner in financial growth</div>
                     </div>
                 </a>
@@ -133,7 +548,7 @@
             <nav class="sidebar-nav">
                 <div class="nav-item">
                     <a href="{% url 'index' %}" class="nav-link {% if request.path == '/' %}active{% endif %}">
-                        <i class="bi bi-house-door"></i>
+                        <i class="bi bi-speedometer2"></i>
                         <span>Dashboard</span>
                     </a>
                 </div>
@@ -240,6 +655,493 @@
                 });
             });
         });
+    </script>
+
+    <!-- Global Notification System -->
+    <div class="notification-center-toggle">
+        <button class="notification-btn" id="notificationToggle" title="Notifications">
+            <i class="bi bi-bell"></i>
+            <span class="notification-badge" id="notificationBadge" style="display: none;">0</span>
+        </button>
+    </div>
+
+    <!-- Notification Panel -->
+    <div class="notification-panel" id="notificationPanel">
+        <div class="notification-header">
+            <h5>
+                <i class="bi bi-bell"></i>
+                Notifications
+            </h5>
+            <button class="btn-close-notification" id="closeNotification" title="Close">
+                <i class="bi bi-x"></i>
+            </button>
+        </div>
+        
+        <div class="notification-body" id="notificationBody">
+            <div class="text-center text-muted py-5" id="emptyMessage">
+                <i class="bi bi-bell-slash" style="font-size: 2rem; opacity: 0.5;"></i>
+                <p class="mt-2 mb-0">No notifications yet</p>
+            </div>
+        </div>
+        
+        <div class="notification-footer">
+            <button class="btn btn-outline-primary" id="markAllRead">
+                <i class="bi bi-check-double"></i> Mark All Read
+            </button>
+            <button class="btn btn-outline-danger" id="clearAllNotifications">
+                <i class="bi bi-trash"></i> Clear All
+            </button>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script>
+    // Global Notification Manager
+    class NotificationManager {
+        constructor() {
+            this.notifications = this.loadNotifications();
+            this.init();
+        }
+        
+        init() {
+            this.bindEvents();
+            this.renderNotifications();
+            this.updateBadge();
+            this.addWelcomeNotification();
+        }
+        
+        bindEvents() {
+            // Toggle notification panel
+            document.getElementById('notificationToggle').addEventListener('click', () => {
+                this.togglePanel();
+            });
+            
+            // Close panel
+            document.getElementById('closeNotification').addEventListener('click', () => {
+                this.closePanel();
+            });
+            
+            // Mark all as read
+            document.getElementById('markAllRead').addEventListener('click', () => {
+                this.markAllAsRead();
+            });
+            
+            // Clear all notifications
+            document.getElementById('clearAllNotifications').addEventListener('click', () => {
+                this.clearAllNotifications();
+            });
+            
+            // Close panel when clicking outside
+            document.addEventListener('click', (e) => {
+                const panel = document.getElementById('notificationPanel');
+                const toggle = document.getElementById('notificationToggle');
+                
+                if (!panel.contains(e.target) && !toggle.contains(e.target)) {
+                    this.closePanel();
+                }
+            });
+            
+            // Handle Django messages
+            this.handleDjangoMessages();
+        }
+        
+        togglePanel() {
+            const panel = document.getElementById('notificationPanel');
+            panel.classList.toggle('show');
+            
+            if (panel.classList.contains('show')) {
+                this.markVisibleAsRead();
+            }
+        }
+        
+        closePanel() {
+            document.getElementById('notificationPanel').classList.remove('show');
+        }
+        
+        addNotification(title, message, type = 'info', showToast = true) {
+            const notification = {
+                id: Date.now() + Math.random(),
+                title: title,
+                message: message,
+                type: type,
+                timestamp: new Date().toISOString(),
+                read: false
+            };
+            
+            this.notifications.unshift(notification);
+            this.saveNotifications();
+            this.renderNotifications();
+            this.updateBadge();
+            
+            if (showToast) {
+                this.showToast(title, message, type);
+            }
+            
+            return notification.id;
+        }
+        
+        showToast(title, message, type = 'info') {
+            const toastContainer = document.getElementById('toastContainer');
+            const toastId = 'toast-' + Date.now() + Math.random();
+            
+            const icons = {
+                success: 'bi-check-circle-fill',
+                error: 'bi-exclamation-triangle-fill',
+                warning: 'bi-exclamation-triangle-fill',
+                info: 'bi-info-circle-fill'
+            };
+            
+            const colors = {
+                success: '#10b981',
+                error: '#ef4444',
+                warning: '#f59e0b',
+                info: '#3b82f6'
+            };
+            
+            const toastHtml = `
+                <div class="toast custom-toast ${type}" id="${toastId}" role="alert">
+                    <div class="toast-header border-0">
+                        <i class="bi ${icons[type]} me-2" style="color: ${colors[type]}; font-size: 1.1rem;"></i>
+                        <strong class="me-auto" style="font-weight: 600;">${title}</strong>
+                        <small class="text-muted opacity-75">${this.formatTimeAgo(new Date())}</small>
+                        <button type="button" class="btn-close ms-2" data-bs-dismiss="toast" style="font-size: 0.8rem;"></button>
+                    </div>
+                    <div class="toast-body">
+                        ${message}
+                    </div>
+                </div>
+            `;
+            
+            toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+            
+            const toastElement = document.getElementById(toastId);
+            const toast = new bootstrap.Toast(toastElement, {
+                autohide: true,
+                delay: type === 'error' ? 7000 : type === 'warning' ? 6000 : 5000
+            });
+            
+            // Add slide-in animation
+            setTimeout(() => {
+                toast.show();
+            }, 100);
+            
+            // Custom hide animation
+            toastElement.addEventListener('hide.bs.toast', () => {
+                toastElement.classList.add('hiding');
+            });
+            
+            // Remove from DOM after hiding
+            toastElement.addEventListener('hidden.bs.toast', () => {
+                setTimeout(() => {
+                    if (toastElement.parentNode) {
+                        toastElement.remove();
+                    }
+                }, 300);
+            });
+            
+            return toastId;
+        }
+        
+        renderNotifications() {
+            const body = document.getElementById('notificationBody');
+            
+            if (this.notifications.length === 0) {
+                body.innerHTML = '<div class="text-center text-muted py-5" id="emptyMessage"><i class="bi bi-bell-slash" style="font-size: 2rem; opacity: 0.5;"></i><p class="mt-2 mb-0">No notifications yet</p></div>';
+                return;
+            }
+            
+            const notificationsHtml = this.notifications.map(notification => {
+                const icons = {
+                    success: 'bi-check-circle-fill',
+                    error: 'bi-exclamation-triangle-fill',
+                    warning: 'bi-exclamation-triangle-fill',
+                    info: 'bi-info-circle-fill'
+                };
+                
+                return `
+                    <div class="notification-item ${notification.type} ${!notification.read ? 'unread' : ''}" 
+                         data-id="${notification.id}">
+                        <div class="notification-content">
+                            <div class="notification-icon ${notification.type}">
+                                <i class="bi ${icons[notification.type]}"></i>
+                            </div>
+                            <div class="notification-text">
+                                <div class="notification-title">${notification.title}</div>
+                                <div class="notification-message">${notification.message}</div>
+                                <div class="notification-time">
+                                    <i class="bi bi-clock"></i>
+                                    ${this.formatTimeAgo(new Date(notification.timestamp))}
+                                    <span class="text-muted ms-2 small">${new Date(notification.timestamp).toLocaleString()}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            body.innerHTML = notificationsHtml;
+            
+            // Add click events for individual notifications
+            body.querySelectorAll('.notification-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    const id = parseFloat(item.dataset.id);
+                    this.markAsRead(id);
+                });
+            });
+        }
+        
+        updateBadge() {
+            const badge = document.getElementById('notificationBadge');
+            const unreadCount = this.notifications.filter(n => !n.read).length;
+            
+            if (unreadCount > 0) {
+                badge.textContent = unreadCount > 99 ? '99+' : unreadCount;
+                badge.style.display = 'flex';
+            } else {
+                badge.style.display = 'none';
+            }
+        }
+        
+        markAsRead(id) {
+            const notification = this.notifications.find(n => n.id === id);
+            if (notification && !notification.read) {
+                notification.read = true;
+                this.saveNotifications();
+                this.renderNotifications();
+                this.updateBadge();
+            }
+        }
+        
+        markAllAsRead() {
+            this.notifications.forEach(n => n.read = true);
+            this.saveNotifications();
+            this.renderNotifications();
+            this.updateBadge();
+            
+            this.showToast('Success', 'All notifications marked as read', 'success');
+        }
+        
+        markVisibleAsRead() {
+            let hasChanges = false;
+            this.notifications.forEach(n => {
+                if (!n.read) {
+                    n.read = true;
+                    hasChanges = true;
+                }
+            });
+            
+            if (hasChanges) {
+                this.saveNotifications();
+                this.renderNotifications();
+                this.updateBadge();
+            }
+        }
+        
+        clearAllNotifications() {
+            if (this.notifications.length === 0) {
+                this.showToast('Info', 'No notifications to clear', 'info');
+                return;
+            }
+            
+            if (confirm('Are you sure you want to clear all notifications? This action cannot be undone.')) {
+                // Clear the notifications array
+                this.notifications = [];
+                
+                // Force clear localStorage completely
+                localStorage.removeItem('fifto_notifications');
+                localStorage.setItem('fifto_notifications', JSON.stringify([]));
+                
+                // Mark when notifications were cleared
+                localStorage.setItem('fifto_last_cleared', new Date().getTime().toString());
+                
+                // Re-render the notification panel (this will show empty state)
+                this.renderNotifications();
+                
+                // Update the badge
+                this.updateBadge();
+                
+                // Show success toast
+                this.showToast('Success', 'All notifications cleared', 'success');
+                
+                console.log('Notifications cleared. Count:', this.notifications.length); // Debug log
+                console.log('LocalStorage:', localStorage.getItem('fifto_notifications')); // Debug localStorage
+            }
+        }
+        
+        formatTimeAgo(date) {
+            const now = new Date();
+            const diff = now - date;
+            const minutes = Math.floor(diff / 60000);
+            const hours = Math.floor(diff / 3600000);
+            const days = Math.floor(diff / 86400000);
+            
+            if (minutes < 1) return 'Just now';
+            if (minutes < 60) return `${minutes}m ago`;
+            if (hours < 24) return `${hours}h ago`;
+            if (days < 7) return `${days}d ago`;
+            
+            return date.toLocaleDateString();
+        }
+        
+        saveNotifications() {
+            localStorage.setItem('fifto_notifications', JSON.stringify(this.notifications));
+        }
+        
+        loadNotifications() {
+            try {
+                const stored = localStorage.getItem('fifto_notifications');
+                if (!stored || stored === 'null' || stored === 'undefined') {
+                    return [];
+                }
+                const parsed = JSON.parse(stored);
+                return Array.isArray(parsed) ? parsed : [];
+            } catch (error) {
+                console.error('Error loading notifications from localStorage:', error);
+                // Clear corrupted data
+                localStorage.removeItem('fifto_notifications');
+                return [];
+            }
+        }
+        
+        handleDjangoMessages() {
+            // Skip auto-notifications on closed trades page to avoid unwanted warnings
+            const currentPath = window.location.pathname;
+            if (currentPath.includes('/closed_trades/')) {
+                // Only process explicit success/error messages, skip general warnings
+                const messages = document.querySelectorAll('.alert');
+                messages.forEach(message => {
+                    const content = message.textContent.trim();
+                    
+                    // Skip auto-warnings about deletion on closed trades page
+                    if (content.includes('permanently delete') || content.includes('This action cannot be undone')) {
+                        message.style.display = 'none';
+                        return;
+                    }
+                    
+                    let type = 'info';
+                    let title = 'System Message';
+                    
+                    if (message.classList.contains('alert-success')) {
+                        type = 'success';
+                        title = 'Success';
+                    } else if (message.classList.contains('alert-danger')) {
+                        type = 'error';
+                        title = 'Error';
+                    } else if (message.classList.contains('alert-warning')) {
+                        type = 'warning';
+                        title = 'Warning';
+                        // Skip generic warnings on closed trades page
+                        if (currentPath.includes('/closed_trades/')) {
+                            message.style.display = 'none';
+                            return;
+                        }
+                    } else if (message.classList.contains('alert-info')) {
+                        type = 'info';
+                        title = 'Information';
+                    }
+                    
+                    if (content) {
+                        // Add to notification center (without toast)
+                        this.addNotification(title, content, type, false);
+                        
+                        // Show as toast popup
+                        this.showToast(title, content, type);
+                        
+                        // Hide the original Django alert
+                        message.style.display = 'none';
+                    }
+                });
+                
+                return;
+            }
+            
+            // Normal processing for other pages
+            const messages = document.querySelectorAll('.alert');
+            messages.forEach(message => {
+                const content = message.textContent.trim();
+                let type = 'info';
+                let title = 'System Message';
+                
+                if (message.classList.contains('alert-success')) {
+                    type = 'success';
+                    title = 'Success';
+                } else if (message.classList.contains('alert-danger')) {
+                    type = 'error';
+                    title = 'Error';
+                } else if (message.classList.contains('alert-warning')) {
+                    type = 'warning';
+                    title = 'Warning';
+                } else if (message.classList.contains('alert-info')) {
+                    type = 'info';
+                    title = 'Information';
+                }
+                
+                if (content) {
+                    // Add to notification center (without toast)
+                    this.addNotification(title, content, type, false);
+                    
+                    // Show as toast popup
+                    this.showToast(title, content, type);
+                    
+                    // Hide the original Django alert
+                    message.style.display = 'none';
+                }
+            });
+        }
+        
+        addWelcomeNotification() {
+            // Check if user has cleared notifications recently (don't add welcome notification)
+            const lastCleared = localStorage.getItem('fifto_last_cleared');
+            const now = new Date().getTime();
+            
+            // If cleared within last 5 minutes, don't add welcome notification
+            if (lastCleared && (now - parseInt(lastCleared)) < 300000) {
+                return;
+            }
+            
+            // Add welcome notification if no notifications exist
+            if (this.notifications.length === 0) {
+                this.addNotification(
+                    'Welcome to FIFTO Analyzer!', 
+                    'Your comprehensive trading analysis platform is ready. Start by uploading your trading data or configuring automation settings.',
+                    'info',
+                    false
+                );
+                
+                // Show welcome toast after a short delay
+                setTimeout(() => {
+                    this.showToast(
+                        'Welcome to FIFTO!', 
+                        'Your trading analysis platform is ready to use.',
+                        'info'
+                    );
+                }, 1000);
+            }
+        }
+    }
+    
+    // Initialize notification system when DOM is loaded
+    document.addEventListener('DOMContentLoaded', function() {
+        window.notificationManager = new NotificationManager();
+        
+        // Global function to show toast notifications from anywhere
+        window.showNotification = function(title, message, type = 'info') {
+            return window.notificationManager.addNotification(title, message, type, true);
+        };
+        
+        // Global function to show only toast (no persistent notification)
+        window.showToast = function(title, message, type = 'info') {
+            return window.notificationManager.showToast(title, message, type);
+        };
+        
+        // Example usage - you can call these from your Django views or JavaScript:
+        // showNotification('Analysis Complete', 'Your trading analysis has been processed successfully.', 'success');
+        // showNotification('Warning', 'Some data points were missing in your analysis.', 'warning');
+        // showNotification('Error', 'Failed to connect to trading API.', 'error');
+        // showToast('Quick Info', 'This is a temporary message', 'info');
+    });
     </script>
 
 </body>

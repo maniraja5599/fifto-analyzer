@@ -423,6 +423,7 @@ def trades_list(request):
     nifty_chain = utils.get_option_chain_data("NIFTY")
     banknifty_chain = utils.get_option_chain_data("BANKNIFTY")
 
+    # ---- Active trades P&L & grouping (indentation normalized) ----
     for trade in active_trades:
         try:
             # Parse and format the date tag
@@ -432,54 +433,84 @@ def trades_list(request):
         except (ValueError, KeyError):
             trade['display_tag'] = trade.get('entry_tag', 'General Trades')
 
-        # Calculate current P&L
+        # Calculate current P&L including hedge positions
         chain_data = nifty_chain if trade['instrument'] == 'NIFTY' else banknifty_chain
         current_ce, current_pe = 0.0, 0.0
-        
+        current_ce_hedge, current_pe_hedge = 0.0, 0.0
+
         if chain_data and chain_data.get('records', {}).get('data'):
             for item in chain_data['records']['data']:
                 if item.get("expiryDate") == trade.get('expiry'):
+                    # Get main position prices
                     if item.get("strikePrice") == trade.get('ce_strike') and item.get("CE"):
                         current_ce = item["CE"]["lastPrice"]
                     if item.get("strikePrice") == trade.get('pe_strike') and item.get("PE"):
                         current_pe = item["PE"]["lastPrice"]
-        
+                    
+                    # Get hedge position prices
+                    if item.get("strikePrice") == trade.get('ce_hedge_strike') and item.get("CE"):
+                        current_ce_hedge = item["CE"]["lastPrice"]
+                    if item.get("strikePrice") == trade.get('pe_hedge_strike') and item.get("PE"):
+                        current_pe_hedge = item["PE"]["lastPrice"]
+
         lot_size = utils.get_lot_size(trade['instrument'])
-        initial_premium = trade.get('initial_premium', 0)
-        current_premium = current_ce + current_pe
         
-        if current_premium > 0:
-            pnl = round((initial_premium - current_premium) * lot_size, 2)
-            trade['pnl'] = pnl
-            trade['current_premium'] = current_premium
-            total_pnl += pnl
+        # Check if this is a hedged position
+        has_hedge = trade.get('ce_hedge_strike', 0) > 0 or trade.get('pe_hedge_strike', 0) > 0
+        
+        if has_hedge:
+            # For hedged positions: Net P&L = (Sell Premium - Buy Premium) - (Current Sell - Current Buy)
+            initial_sell_premium = trade.get('initial_premium', 0)  # What we sold for
+            initial_hedge_premium = trade.get('total_hedge_premium', 0)  # What we paid for hedge
             
+            current_sell_premium = current_ce + current_pe  # Current value of what we sold
+            current_hedge_premium = current_ce_hedge + current_pe_hedge  # Current value of what we bought
+            
+            # Net P&L = (sell received - hedge paid) - (sell current value - hedge current value)
+            if current_sell_premium > 0:  # Only calculate if we have valid prices
+                pnl = round(((initial_sell_premium - initial_hedge_premium) - (current_sell_premium - current_hedge_premium)) * lot_size, 2)
+                trade['current_premium'] = current_sell_premium
+                trade['current_hedge_premium'] = current_hedge_premium
+                valid_prices = True
+            else:
+                valid_prices = False
+        else:
+            # For non-hedged positions: Original logic
+            initial_premium = trade.get('initial_premium', 0)
+            current_premium = current_ce + current_pe
+            if current_premium > 0:
+                pnl = round((initial_premium - current_premium) * lot_size, 2)
+                trade['current_premium'] = current_premium
+                valid_prices = True
+            else:
+                valid_prices = False
+
+        if valid_prices:
+            trade['pnl'] = pnl
+            total_pnl += pnl
+
             # Check for target/stoploss and send alerts
             target_amount = trade.get('target_amount', 0)
             stoploss_amount = trade.get('stoploss_amount', 0)
-            
+
             if pnl >= target_amount and target_amount > 0:
                 trade['status'] = 'Target'
                 utils.save_trades(trades)
-                # Send Telegram alert
                 utils.send_telegram_message(f"🎯 TARGET HIT!\nTrade: {trade['id']}\nP&L: ₹{pnl:,.2f}")
                 messages.success(request, f"Target hit for {trade['id']}! P&L: ₹{pnl:,.2f}")
             elif pnl <= -stoploss_amount and stoploss_amount > 0:
                 trade['status'] = 'Stoploss'
                 utils.save_trades(trades)
-                # Send Telegram alert
                 utils.send_telegram_message(f"🛑 STOPLOSS HIT!\nTrade: {trade['id']}\nP&L: ₹{pnl:,.2f}")
                 messages.error(request, f"Stoploss hit for {trade['id']}! P&L: ₹{pnl:,.2f}")
         else:
             trade['pnl'] = "N/A"
             trade['current_premium'] = "N/A"
-        
+
         # Group by automation_batch, day, or expiry
         if group_by == 'automation_batch':
-            # Group by automation generation (one automation creates one batch)
             group_key = trade.get('entry_tag', 'General Trades')
         elif group_by == 'day':
-            # Group by day
             try:
                 start_dt = datetime.strptime(trade['start_time'], "%Y-%m-%d %H:%M")
                 group_key = start_dt.strftime('%d-%b-%Y')
@@ -487,7 +518,7 @@ def trades_list(request):
                 group_key = 'Unknown Date'
         else:  # expiry grouping
             group_key = trade.get('expiry', 'Unknown Expiry')
-        
+
         grouped_trades[group_key].append(trade)
 
     # Calculate group summaries

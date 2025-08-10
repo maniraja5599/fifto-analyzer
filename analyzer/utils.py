@@ -93,8 +93,8 @@ def round_to_nearest_50(value):
 
 def calculate_weekly_zones(instrument_name, calculation_type):
     """
-    Calculate weekly supply/demand zones using the same logic from the original Python file.
-    Returns supply_zone and demand_zone for strike selection.
+    Calculate weekly/monthly supply/demand zones using exact logic from reference file.
+    This is the simplified and direct approach without complex fallback mechanisms.
     """
     TICKERS = {"NIFTY": "^NSEI", "BANKNIFTY": "^NSEBANK"}
     
@@ -104,61 +104,30 @@ def calculate_weekly_zones(instrument_name, calculation_type):
     ticker_symbol = TICKERS[instrument_name]
     
     try:
-        # Fetch historical data for zone calculation
+        # Exact logic from reference file - direct and simple
         df_zones = yf.Ticker(ticker_symbol).history(period="5y", interval="1d")
-        
-        # Special handling for NIFTY Weekly as in original code
         if calculation_type == "Weekly" and instrument_name == "NIFTY":
             df_zones = yf.Ticker(ticker_symbol).history(period="6mo", interval="1d")
-            
-        if df_zones.empty:
-            print(f"❌ Failed to fetch historical data for {instrument_name}")
+        
+        if df_zones.empty: 
             return None, None
             
-        # Convert index to datetime
         df_zones.index = pd.to_datetime(df_zones.index)
-        
-        # Resample based on calculation type (Weekly/Monthly)
         resample_period = 'W' if calculation_type == "Weekly" else 'ME'
-        agg_df = df_zones.resample(resample_period).agg({
-            'Open': 'first', 
-            'High': 'max', 
-            'Low': 'min'
-        }).dropna()
+        agg_df = df_zones.resample(resample_period).agg({'Open': 'first', 'High': 'max', 'Low': 'min'}).dropna()
         
-        # Calculate rolling ranges (5 and 10 periods)
+        # Exact calculation from reference file
         rng5 = (agg_df['High'] - agg_df['Low']).rolling(5).mean()
         rng10 = (agg_df['High'] - agg_df['Low']).rolling(10).mean()
-        
-        # Base price (Open)
         base = agg_df['Open']
-        
-        # Calculate supply and demand zones
-        u1 = base + 0.5 * rng5  # Upper zone 1
-        u2 = base + 0.5 * rng10  # Upper zone 2
-        l1 = base - 0.5 * rng5   # Lower zone 1
-        l2 = base - 0.5 * rng10  # Lower zone 2
-        
-        # Get the latest zones
-        latest_zones = pd.DataFrame({
-            'u1': u1, 
-            'u2': u2, 
-            'l1': l1, 
-            'l2': l2
-        }).dropna().iloc[-1]
-        
-        # Calculate supply and demand zones
-        supply_zone = round(max(latest_zones['u1'], latest_zones['u2']), 2)
-        demand_zone = round(min(latest_zones['l1'], latest_zones['l2']), 2)
-        
-        print(f"✅ {calculation_type} zones calculated for {instrument_name}:")
-        print(f"   Supply Zone: ₹{supply_zone}")
-        print(f"   Demand Zone: ₹{demand_zone}")
+        u1, u2 = base + 0.5 * rng5, base + 0.5 * rng10
+        l1, l2 = base - 0.5 * rng5, base - 0.5 * rng10
+        latest_zones = pd.DataFrame({'u1': u1, 'u2': u2, 'l1': l1, 'l2': l2}).dropna().iloc[-1]
+        supply_zone, demand_zone = round(max(latest_zones['u1'], latest_zones['u2']), 2), round(min(latest_zones['l1'], latest_zones['l2']), 2)
         
         return supply_zone, demand_zone
         
     except Exception as e:
-        print(f"❌ Error calculating weekly zones for {instrument_name}: {e}")
         return None, None
 
 def get_option_chain_data(symbol):
@@ -174,6 +143,52 @@ def get_option_chain_data(symbol):
     except requests.exceptions.RequestException as e:
         print(f"Error fetching option chain for {symbol}: {e}")
         return None
+
+def find_hedge_strike(sold_strike, target_premium, options_data, option_type):
+    """
+    Find the best hedge strike based on target premium (10% of sold premium)
+    """
+    print(f"🎯 Finding hedge for {option_type} {sold_strike}, target premium: ₹{target_premium:.2f}")
+    print(f"🎯 Available {option_type} strikes: {list(options_data.keys())[:10]}...")  # Show first 10
+    
+    candidates = []
+    for strike, price in options_data.items():
+        is_valid_direction = (option_type == 'CE' and strike > sold_strike) or (option_type == 'PE' and strike < sold_strike)
+        if is_valid_direction and strike % 100 == 0:
+            candidates.append({'strike': strike, 'price': price, 'diff': abs(price - target_premium)})
+    
+    print(f"🎯 Found {len(candidates)} valid candidates")
+    if candidates:
+        best_hedge = min(candidates, key=lambda x: x['diff'])
+        print(f"🎯 Best hedge: Strike {best_hedge['strike']}, Price ₹{best_hedge['price']:.2f}, Diff: ₹{best_hedge['diff']:.2f}")
+        return best_hedge['strike']
+    else:
+        print(f"🎯 No valid hedge found for {option_type} {sold_strike}")
+        return None
+
+def calculate_hedge_positions(ce_strike, pe_strike, ce_price, pe_price, options_data):
+    """
+    Calculate hedge positions for sell strategy using 10% premium rule
+    """
+    # Calculate 10% of sell premiums for hedge target
+    ce_hedge_target = ce_price * 0.10
+    pe_hedge_target = pe_price * 0.10
+    
+    # Find best hedge strikes
+    ce_hedge_strike = find_hedge_strike(ce_strike, ce_hedge_target, options_data['CE'], 'CE')
+    pe_hedge_strike = find_hedge_strike(pe_strike, pe_hedge_target, options_data['PE'], 'PE')
+    
+    # Get hedge prices
+    ce_hedge_price = options_data['CE'].get(ce_hedge_strike, 0) if ce_hedge_strike else 0
+    pe_hedge_price = options_data['PE'].get(pe_hedge_strike, 0) if pe_hedge_strike else 0
+    
+    return {
+        'ce_hedge_strike': ce_hedge_strike,
+        'pe_hedge_strike': pe_hedge_strike,
+        'ce_hedge_price': ce_hedge_price,
+        'pe_hedge_price': pe_hedge_price,
+        'total_hedge_premium': ce_hedge_price + pe_hedge_price
+    }
 
 # In analyzer/utils.py
 
@@ -385,23 +400,27 @@ def check_target_stoploss_alerts():
     return alerts_sent
 
 def generate_payoff_chart(strategies_df, lot_size, current_price, instrument_name, zone_label, expiry_label):
-    """Generate a clean enterprise-style payoff diagram with professional styling."""
+    """Generate a clean enterprise-style payoff diagram with hedge positions included."""
     # Price range for payoff calculation
     price_range = np.linspace(current_price * 0.85, current_price * 1.15, 300)
     
     strategy = strategies_df.iloc[0]
-    ce_strike, pe_strike, premium = strategy['CE Strike'], strategy['PE Strike'], strategy['Combined Premium']
+    ce_strike, pe_strike = strategy['CE Strike'], strategy['PE Strike']
     
-    # Calculate payoff for short straddle/strangle with max loss limit
-    pnl = (premium - np.maximum(price_range - ce_strike, 0) - np.maximum(pe_strike - price_range, 0)) * lot_size
+    # Use combined premium for simple short straddle/strangle (no hedge)
+    combined_premium = strategy['Combined Premium']
     
-    # Limit maximum loss to -15000
-    pnl = np.maximum(pnl, -15000)
+    # Calculate payoff for simple short straddle/strangle
+    sell_ce_pnl = -np.maximum(price_range - ce_strike, 0)  # Short CE
+    sell_pe_pnl = -np.maximum(pe_strike - price_range, 0)  # Short PE
     
-    # Calculate max profit and breakeven points
-    max_profit = premium * lot_size
-    be_lower = pe_strike - premium
-    be_upper = ce_strike + premium
+    # Total P&L = Premium Received + Short Positions
+    pnl = (combined_premium + sell_ce_pnl + sell_pe_pnl) * lot_size
+    
+    # Calculate max profit and breakeven points using combined premium
+    max_profit = combined_premium * lot_size
+    be_lower = pe_strike - combined_premium
+    be_upper = ce_strike + combined_premium
     
     # Create clean enterprise chart with expanded size for external text
     plt.style.use('default')
@@ -412,7 +431,7 @@ def generate_payoff_chart(strategies_df, lot_size, current_price, instrument_nam
     plt.subplots_adjust(right=0.75)
     
     # Plot payoff line with thinner line styling
-    ax.plot(price_range, pnl, color='#2563eb', linewidth=2, label='Payoff Curve', alpha=0.9)
+    ax.plot(price_range, pnl, color='#2563eb', linewidth=2, label='Hedged Payoff', alpha=0.9)
     
     # Fill profit/loss areas with clean colors
     ax.fill_between(price_range, pnl, 0, where=(pnl >= 0), 
@@ -496,10 +515,12 @@ def generate_payoff_chart(strategies_df, lot_size, current_price, instrument_nam
         spine.set_color('#d1d5db')
         spine.set_linewidth(1)
     
-    # Improved statistics box positioning - move to upper right, outside plot area
-    stats_text = f'''Max Profit: ₹{max_profit:.0f}
+    # Improved statistics box positioning - simplified for non-hedged strategy
+    sell_premium = strategy.get('Combined Premium', 0)
+    stats_text = f'''Sell Premium: ₹{sell_premium:.2f}
+Max Profit: ₹{max_profit:.0f}
 Breakeven: {be_lower:.0f} - {be_upper:.0f}
-Max Loss: ₹{min_pnl:.0f}'''
+Max Loss: Unlimited'''
     
     ax.text(1.02, 0.98, stats_text, transform=ax.transAxes, fontsize=10, ha='left',
             verticalalignment='top', fontfamily='monospace',
@@ -595,23 +616,18 @@ def generate_analysis(instrument_name, calculation_type, selected_expiry_str):
                 if item.get("PE"): pe_prices[item['strikePrice']] = item["PE"]["lastPrice"]
         debug_log(f"📊 Real API data - CE: {len(ce_prices)}, PE: {len(pe_prices)} strikes")
     
-    # Zone-based strike selection (using supply/demand zones)
+    # Zone-based strike selection (exactly matching reference file)
     if supply_zone is not None and demand_zone is not None:
         debug_log("📊 Using zone-based strike selection")
         
-        # CE strikes based on supply zone (resistance)
+        # CE strikes - exact logic from reference file
         ce_high = math.ceil(supply_zone / strike_increment) * strike_increment
         strikes_ce = [ce_high, ce_high + strike_increment, ce_high + (2 * strike_increment)]
         
-        # PE strikes based on demand zone (support)
+        # PE strikes - exact logic from reference file
         pe_high = math.floor(demand_zone / strike_increment) * strike_increment
-        
-        # Select best PE strikes below demand zone with highest premiums
-        candidate_puts = sorted([s for s in pe_prices if s < pe_high and pe_prices.get(s, 0) > 0], 
-                               key=lambda s: pe_prices.get(s, 0), reverse=True)
-        
-        pe_mid = (candidate_puts[0] if candidate_puts else pe_high - strike_increment)
-        pe_low = (candidate_puts[1] if len(candidate_puts) > 1 else pe_mid - strike_increment)
+        candidate_puts = sorted([s for s in pe_prices if s < pe_high and pe_prices.get(s, 0) > 0], key=lambda s: pe_prices.get(s, 0), reverse=True)
+        pe_mid, pe_low = (candidate_puts[0] if candidate_puts else pe_high - strike_increment), (candidate_puts[1] if len(candidate_puts) > 1 else (candidate_puts[0] if candidate_puts else pe_high - strike_increment) - strike_increment)
         strikes_pe = [pe_high, pe_mid, pe_low]
         
         debug_log(f"📊 Zone-based strikes:")
@@ -630,28 +646,36 @@ def generate_analysis(instrument_name, calculation_type, selected_expiry_str):
         pe_mid = (candidate_puts[0] if candidate_puts else pe_high - strike_increment)
         pe_low = (candidate_puts[1] if len(candidate_puts) > 1 else pe_mid - strike_increment)
         strikes_pe = [pe_high, pe_mid, pe_low]
-    df = pd.DataFrame({"Entry": ["High Reward", "Mid Reward", "Low Reward"], "CE Strike": strikes_ce, "CE Price": [ce_prices.get(s, 0.0) for s in strikes_ce], "PE Strike": strikes_pe, "PE Price": [pe_prices.get(s, 0.0) for s in strikes_pe]})
+    
+    # Simple DataFrame creation without hedge complications - matching reference file
+    df = pd.DataFrame({
+        "Entry": ["High Reward", "Mid Reward", "Low Reward"], 
+        "CE Strike": strikes_ce, 
+        "CE Price": [ce_prices.get(s, 0.0) for s in strikes_ce], 
+        "PE Strike": strikes_pe, 
+        "PE Price": [pe_prices.get(s, 0.0) for s in strikes_pe]
+    })
     df["Combined Premium"] = df["CE Price"] + df["PE Price"]
+    df["Target"] = (df["Combined Premium"] * 0.80 * lot_size).round(2)
+    df["Stoploss"] = (df["Combined Premium"] * 0.80 * lot_size).round(2)
     
-    # Calculate target and stoploss with global round-off by 50
-    df["Target"] = df["Combined Premium"].apply(lambda x: round_to_nearest_50((x * 0.80 * lot_size)))
-    df["Stoploss"] = df["Combined Premium"].apply(lambda x: round_to_nearest_50((x * 0.80 * lot_size)))
-    
+    # Simple display DataFrame - matching reference file structure
     display_df = df[['Entry', 'CE Strike', 'CE Price', 'PE Strike', 'PE Price']].copy()
-    # Format target/SL values as integers since they're rounded to 50
-    display_df['Target/SL (1:1)'] = df['Target'].apply(lambda x: f"₹{int(x)}")
+    display_df['Target/SL (1:1)'] = df['Target']
     
     # Debug: Log the DataFrame data
-    debug_log(f"📊 DataFrame created with shape: {df.shape}")
-    debug_log(f"📊 Display DataFrame: \n{display_df.to_string()}")
-    debug_log(f"📊 CE Prices found: {len(ce_prices)} items")
-    debug_log(f"📊 PE Prices found: {len(pe_prices)} items")
+    print(f"📊 DataFrame created with shape: {df.shape}")
+    print(f"📊 DataFrame columns: {list(df.columns)}")
+    print(f"📊 Sample DataFrame data:")
+    print(df.to_string())
+    print(f"📊 Display DataFrame: \n{display_df.to_string()}")
+    print(f"📊 CE Prices found: {len(ce_prices)} items")
+    print(f"📊 PE Prices found: {len(pe_prices)} items")
     
     title, zone_label = f"FiFTO - {calculation_type} {instrument_name} Selling", calculation_type
     summary_filename = f"summary_{uuid.uuid4().hex}.png"
     summary_filepath = os.path.join(STATIC_FOLDER_PATH, summary_filename)
     
-    # Create clean enterprise-style analysis chart
     plt.style.use('default')  # Use clean default style
     fig, ax = plt.subplots(figsize=(12, 8))
     fig.patch.set_facecolor('white')
@@ -707,24 +731,34 @@ def generate_analysis(instrument_name, calculation_type, selected_expiry_str):
             cell.set_edgecolor('#e2e8f0')  # Light border matching our cards
             cell.set_linewidth(1)
             
-            # Add special styling for numeric columns (prices and targets)
-            if col in [2, 4, 5]:  # Price and Target columns
+            # Add special styling for numeric columns
+            # Columns: Entry, CE Strike, CE Price, PE Strike, PE Price, Target/SL (1:1)
+            numeric_cols = [1, 2, 3, 4, 5]  # All except Entry
+            if col in numeric_cols:
                 cell.get_text().set_fontfamily('monospace')  # Monospace for numbers
                 cell.get_text().set_fontweight('bold')
-                if col == 5:  # Target/SL column - format as integer since rounded to 50
+                
+                # Special coloring for different types
+                if col in [1, 3]:  # Strike columns (CE Strike, PE Strike)
+                    cell.get_text().set_color('#1e40af')  # Blue for strikes
+                elif col in [2, 4]:  # Price columns (CE Price, PE Price)
+                    cell.get_text().set_color('#059669')  # Green for prices
+                elif col == 5:  # Target/SL column
                     cell.get_text().set_color('#16a34a')  # Green for target amounts
                     # Format target values as integers since they're rounded to 50
                     current_text = cell.get_text().get_text()
                     if current_text and current_text.replace('.', '').isdigit():
                         cell.get_text().set_text(f"₹{int(float(current_text))}")
     
-    # Enhanced footer with global theme styling
-    footer_text = f"Risk Management: 1:1 Target/SL Ratio"
+    # Enhanced footer with global theme styling - simple version matching reference file
+    first_row = df.iloc[0]  # Get first strategy row
+    footer_text = f"Strategy: Sell Premium ₹{first_row['Combined Premium']:.2f} | Target/SL: ₹{first_row['Target']:.0f}"
     ax.text(0.5, 0.15, footer_text, transform=ax.transAxes, ha='center', va='center',
             fontsize=12, fontweight='bold', color='#16a34a',
             bbox=dict(boxstyle='round,pad=0.4', facecolor='#f0fdf4', 
                      edgecolor='#16a34a', alpha=0.8, linewidth=1))
     
+    # Clean disclaimer with global theme
     # Clean disclaimer with global theme
     ax.text(0.5, 0.06, "For educational purposes only", 
             transform=ax.transAxes, ha='center', va='center',
@@ -739,7 +773,7 @@ def generate_analysis(instrument_name, calculation_type, selected_expiry_str):
     plt.close(fig)
     payoff_filepath = generate_payoff_chart(df, lot_size, current_price, instrument_name, zone_label, expiry_label)
     
-    # Create enhanced HTML table for web display
+    # Create enhanced HTML table for web display - simplified structure
     table_html = f"""
     <div class="table-responsive">
         <table class="table table-hover">
@@ -764,7 +798,7 @@ def generate_analysis(instrument_name, calculation_type, selected_expiry_str):
                     <td>₹{row['CE Price']:.2f}</td>
                     <td>{row['PE Strike']}</td>
                     <td>₹{row['PE Price']:.2f}</td>
-                    <td><span class="badge bg-success">{row['Target/SL (1:1)']}</span></td>
+                    <td><span class="badge bg-success">₹{row['Target/SL (1:1)']:.0f}</span></td>
                 </tr>
         """
     
@@ -858,7 +892,7 @@ def add_to_analysis(analysis_data):
                 print(f"❌ Both IDs exist, skipping")
                 continue
             
-        # Create trade object
+        # Create trade object with hedge position data
         new_trade = {
             "id": trade_id, 
             "start_time": start_time, 
@@ -871,7 +905,14 @@ def add_to_analysis(analysis_data):
             "pe_strike": entry.get('PE Strike', 0), 
             "initial_premium": entry.get('Combined Premium', 0), 
             "target_amount": entry.get('Target', 0), 
-            "stoploss_amount": entry.get('Stoploss', 0)
+            "stoploss_amount": entry.get('Stoploss', 0),
+            # Hedge position data for sell strategies
+            "ce_hedge_strike": entry.get('CE Hedge Strike', 0),
+            "pe_hedge_strike": entry.get('PE Hedge Strike', 0),
+            "ce_hedge_price": entry.get('CE Hedge Price', 0),
+            "pe_hedge_price": entry.get('PE Hedge Price', 0),
+            "net_premium": entry.get('Net Premium', entry.get('Combined Premium', 0)),
+            "total_hedge_premium": entry.get('CE Hedge Price', 0) + entry.get('PE Hedge Price', 0)
         }
         
         print(f"✅ Adding trade: {new_trade}")
@@ -1059,7 +1100,7 @@ def run_automated_chart_generation():
         
         print(market_status)
         # Continue execution regardless of market hours
-            
+        
     except Exception as e:
         print(f"System readiness check failed: {str(e)}")
         return f"System readiness check failed: {str(e)}"
@@ -1185,16 +1226,40 @@ def monitor_trades(is_eod_report=False):
 
         for trade in trades_in_group:
             current_ce, current_pe = 0.0, 0.0
+            current_ce_hedge, current_pe_hedge = 0.0, 0.0
+            
             for item in chain['records']['data']:
                 if item.get("expiryDate") == trade['expiry']:
+                    # Get main position prices
                     if item.get("strikePrice") == trade['ce_strike'] and item.get("CE"):
                         current_ce = item["CE"]["lastPrice"]
                     if item.get("strikePrice") == trade['pe_strike'] and item.get("PE"):
                         current_pe = item["PE"]["lastPrice"]
+                    
+                    # Get hedge position prices
+                    if item.get("strikePrice") == trade.get('ce_hedge_strike') and item.get("CE"):
+                        current_ce_hedge = item["CE"]["lastPrice"]
+                    if item.get("strikePrice") == trade.get('pe_hedge_strike') and item.get("PE"):
+                        current_pe_hedge = item["PE"]["lastPrice"]
 
             if current_ce == 0.0 and current_pe == 0.0: continue
 
-            pnl = (trade['initial_premium'] - (current_ce + current_pe)) * lot_size
+            # Calculate P&L based on whether position is hedged
+            has_hedge = trade.get('ce_hedge_strike', 0) > 0 or trade.get('pe_hedge_strike', 0) > 0
+            
+            if has_hedge:
+                # For hedged positions: Net P&L = (Sell Premium - Buy Premium) - (Current Sell - Current Buy)
+                initial_sell_premium = trade.get('initial_premium', 0)
+                initial_hedge_premium = trade.get('total_hedge_premium', 0)
+                
+                current_sell_premium = current_ce + current_pe
+                current_hedge_premium = current_ce_hedge + current_pe_hedge
+                
+                pnl = ((initial_sell_premium - initial_hedge_premium) - (current_sell_premium - current_hedge_premium)) * lot_size
+            else:
+                # For non-hedged positions: Original logic
+                pnl = (trade['initial_premium'] - (current_ce + current_pe)) * lot_size
+                
             any_trade_updated = True
 
             tag_key = trade.get('entry_tag', 'General Trades')
@@ -1259,57 +1324,6 @@ def test_specific_automation(automation_config):
     except Exception as e:
         error_msg = f"Test automation failed: {str(e)}"
         print(f"[ERROR] {error_msg}")
-        return error_msg
-
-def generate_chart_for_instrument(instrument, calc_type):
-    """Generate chart for a specific instrument and calculation type."""
-    try:
-        print(f"🚀 Starting chart generation for {instrument} with {calc_type} calculation")
-        
-        # Get next expiry date based on calculation type
-        today = datetime.now()
-        if calc_type == 'Weekly':
-            # Find next Thursday
-            days_ahead = 3 - today.weekday()  # Thursday is 3
-            if days_ahead <= 0:  # Thursday already passed
-                days_ahead += 7
-            next_expiry = today + timedelta(days=days_ahead)
-        else:  # Monthly
-            # Find last Thursday of next month
-            if today.month == 12:
-                next_month = today.replace(year=today.year + 1, month=1, day=1)
-            else:
-                next_month = today.replace(month=today.month + 1, day=1)
-            last_day = (next_month + timedelta(days=31)).replace(day=1) - timedelta(days=1)
-            last_thursday = last_day - timedelta(days=(last_day.weekday() - 3) % 7)
-            next_expiry = last_thursday
-        
-        expiry_str = next_expiry.strftime('%d-%b-%Y')
-        print(f"📅 Using expiry date: {expiry_str}")
-        
-        # Call the actual analysis function
-        analysis_data, status_message = generate_analysis(instrument, calc_type, expiry_str)
-        
-        if analysis_data:
-            print(f"✅ Chart generation successful for {instrument}")
-            
-            # Auto-add to portfolio if enabled
-            try:
-                settings = load_settings()
-                if settings.get('auto_portfolio_enabled', False):
-                    add_result = add_to_analysis(analysis_data)
-                    print(f"📊 Auto-added to portfolio: {add_result}")
-            except Exception as e:
-                print(f"⚠️ Failed to auto-add to portfolio: {str(e)}")
-            
-            return f"✅ Chart generated successfully for {instrument} ({calc_type}) - {status_message}"
-        else:
-            print(f"❌ Chart generation failed for {instrument}: {status_message}")
-            return f"❌ Failed to generate chart for {instrument}: {status_message}"
-            
-    except Exception as e:
-        error_msg = f"❌ Chart generation error for {instrument}: {str(e)}"
-        print(error_msg)
         return error_msg
 
 def start_permanent_schedule(schedule):
@@ -1509,3 +1523,48 @@ def get_recent_automation_activities(limit=10):
     except Exception as e:
         print(f"[ERROR] Failed to get automation activities: {str(e)}")
         return []
+
+def generate_chart_for_instrument(instrument, calc_type):
+    """Generate chart for a specific instrument and calculation type."""
+    try:
+        # Get next expiry date
+        def get_next_expiry(calculation_type):
+            today = datetime.now()
+            if calculation_type == 'Weekly':
+                # Find next Thursday
+                days_ahead = 3 - today.weekday()  # Thursday is 3
+                if days_ahead <= 0:  # Thursday already passed
+                    days_ahead += 7
+                next_expiry = today + timedelta(days=days_ahead)
+            else:  # Monthly
+                # Find last Thursday of current month or next month
+                next_month = today.replace(day=28) + timedelta(days=4)
+                last_day = next_month - timedelta(days=next_month.day)
+                # Find last Thursday
+                last_thursday = last_day - timedelta(days=(last_day.weekday() - 3) % 7)
+                if last_thursday <= today:
+                    # Next month
+                    next_month = (today.replace(day=28) + timedelta(days=4)).replace(day=1)
+                    next_month_last = (next_month.replace(day=28) + timedelta(days=4)) - timedelta(days=(next_month.replace(day=28) + timedelta(days=4)).day)
+                    next_expiry = next_month_last - timedelta(days=(next_month_last.weekday() - 3) % 7)
+                else:
+                    next_expiry = last_thursday
+            
+            return next_expiry.strftime('%d-%b-%Y')
+        
+        expiry = get_next_expiry(calc_type)
+        
+        # Generate analysis
+        analysis_data, status_message = generate_analysis(instrument, calc_type, expiry)
+        
+        if analysis_data:
+            # Auto-add to portfolio if not manually added
+            auto_tag = f"Auto {datetime.now().strftime('%d-%b')} {instrument}"
+            auto_add_result = auto_add_to_portfolio(analysis_data, auto_tag)
+            
+            return f"✅ Generated and added to portfolio - {status_message}"
+        else:
+            return f"❌ Failed to generate chart - {status_message}"
+            
+    except Exception as e:
+        return f"❌ Error generating chart: {str(e)}"
