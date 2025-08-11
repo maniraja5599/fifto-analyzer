@@ -5,23 +5,12 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import pandas as pd
 import requests
+import yfinance as yf
 import math, time, json, os, pytz, uuid
 from datetime import datetime, timedelta
 from collections import defaultdict
 import numpy as np
 from django.conf import settings
-
-# DhanHQ Integration
-try:
-    from .dhan_api import dhan_api, get_dhan_price, get_dhan_historical, get_dhan_option_chain
-    DHAN_AVAILABLE = True
-    print("✅ DhanHQ API module loaded successfully")
-except ImportError as e:
-    print(f"⚠️  DhanHQ not available: {e}. Using fallback methods.")
-    DHAN_AVAILABLE = False
-
-# Fallback imports
-import yfinance as yf
 
 # --- Configuration Paths ---
 BASE_DIR_USER = os.path.expanduser('~') # User's home directory for data files
@@ -104,433 +93,154 @@ def round_to_nearest_50(value):
 
 def calculate_weekly_zones(instrument_name, calculation_type):
     """
-    Calculate weekly supply/demand zones with fallback methods.
+    Calculate weekly/monthly supply/demand zones using advanced logic from your provided Python file.
+    Implements multiple fallback mechanisms and robust error handling.
     Returns supply_zone and demand_zone for strike selection.
     """
-    print(f"🔄 Calculating {calculation_type} zones for {instrument_name}...")
+    TICKERS = {"NIFTY": "^NSEI", "BANKNIFTY": "^NSEBANK"}
     
-    # Try primary method with yfinance
-    supply_zone, demand_zone = try_yfinance_zones(instrument_name, calculation_type)
+    if instrument_name not in TICKERS:
+        return None, None
+        
+    ticker_symbol = TICKERS[instrument_name]
     
-    if supply_zone is not None and demand_zone is not None:
-        print(f"✅ Primary method successful for {instrument_name}")
-        return supply_zone, demand_zone
-    
-    # Fallback to mathematical model based on current market conditions
-    print(f"🔄 Using fallback mathematical model for {instrument_name}...")
-    return calculate_fallback_zones(instrument_name, calculation_type)
-
-def try_yfinance_zones(instrument_name, calculation_type):
-    """
-    Enhanced zone calculation using DhanHQ first, then yfinance fallback
-    """
     try:
-        print(f"🔄 Calculating {calculation_type} zones for {instrument_name}...")
+        print(f"Calculating {calculation_type} zones for {instrument_name}...")
         
-        # Try DhanHQ first
-        if DHAN_AVAILABLE and getattr(settings, 'USE_DHAN_API', True):
-            period_map = {'Weekly': '3m', 'Monthly': '1y', 'Quarterly': '1y'}
-            period = period_map.get(calculation_type, '6m')
+        # Try multiple approaches for data fetching (from your selling.py logic)
+        df_zones = None
+        
+        # Try different time periods if data is not available
+        periods_to_try = ["6mo", "1y", "2y", "max"]
+        for period in periods_to_try:
+            try:
+                print(f"Trying to fetch data with period: {period}")
+                df_zones = yf.Ticker(ticker_symbol).history(period=period, interval="1d")
+                if not df_zones.empty:
+                    print(f"Successfully fetched data with period: {period}")
+                    break
+                else:
+                    print(f"No data returned for period: {period}")
+            except Exception as e:
+                print(f"Error with period {period}: {e}")
+                continue
+        
+        # If yfinance fails, use alternative zone calculation
+        if df_zones is None or df_zones.empty:
+            print("yfinance data unavailable, using alternative zone calculation...")
+            # Get current price from option chain instead
+            option_chain_data = get_option_chain_data(instrument_name)
+            if not option_chain_data: 
+                return None, None
             
-            df = get_dhan_historical(instrument_name, period)
-            if df is not None and len(df) > 10:
-                return calculate_zones_from_data(df, instrument_name, calculation_type, 'DhanHQ')
-        
-        # Fallback to yfinance
-        TICKERS = {"NIFTY": "^NSEI", "BANKNIFTY": "^NSEBANK"}
-        
-        if instrument_name not in TICKERS:
-            return None, None
+            current_price = option_chain_data['records']['underlyingValue']
+            print(f"Current price from option chain: {current_price}")
             
-        ticker_symbol = TICKERS[instrument_name]
-        
-        # Fetch historical data for zone calculation
-        df_zones = yf.Ticker(ticker_symbol).history(period="5y", interval="1d")
-        
-        # Special handling for NIFTY Weekly as in original code
-        if calculation_type == "Weekly" and instrument_name == "NIFTY":
-            df_zones = yf.Ticker(ticker_symbol).history(period="6mo", interval="1d")
+            # Use simple percentage-based zones as fallback
+            supply_zone = current_price * 1.02  # 2% above current price
+            demand_zone = current_price * 0.98  # 2% below current price
+            print(f"Using fallback zones - Supply: {supply_zone}, Demand: {demand_zone}")
+            return supply_zone, demand_zone
+        else:
+            # Original zone calculation with fetched data
+            df_zones.index = pd.to_datetime(df_zones.index)
+            period_rule = 'W' if calculation_type == "Weekly" else 'ME'
+            agg_df = df_zones.resample(period_rule).agg({
+                'Open': 'first', 
+                'High': 'max', 
+                'Low': 'min'
+            }).dropna()
             
-        if df_zones.empty:
-            return None, None
-            
-        # Convert index to datetime
-        df_zones.index = pd.to_datetime(df_zones.index)
-        
-        # Resample based on calculation type (Weekly/Monthly)
-        resample_period = 'W' if calculation_type == "Weekly" else 'ME'
-        agg_df = df_zones.resample(resample_period).agg({
-            'Open': 'first', 
-            'High': 'max', 
-            'Low': 'min'
-        }).dropna()
-        
-        # Calculate rolling ranges (5 and 10 periods)
-        rng5 = (agg_df['High'] - agg_df['Low']).rolling(5).mean()
-        rng10 = (agg_df['High'] - agg_df['Low']).rolling(10).mean()
-        
-        # Base price (Open)
-        base = agg_df['Open']
-        
-        # Calculate supply and demand zones
-        u1 = base + 0.5 * rng5  # Upper zone 1
-        u2 = base + 0.5 * rng10  # Upper zone 2
-        l1 = base - 0.5 * rng5   # Lower zone 1
-        l2 = base - 0.5 * rng10  # Lower zone 2
-        
-        # Get the latest zones
-        latest_zones = pd.DataFrame({
-            'u1': u1, 
-            'u2': u2, 
-            'l1': l1, 
-            'l2': l2
-        }).dropna().iloc[-1]
-        
-        # Calculate supply and demand zones
-        supply_zone = round(max(latest_zones['u1'], latest_zones['u2']), 2)
-        demand_zone = round(min(latest_zones['l1'], latest_zones['l2']), 2)
-        
-        print(f"✅ {calculation_type} zones calculated using yfinance for {instrument_name}:")
-        print(f"   Supply Zone: ₹{supply_zone}")
-        print(f"   Demand Zone: ₹{demand_zone}")
-        
-        return supply_zone, demand_zone
+            if agg_df.empty:
+                print("Aggregated data is empty, using fallback zones...")
+                option_chain_data = get_option_chain_data(instrument_name)
+                if not option_chain_data: 
+                    return None, None
+                current_price = option_chain_data['records']['underlyingValue']
+                supply_zone = current_price * 1.02
+                demand_zone = current_price * 0.98
+                return supply_zone, demand_zone
+            else:
+                base = agg_df['Open']
+                rng5 = (agg_df['High'] - agg_df['Low']).rolling(min(5, len(agg_df))).mean()
+                rng10 = (agg_df['High'] - agg_df['Low']).rolling(min(10, len(agg_df))).mean()
+                latest_zones = pd.DataFrame({
+                    'u1': base + 0.5*rng5, 
+                    'u2': base + 0.5*rng10, 
+                    'l1': base - 0.5*rng5, 
+                    'l2': base - 0.5*rng10
+                }).dropna()
+                
+                if latest_zones.empty:
+                    print("Zone calculation failed, using fallback...")
+                    option_chain_data = get_option_chain_data(instrument_name)
+                    if not option_chain_data: 
+                        return None, None
+                    current_price = option_chain_data['records']['underlyingValue']
+                    supply_zone = current_price * 1.02
+                    demand_zone = current_price * 0.98
+                    return supply_zone, demand_zone
+                else:
+                    latest_zone_data = latest_zones.iloc[-1]
+                    supply_zone = round(max(latest_zone_data['u1'], latest_zone_data['u2']), 2)
+                    demand_zone = round(min(latest_zone_data['l1'], latest_zone_data['l2']), 2)
+                    
+                    print(f"✅ {calculation_type} zones calculated for {instrument_name}:")
+                    print(f"   Supply Zone: ₹{supply_zone}")
+                    print(f"   Demand Zone: ₹{demand_zone}")
+                    
+                    return supply_zone, demand_zone
         
     except Exception as e:
-        print(f"❌ yfinance method failed for {instrument_name}: {e}")
+        print(f"❌ Error calculating weekly zones for {instrument_name}: {e}")
         return None, None
-
-
-def calculate_zones_from_data(df, instrument_name, calculation_type, data_source):
-    """
-    Calculate supply/demand zones from historical data (DhanHQ format)
-    """
-    try:
-        if len(df) < 10:
-            print(f"❌ Insufficient data for {instrument_name}")
-            return None, None
-        
-        # Determine period for zone calculation
-        if calculation_type == 'Weekly':
-            period = min(21, len(df))  # 3 weeks of data
-        elif calculation_type == 'Monthly':
-            period = min(63, len(df))  # 3 months of data
-        else:
-            period = min(126, len(df))  # 6 months of data
-        
-        recent_data = df.tail(period)
-        
-        # Calculate resistance (supply) and support (demand) levels
-        highs = recent_data['High']
-        lows = recent_data['Low']
-        closes = recent_data['Close']
-        
-        # Advanced zone calculation
-        resistance_levels = []
-        support_levels = []
-        
-        # Find swing highs and lows
-        for i in range(2, len(recent_data) - 2):
-            current_high = highs.iloc[i]
-            current_low = lows.iloc[i]
-            
-            # Check for swing high
-            if (current_high > highs.iloc[i-1] and current_high > highs.iloc[i+1] and
-                current_high > highs.iloc[i-2] and current_high > highs.iloc[i+2]):
-                resistance_levels.append(current_high)
-            
-            # Check for swing low
-            if (current_low < lows.iloc[i-1] and current_low < lows.iloc[i+1] and
-                current_low < lows.iloc[i-2] and current_low < lows.iloc[i+2]):
-                support_levels.append(current_low)
-        
-        current_price = closes.iloc[-1]
-        
-        # Find relevant zones
-        supply_zone = None
-        demand_zone = None
-        
-        # Supply zone: nearest resistance above current price
-        valid_resistance = [r for r in resistance_levels if r > current_price]
-        if valid_resistance:
-            supply_zone = min(valid_resistance)
-        else:
-            # Use recent high if no resistance found
-            supply_zone = highs.max()
-        
-        # Demand zone: nearest support below current price
-        valid_support = [s for s in support_levels if s < current_price]
-        if valid_support:
-            demand_zone = max(valid_support)
-        else:
-            # Use recent low if no support found
-            demand_zone = lows.min()
-        
-        # Round to nearest 50 for NIFTY, 100 for BANKNIFTY
-        if 'NIFTY' in instrument_name.upper() and 'BANK' not in instrument_name.upper():
-            supply_zone = round(supply_zone / 50) * 50
-            demand_zone = round(demand_zone / 50) * 50
-        else:
-            supply_zone = round(supply_zone / 100) * 100
-            demand_zone = round(demand_zone / 100) * 100
-        
-        print(f"✅ {calculation_type} zones calculated using {data_source} for {instrument_name}:")
-        print(f"   Current Price: ₹{current_price}")
-        print(f"   Supply Zone: ₹{supply_zone}")
-        print(f"   Demand Zone: ₹{demand_zone}")
-        print(f"   Zone Range: ₹{supply_zone - demand_zone}")
-        
-        return supply_zone, demand_zone
-        
-    except Exception as e:
-        print(f"❌ Error calculating zones from data: {e}")
-        return None, None
-
-def calculate_fallback_zones(instrument_name, calculation_type):
-    """
-    Calculate zones using mathematical model when live data is unavailable
-    """
-    try:
-        # Get current price estimate from option chain or use market estimates
-        current_price = get_current_market_price(instrument_name)
-        
-        if current_price is None:
-            # Use realistic market estimates as of 2025
-            current_price = 24800 if instrument_name == "NIFTY" else 51500
-            
-        # Calculate volatility-based zones
-        if calculation_type == "Weekly":
-            # Weekly volatility estimates for Indian markets
-            volatility_percent = 0.015 if instrument_name == "NIFTY" else 0.018  # 1.5% for NIFTY, 1.8% for BANKNIFTY
-        else:  # Monthly
-            volatility_percent = 0.045 if instrument_name == "NIFTY" else 0.055  # 4.5% for NIFTY, 5.5% for BANKNIFTY
-            
-        # Calculate zones based on volatility
-        volatility_points = current_price * volatility_percent
-        
-        # Supply zone (resistance) - above current price
-        supply_zone = current_price + (volatility_points * 1.2)  # 20% buffer
-        
-        # Demand zone (support) - below current price  
-        demand_zone = current_price - (volatility_points * 1.2)  # 20% buffer
-        
-        # Round to appropriate levels
-        strike_increment = 50 if instrument_name == "NIFTY" else 100
-        supply_zone = round(supply_zone / strike_increment) * strike_increment
-        demand_zone = round(demand_zone / strike_increment) * strike_increment
-        
-        print(f"✅ {calculation_type} zones calculated using mathematical model for {instrument_name}:")
-        print(f"   Current Price: ₹{current_price}")
-        print(f"   Supply Zone: ₹{supply_zone}")
-        print(f"   Demand Zone: ₹{demand_zone}")
-        print(f"   Zone Range: ₹{supply_zone - demand_zone}")
-        
-        return supply_zone, demand_zone
-        
-    except Exception as e:
-        print(f"❌ Error in fallback zone calculation for {instrument_name}: {e}")
-        return None, None
-
-def get_current_market_price(instrument_name):
-    """
-    Get current market price using DhanHQ API first, then fallback methods
-    """
-    try:
-        # Try DhanHQ first
-        if DHAN_AVAILABLE and getattr(settings, 'USE_DHAN_API', True):
-            price = get_dhan_price(instrument_name)
-            if price and price > 0:
-                print(f"✅ DhanHQ price for {instrument_name}: ₹{price}")
-                return price
-        
-        # Fallback to option chain data
-        option_chain_data = get_option_chain_data(instrument_name)
-        if option_chain_data and 'records' in option_chain_data:
-            # Extract current price from option chain
-            underlying_value = option_chain_data['records'].get('underlyingValue')
-            if underlying_value:
-                return float(underlying_value)
-    except:
-        pass
-    return None
 
 def get_option_chain_data(symbol):
-    """
-    Get option chain data using DhanHQ first, then fallback to NSE
-    """
+    session = requests.Session()
+    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36', 'Accept': 'application/json, text/javascript, */*; q=0.01', 'Accept-Language': 'en-US,en;q=0.9'}
+    api_url = f"https://www.nseindia.com/api/option-chain-indices?symbol={symbol}"
     try:
-        # Try DhanHQ first
-        if DHAN_AVAILABLE and getattr(settings, 'USE_DHAN_API', True):
-            print(f"🔄 Attempting DhanHQ option chain for {symbol}...")
-            dhan_data = get_dhan_option_chain(symbol)
-            if dhan_data and 'expiryDates' in dhan_data:
-                print(f"✅ DhanHQ option chain for {symbol}: {len(dhan_data['expiryDates'])} expiry dates")
-                return dhan_data
-            elif dhan_data:
-                print(f"⚠️  DhanHQ returned data but no expiry dates for {symbol}")
-                # Try to extract expiry dates from the data structure
-                expiry_dates = extract_expiry_dates_from_dhan_data(dhan_data, symbol)
-                if expiry_dates:
-                    dhan_data['expiryDates'] = expiry_dates
-                    print(f"✅ Extracted {len(expiry_dates)} expiry dates from DhanHQ data")
-                    return dhan_data
-        
-        # Fallback to NSE API
-        print(f"🔄 Falling back to NSE API for {symbol}...")
-        if getattr(settings, 'FALLBACK_TO_NSE', True):
-            session = requests.Session()
-            headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
-                'Accept': 'application/json, text/javascript, */*; q=0.01',
-                'Accept-Language': 'en-US,en;q=0.9'
-            }
-            api_url = f"https://www.nseindia.com/api/option-chain-indices?symbol={symbol}"
-            
-            session.get(f"https://www.nseindia.com/get-quotes/derivatives?symbol={symbol}", headers=headers, timeout=15)
-            time.sleep(1)
-            response = session.get(api_url, headers=headers, timeout=15)
-            response.raise_for_status()
-            print(f"✅ NSE option chain fallback for {symbol}")
-            return response.json()
-            
+        session.get(f"https://www.nseindia.com/get-quotes/derivatives?symbol={symbol}", headers=headers, timeout=15)
+        time.sleep(1)
+        response = session.get(api_url, headers=headers, timeout=15)
+        response.raise_for_status()
+        return response.json()
     except requests.exceptions.RequestException as e:
-        print(f"❌ Error fetching option chain for {symbol}: {e}")
-        # Return fallback expiry data if both fail
-        return get_fallback_expiry_data(symbol)
-    except Exception as e:
-        print(f"❌ General error in option chain fetch for {symbol}: {e}")
-        return get_fallback_expiry_data(symbol)
+        print(f"Error fetching option chain for {symbol}: {e}")
+        return None
 
-def extract_expiry_dates_from_dhan_data(dhan_data, symbol):
-    """
-    Extract expiry dates from DhanHQ option chain response
-    """
-    try:
-        expiry_dates = []
-        
-        # Check if the response has expiry dates in the data structure
-        if 'data' in dhan_data:
-            data = dhan_data['data']
-            
-            # Look for expiry dates in various possible locations in the response
-            if isinstance(data, list):
-                # If data is a list, check each item for expiry information
-                for item in data:
-                    if isinstance(item, dict) and 'expiryDate' in item:
-                        expiry_date = item['expiryDate']
-                        if expiry_date not in expiry_dates:
-                            expiry_dates.append(expiry_date)
-            elif isinstance(data, dict):
-                # If data is a dict, look for expiry information
-                if 'expiryDates' in data:
-                    expiry_dates = data['expiryDates']
-                elif 'expiry' in data:
-                    expiry_dates = [data['expiry']]
-        
-        # If no expiry dates found, calculate them
-        if not expiry_dates:
-            print(f"⚠️  No expiry dates found in DhanHQ response, calculating fallback dates for {symbol}")
-            from datetime import datetime, timedelta
-            current_date = datetime.now()
-            
-            # Generate next 4 weekly expiries (Thursdays)
-            for i in range(4):
-                days_ahead = (3 - current_date.weekday()) % 7  # Thursday is 3
-                if days_ahead == 0 and current_date.hour > 15:
-                    days_ahead = 7
-                
-                next_thursday = current_date + timedelta(days=days_ahead + (i * 7))
-                expiry_date = next_thursday.strftime('%d-%b-%Y')
-                expiry_dates.append(expiry_date)
-        
-        return expiry_dates[:10]  # Return first 10 expiry dates
-        
-    except Exception as e:
-        print(f"❌ Error extracting expiry dates from DhanHQ data: {e}")
-        return []
+def find_hedge_strike(sold_strike, target_premium, options_data, option_type):
+    """Find hedge strike from selling.py logic"""
+    candidates = []
+    for strike, price in options_data.items():
+        is_valid_direction = (option_type == 'CE' and strike > sold_strike) or (option_type == 'PE' and strike < sold_strike)
+        if is_valid_direction and strike % 100 == 0:
+            candidates.append({'strike': strike, 'price': price, 'diff': abs(price - target_premium)})
+    return min(candidates, key=lambda x: x['diff'])['strike'] if candidates else None
 
-def get_fallback_expiry_data(symbol):
+def calculate_hedge_positions(ce_strike, pe_strike, ce_price, pe_price, options_data):
     """
-    Generate fallback expiry dates when both DhanHQ and NSE fail
+    Calculate hedge positions for sell strategy using 10% premium rule
     """
-    try:
-        from datetime import datetime, timedelta
-        
-        # Generate next 6 weekly expiries starting from next Thursday
-        today = datetime.now().date()
-        days_until_thursday = (3 - today.weekday()) % 7  # Thursday is weekday 3
-        if days_until_thursday == 0:  # If today is Thursday, get next Thursday
-            days_until_thursday = 7
-            
-        next_thursday = today + timedelta(days=days_until_thursday)
-        
-        expiries = []
-        for i in range(6):  # Next 6 weekly expiries
-            expiry_date = next_thursday + timedelta(weeks=i)
-            expiries.append(expiry_date.strftime("%d-%b-%Y"))
-        
-        # Add monthly expiry (last Thursday of current/next month)
-        import calendar
-        
-        # Current month last Thursday
-        year, month = today.year, today.month
-        last_day = calendar.monthrange(year, month)[1]
-        last_date = datetime(year, month, last_day).date()
-        
-        # Find last Thursday
-        while last_date.weekday() != 3:  # Thursday
-            last_date -= timedelta(days=1)
-            
-        if last_date > today:
-            monthly_expiry = last_date.strftime("%d-%b-%Y")
-            if monthly_expiry not in expiries:
-                expiries.append(monthly_expiry)
-        
-        # Next month last Thursday
-        if month == 12:
-            year, month = year + 1, 1
-        else:
-            month += 1
-            
-        last_day = calendar.monthrange(year, month)[1]
-        last_date = datetime(year, month, last_day).date()
-        
-        while last_date.weekday() != 3:  # Thursday
-            last_date -= timedelta(days=1)
-            
-        monthly_expiry = last_date.strftime("%d-%b-%Y")
-        if monthly_expiry not in expiries:
-            expiries.append(monthly_expiry)
-        
-        # Sort expiries
-        expiries.sort(key=lambda x: datetime.strptime(x, "%d-%b-%Y"))
-        
-        print(f"🔄 Using fallback expiry dates for {symbol}: {expiries[:3]}...")
-        
-        # Return in NSE format
-        return {
-            'records': {
-                'expiryDates': expiries,
-                'data': [],
-                'underlyingValue': get_current_market_price(symbol) or 24500  # Fallback price
-            }
-        }
-        
-    except Exception as e:
-        print(f"❌ Fallback expiry generation error: {e}")
-        # Ultimate fallback with static dates
-        return {
-            'records': {
-                'expiryDates': [
-                    (datetime.now() + timedelta(days=7)).strftime("%d-%b-%Y"),
-                    (datetime.now() + timedelta(days=14)).strftime("%d-%b-%Y"),
-                    (datetime.now() + timedelta(days=21)).strftime("%d-%b-%Y"),
-                    (datetime.now() + timedelta(days=28)).strftime("%d-%b-%Y")
-                ],
-                'data': [],
-                'underlyingValue': 24500
-            }
-        }
+    # Calculate 10% of sell premiums for hedge target
+    ce_hedge_target = ce_price * 0.10
+    pe_hedge_target = pe_price * 0.10
+    
+    # Find best hedge strikes
+    ce_hedge_strike = find_hedge_strike(ce_strike, ce_hedge_target, options_data['CE'], 'CE')
+    pe_hedge_strike = find_hedge_strike(pe_strike, pe_hedge_target, options_data['PE'], 'PE')
+    
+    # Get hedge prices
+    ce_hedge_price = options_data['CE'].get(ce_hedge_strike, 0) if ce_hedge_strike else 0
+    pe_hedge_price = options_data['PE'].get(pe_hedge_strike, 0) if pe_hedge_strike else 0
+    
+    return {
+        'ce_hedge_strike': ce_hedge_strike,
+        'pe_hedge_strike': pe_hedge_strike,
+        'ce_hedge_price': ce_hedge_price,
+        'pe_hedge_price': pe_hedge_price,
+        'total_hedge_premium': ce_hedge_price + pe_hedge_price
+    }
 
 # In analyzer/utils.py
 
@@ -607,24 +317,6 @@ def send_telegram_message(message="", image_paths=None):
         return "Message sent to Telegram."
     except requests.exceptions.RequestException as e:
         return f"Failed to send to Telegram: {e}"
-
-def send_telegram_message_with_credentials(message, bot_token, chat_id):
-    """Send a test message using provided credentials (for testing purposes)."""
-    if not bot_token or not chat_id:
-        return False
-        
-    try:
-        url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
-        response = requests.post(url, data={
-            'chat_id': chat_id, 
-            'text': message, 
-            'parse_mode': 'Markdown'
-        })
-        response.raise_for_status()
-        return True
-    except requests.exceptions.RequestException as e:
-        print(f"Failed to send test message to Telegram: {e}")
-        return False
 
 def send_trade_alert(trade_action, trade_data, additional_message=""):
     """Send trade-related alerts to Telegram."""
@@ -760,23 +452,31 @@ def check_target_stoploss_alerts():
     return alerts_sent
 
 def generate_payoff_chart(strategies_df, lot_size, current_price, instrument_name, zone_label, expiry_label):
-    """Generate a clean enterprise-style payoff diagram with professional styling."""
+    """Generate a clean enterprise-style payoff diagram with hedge positions included."""
     # Price range for payoff calculation
     price_range = np.linspace(current_price * 0.85, current_price * 1.15, 300)
     
     strategy = strategies_df.iloc[0]
-    ce_strike, pe_strike, premium = strategy['CE Strike'], strategy['PE Strike'], strategy['Combined Premium']
+    ce_strike, pe_strike = strategy['CE Strike'], strategy['PE Strike']
+    ce_hedge_strike, pe_hedge_strike = strategy['CE Hedge Strike'], strategy['PE Hedge Strike']
     
-    # Calculate payoff for short straddle/strangle with max loss limit
-    pnl = (premium - np.maximum(price_range - ce_strike, 0) - np.maximum(pe_strike - price_range, 0)) * lot_size
+    # Calculate net premium (sell premium - hedge premium)
+    net_premium = strategy['Net Premium']
     
-    # Limit maximum loss to -15000
-    pnl = np.maximum(pnl, -15000)
+    # Calculate payoff for hedged short straddle/strangle
+    # Sell premium from CE and PE, buy hedge positions
+    sell_ce_pnl = -np.maximum(price_range - ce_strike, 0)  # Short CE
+    sell_pe_pnl = -np.maximum(pe_strike - price_range, 0)  # Short PE
+    buy_ce_hedge_pnl = np.maximum(price_range - ce_hedge_strike, 0)  # Long CE hedge
+    buy_pe_hedge_pnl = np.maximum(pe_hedge_strike - price_range, 0)  # Long PE hedge
     
-    # Calculate max profit and breakeven points
-    max_profit = premium * lot_size
-    be_lower = pe_strike - premium
-    be_upper = ce_strike + premium
+    # Total P&L = Net Premium + Sell Positions + Hedge Positions
+    pnl = (net_premium + sell_ce_pnl + sell_pe_pnl + buy_ce_hedge_pnl + buy_pe_hedge_pnl) * lot_size
+    
+    # Calculate max profit and breakeven points using net premium
+    max_profit = net_premium * lot_size
+    be_lower = pe_strike - net_premium
+    be_upper = ce_strike + net_premium
     
     # Create clean enterprise chart with expanded size for external text
     plt.style.use('default')
@@ -787,13 +487,19 @@ def generate_payoff_chart(strategies_df, lot_size, current_price, instrument_nam
     plt.subplots_adjust(right=0.75)
     
     # Plot payoff line with thinner line styling
-    ax.plot(price_range, pnl, color='#2563eb', linewidth=2, label='Payoff Curve', alpha=0.9)
+    ax.plot(price_range, pnl, color='#2563eb', linewidth=2, label='Hedged Payoff', alpha=0.9)
     
     # Fill profit/loss areas with clean colors
     ax.fill_between(price_range, pnl, 0, where=(pnl >= 0), 
                     color='#16a34a', alpha=0.2, label='Profit Zone', interpolate=True)
     ax.fill_between(price_range, pnl, 0, where=(pnl < 0), 
                     color='#dc2626', alpha=0.2, label='Loss Zone', interpolate=True)
+    
+    # Add hedge strike lines
+    ax.axvline(x=ce_hedge_strike, color='#7c3aed', linestyle=':', alpha=0.7, linewidth=1.5,
+               label=f'CE Hedge: {ce_hedge_strike:.0f}')
+    ax.axvline(x=pe_hedge_strike, color='#7c3aed', linestyle=':', alpha=0.7, linewidth=1.5,
+               label=f'PE Hedge: {pe_hedge_strike:.0f}')
     
     # Add breakeven lines with thinner styling
     ax.axvline(x=be_lower, color='#f59e0b', linestyle='--', alpha=0.8, linewidth=1.5,
@@ -872,9 +578,14 @@ def generate_payoff_chart(strategies_df, lot_size, current_price, instrument_nam
         spine.set_linewidth(1)
     
     # Improved statistics box positioning - move to upper right, outside plot area
-    stats_text = f'''Max Profit: ₹{max_profit:.0f}
+    hedge_cost = strategy.get('CE Hedge Price', 0) + strategy.get('PE Hedge Price', 0)
+    sell_premium = strategy.get('Sell Premium', 0)
+    stats_text = f'''Sell Premium: ₹{sell_premium:.2f}
+Hedge Cost: ₹{hedge_cost:.2f}
+Net Premium: ₹{net_premium:.2f}
+Max Profit: ₹{max_profit:.0f}
 Breakeven: {be_lower:.0f} - {be_upper:.0f}
-Max Loss: ₹{min_pnl:.0f}'''
+Max Loss: Limited by Hedge'''
     
     ax.text(1.02, 0.98, stats_text, transform=ax.transAxes, fontsize=10, ha='left',
             verticalalignment='top', fontfamily='monospace',
@@ -897,68 +608,101 @@ Max Loss: ₹{min_pnl:.0f}'''
     return f'static/{filename}'  # Return the relative path for web access
 
 def generate_analysis(instrument_name, calculation_type, selected_expiry_str):
-    # Create a debug log file
-    debug_file = r"C:\Users\manir\Desktop\debug_log.txt"
+    if not selected_expiry_str or "Loading..." in selected_expiry_str or "Error" in selected_expiry_str:
+        return None, "Expiry Date has not loaded. Please wait or re-select the Index to try again."
     
-    def debug_log(message):
-        with open(debug_file, 'a', encoding='utf-8') as f:
-            from datetime import datetime
-            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            f.write(f"[{timestamp}] UTILS: {message}\n")
-        print(f"UTILS: {message}")  # Also print to console
-    
-    debug_log(f"=== generate_analysis() called ===")
-    debug_log(f"Parameters: instrument={instrument_name}, calc_type={calculation_type}, expiry={selected_expiry_str}")
-    
-    TICKERS = {"NIFTY": "^NSEI", "BANKNIFTY": "^NSEBANK"}
-    if not all([instrument_name, calculation_type, selected_expiry_str]):
-        debug_log("❌ Missing required parameters")
-        return None, "Please select valid inputs."
-    
-    ticker_symbol = TICKERS[instrument_name]
-    debug_log(f"Using ticker symbol: {ticker_symbol}")
-    
-    lot_size = get_lot_size(instrument_name)
-    strike_increment = 50 if instrument_name == "NIFTY" else 100
-    
-    # Calculate weekly supply/demand zones using the original logic
-    debug_log(f"📊 Calculating {calculation_type} supply/demand zones...")
-    supply_zone, demand_zone = calculate_weekly_zones(instrument_name, calculation_type)
-    
-    if supply_zone is None or demand_zone is None:
-        debug_log("❌ Failed to calculate zones, using fallback method")
-        # Fallback to simple price-based method
-        supply_zone = None
-        demand_zone = None
-    else:
-        debug_log(f"✅ Zones calculated - Supply: ₹{supply_zone}, Demand: ₹{demand_zone}")
-    
-    zone_label = calculation_type
-    
-    # Add error handling for option chain fetch
-    print("📡 Fetching option chain data...")
     try:
-        option_chain_data = get_option_chain_data(instrument_name)
-        if option_chain_data:
-            print("✅ Option chain data fetched successfully")
-        else:
-            print("❌ Option chain data is None")
-    except Exception as e:
-        print(f"❌ Exception fetching option chain: {e}")
-        return None, f"Error fetching option chain: {e}"
-    
-    if not option_chain_data:
-        print("❌ No option chain data available - using sample data for testing")
-        # Use sample data for testing when API fails
-        current_price = 24750 if instrument_name == "NIFTY" else 51500
-        ce_prices = {24800: 45.5, 24850: 35.2, 24900: 26.8}
-        pe_prices = {24700: 42.3, 24650: 33.1, 24600: 25.7}
-        debug_log("🔄 Using sample data due to API unavailability")
-    else:
-        try:
+        TICKERS = {"NIFTY": "^NSEI", "BANKNIFTY": "^NSEBANK"}
+        print("Initializing...")
+        
+        # Use correct lot sizes as specified by user: NIFTY=75, BANKNIFTY=35
+        lot_size = get_lot_size(instrument_name)
+        strike_increment = 50 if instrument_name == "NIFTY" else 100
+        ticker_symbol = TICKERS[instrument_name]
+        
+        print(f"Calculating {calculation_type} zones...")
+        
+        # Try multiple approaches for data fetching (exact logic from selling.py)
+        df_zones = None
+        
+        # Try different time periods if data is not available
+        periods_to_try = ["6mo", "1y", "2y", "max"]
+        for period in periods_to_try:
+            try:
+                print(f"Trying to fetch data with period: {period}")
+                df_zones = yf.Ticker(ticker_symbol).history(period=period, interval="1d")
+                if not df_zones.empty:
+                    print(f"Successfully fetched data with period: {period}")
+                    break
+                else:
+                    print(f"No data returned for period: {period}")
+            except Exception as e:
+                print(f"Error with period {period}: {e}")
+                continue
+        
+        # If yfinance fails, use alternative zone calculation
+        if df_zones is None or df_zones.empty:
+            print("yfinance data unavailable, using alternative zone calculation...")
+            # Get current price from option chain instead
+            option_chain_data = get_option_chain_data(instrument_name)
+            if not option_chain_data: 
+                return None, f"Error: Unable to fetch data for {instrument_name}. Please try again later."
+            
             current_price = option_chain_data['records']['underlyingValue']
-        except Exception as e:
-            return None, f"Error reading underlying value: {e}"
+            print(f"Current price from option chain: {current_price}")
+            
+            # Use simple percentage-based zones as fallback
+            supply_zone = current_price * 1.02  # 2% above current price
+            demand_zone = current_price * 0.98  # 2% below current price
+            print(f"Using fallback zones - Supply: {supply_zone}, Demand: {demand_zone}")
+        else:
+            # Original zone calculation with fetched data
+            df_zones.index = pd.to_datetime(df_zones.index)
+            period_rule = 'W' if calculation_type == "Weekly" else 'ME'
+            agg_df = df_zones.resample(period_rule).agg({
+                'Open': 'first', 
+                'High': 'max', 
+                'Low': 'min'
+            }).dropna()
+            
+            if agg_df.empty:
+                print("Aggregated data is empty, using fallback zones...")
+                option_chain_data = get_option_chain_data(instrument_name)
+                if not option_chain_data: 
+                    return None, f"Error: Unable to fetch data for {instrument_name}."
+                current_price = option_chain_data['records']['underlyingValue']
+                supply_zone = current_price * 1.02
+                demand_zone = current_price * 0.98
+            else:
+                base = agg_df['Open']
+                rng5 = (agg_df['High'] - agg_df['Low']).rolling(min(5, len(agg_df))).mean()
+                rng10 = (agg_df['High'] - agg_df['Low']).rolling(min(10, len(agg_df))).mean()
+                latest_zones = pd.DataFrame({
+                    'u1': base + 0.5*rng5, 
+                    'u2': base + 0.5*rng10, 
+                    'l1': base - 0.5*rng5, 
+                    'l2': base - 0.5*rng10
+                }).dropna()
+                
+                if latest_zones.empty:
+                    print("Zone calculation failed, using fallback...")
+                    option_chain_data = get_option_chain_data(instrument_name)
+                    if not option_chain_data: 
+                        return None, f"Error: Unable to fetch data for {instrument_name}."
+                    current_price = option_chain_data['records']['underlyingValue']
+                    supply_zone = current_price * 1.02
+                    demand_zone = current_price * 0.98
+                else:
+                    latest_zone_data = latest_zones.iloc[-1]
+                    supply_zone = round(max(latest_zone_data['u1'], latest_zone_data['u2']), 2)
+                    demand_zone = round(min(latest_zone_data['l1'], latest_zone_data['l2']), 2)
+        
+        print("Fetching option chain...")
+        option_chain_data = get_option_chain_data(instrument_name)
+        if not option_chain_data: 
+            return None, f"Error fetching option chain."
+        
+        current_price = option_chain_data['records']['underlyingValue']
     expiry_label = datetime.strptime(selected_expiry_str, '%d-%b-%Y').strftime("%d-%b")
     
     if option_chain_data:
@@ -970,23 +714,21 @@ def generate_analysis(instrument_name, calculation_type, selected_expiry_str):
                 if item.get("PE"): pe_prices[item['strikePrice']] = item["PE"]["lastPrice"]
         debug_log(f"📊 Real API data - CE: {len(ce_prices)}, PE: {len(pe_prices)} strikes")
     
-    # Zone-based strike selection (using supply/demand zones)
+    # Zone-based strike selection (matching selling.py logic exactly)
     if supply_zone is not None and demand_zone is not None:
         debug_log("📊 Using zone-based strike selection")
         
-        # CE strikes based on supply zone (resistance)
+        # CE strikes based on supply zone - exactly from selling.py
         ce_high = math.ceil(supply_zone / strike_increment) * strike_increment
         strikes_ce = [ce_high, ce_high + strike_increment, ce_high + (2 * strike_increment)]
         
-        # PE strikes based on demand zone (support)
+        # PE strikes based on demand zone - exactly from selling.py  
         pe_high = math.floor(demand_zone / strike_increment) * strike_increment
-        
-        # Select best PE strikes below demand zone with highest premiums
         candidate_puts = sorted([s for s in pe_prices if s < pe_high and pe_prices.get(s, 0) > 0], 
                                key=lambda s: pe_prices.get(s, 0), reverse=True)
-        
         pe_mid = (candidate_puts[0] if candidate_puts else pe_high - strike_increment)
-        pe_low = (candidate_puts[1] if len(candidate_puts) > 1 else pe_mid - strike_increment)
+        pe_low = (candidate_puts[1] if len(candidate_puts) > 1 else 
+                 (candidate_puts[0] if candidate_puts else pe_high - strike_increment) - strike_increment)
         strikes_pe = [pe_high, pe_mid, pe_low]
         
         debug_log(f"📊 Zone-based strikes:")
@@ -1005,28 +747,76 @@ def generate_analysis(instrument_name, calculation_type, selected_expiry_str):
         pe_mid = (candidate_puts[0] if candidate_puts else pe_high - strike_increment)
         pe_low = (candidate_puts[1] if len(candidate_puts) > 1 else pe_mid - strike_increment)
         strikes_pe = [pe_high, pe_mid, pe_low]
-    df = pd.DataFrame({"Entry": ["High Reward", "Mid Reward", "Low Reward"], "CE Strike": strikes_ce, "CE Price": [ce_prices.get(s, 0.0) for s in strikes_ce], "PE Strike": strikes_pe, "PE Price": [pe_prices.get(s, 0.0) for s in strikes_pe]})
+    
+    # Find suitable hedge strikes - exact logic from selling.py
+    debug_log("Finding suitable hedges...")
+    temp_df = pd.DataFrame({
+        "CE Strike": strikes_ce, 
+        "CE Price": [ce_prices.get(s, 0.0) for s in strikes_ce], 
+        "PE Strike": strikes_pe, 
+        "PE Price": [pe_prices.get(s, 0.0) for s in strikes_pe]
+    })
+    
+    hedge_premium_decimal = 10.0 / 100.0  # Default 10% hedge premium
+    strikes_ce_hedge, strikes_pe_hedge = [], []
+    
+    for _, row in temp_df.iterrows():
+        ce_hedge = find_hedge_strike(row['CE Strike'], row['CE Price'] * hedge_premium_decimal, ce_prices, 'CE')
+        pe_hedge = find_hedge_strike(row['PE Strike'], row['PE Price'] * hedge_premium_decimal, pe_prices, 'PE')
+        
+        print(f"🔍 CE Strike: {row['CE Strike']}, Price: {row['CE Price']}, Target: {row['CE Price'] * hedge_premium_decimal:.2f}, Found Hedge: {ce_hedge}")
+        print(f"🔍 PE Strike: {row['PE Strike']}, Price: {row['PE Price']}, Target: {row['PE Price'] * hedge_premium_decimal:.2f}, Found Hedge: {pe_hedge}")
+        
+        strikes_ce_hedge.append(ce_hedge or row['CE Strike'] + 1000)
+        strikes_pe_hedge.append(pe_hedge or row['PE Strike'] - 1000)
+    
+    # Create comprehensive DataFrame with hedge data - matching selling.py structure  
+    df = pd.DataFrame({
+        "Entry": ["High Reward", "Mid Reward", "Low Reward"], 
+        "CE Strike": strikes_ce, 
+        "CE Price": [ce_prices.get(s, 0.0) for s in strikes_ce], 
+        "PE Strike": strikes_pe, 
+        "PE Price": [pe_prices.get(s, 0.0) for s in strikes_pe],
+        "CE Hedge Strike": strikes_ce_hedge,
+        "CE Hedge Price": [ce_prices.get(s, 0.0) for s in strikes_ce_hedge],
+        "PE Hedge Strike": strikes_pe_hedge, 
+        "PE Hedge Price": [pe_prices.get(s, 0.0) for s in strikes_pe_hedge]
+    })
+    
     df["Combined Premium"] = df["CE Price"] + df["PE Price"]
+    df["Net Premium"] = (df["CE Price"] + df["PE Price"]) - (df["CE Hedge Price"] + df["PE Hedge Price"])
     
-    # Calculate target and stoploss with global round-off by 50
-    df["Target"] = df["Combined Premium"].apply(lambda x: round_to_nearest_50((x * 0.80 * lot_size)))
-    df["Stoploss"] = df["Combined Premium"].apply(lambda x: round_to_nearest_50((x * 0.80 * lot_size)))
+    # Calculate target and stoploss using Net Premium - matching selling.py
+    df["Target"] = (df["Net Premium"] * 0.80 * lot_size).round(2)
+    df["Stoploss"] = (df["Net Premium"] * 0.80 * lot_size).round(2)
     
-    display_df = df[['Entry', 'CE Strike', 'CE Price', 'PE Strike', 'PE Price']].copy()
-    # Format target/SL values as integers since they're rounded to 50
-    display_df['Target/SL (1:1)'] = df['Target'].apply(lambda x: f"₹{int(x)}")
+    # Create comprehensive display DataFrame for chart including hedge data
+    display_df = df[['Entry', 'CE Strike', 'CE Price', 'CE Hedge Strike', 'CE Hedge Price', 
+                     'PE Strike', 'PE Price', 'PE Hedge Strike', 'PE Hedge Price', 
+                     'Combined Premium', 'Net Premium']].copy()
+    display_df['Total Hedge'] = df['CE Hedge Price'] + df['PE Hedge Price']
+    display_df['Target/SL'] = (df["Net Premium"] * 0.80 * lot_size).round(2)
+    display_df.rename(columns={
+        'Combined Premium': 'Sell Premium',
+        'CE Hedge Strike': 'CE Hedge',
+        'PE Hedge Strike': 'PE Hedge',
+        'CE Hedge Price': 'CE H.Price',
+        'PE Hedge Price': 'PE H.Price'
+    }, inplace=True)
     
     # Debug: Log the DataFrame data
-    debug_log(f"📊 DataFrame created with shape: {df.shape}")
-    debug_log(f"📊 Display DataFrame: \n{display_df.to_string()}")
-    debug_log(f"📊 CE Prices found: {len(ce_prices)} items")
-    debug_log(f"📊 PE Prices found: {len(pe_prices)} items")
+    print(f"📊 DataFrame created with shape: {df.shape}")
+    print(f"📊 DataFrame columns: {list(df.columns)}")
+    print(f"📊 Sample DataFrame data:")
+    print(df.to_string())
+    print(f"📊 Display DataFrame: \n{display_df.to_string()}")
+    print(f"📊 CE Prices found: {len(ce_prices)} items")
+    print(f"📊 PE Prices found: {len(pe_prices)} items")
     
     title, zone_label = f"FiFTO - {calculation_type} {instrument_name} Selling", calculation_type
     summary_filename = f"summary_{uuid.uuid4().hex}.png"
     summary_filepath = os.path.join(STATIC_FOLDER_PATH, summary_filename)
     
-    # Create clean enterprise-style analysis chart
     plt.style.use('default')  # Use clean default style
     fig, ax = plt.subplots(figsize=(12, 8))
     fig.patch.set_facecolor('white')
@@ -1082,11 +872,23 @@ def generate_analysis(instrument_name, calculation_type, selected_expiry_str):
             cell.set_edgecolor('#e2e8f0')  # Light border matching our cards
             cell.set_linewidth(1)
             
-            # Add special styling for numeric columns (prices and targets)
-            if col in [2, 4, 5]:  # Price and Target columns
+            # Add special styling for numeric columns
+            # Columns: Entry, CE Strike, CE Price, CE Hedge, CE H.Price, PE Strike, PE Price, PE Hedge, PE H.Price, Sell Premium, Total Hedge, Net Premium, Target/SL
+            numeric_cols = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]  # All except Entry
+            if col in numeric_cols:
                 cell.get_text().set_fontfamily('monospace')  # Monospace for numbers
                 cell.get_text().set_fontweight('bold')
-                if col == 5:  # Target/SL column - format as integer since rounded to 50
+                
+                # Special coloring for different types
+                if col in [3, 7]:  # Hedge strike columns (CE Hedge, PE Hedge)
+                    cell.get_text().set_color('#7c3aed')  # Purple for hedge strikes
+                elif col in [4, 8]:  # Hedge price columns (CE H.Price, PE H.Price)
+                    cell.get_text().set_color('#7c3aed')  # Purple for hedge prices
+                elif col == 10:  # Total Hedge column
+                    cell.get_text().set_color('#dc2626')  # Red for hedge cost
+                elif col == 11:  # Net Premium column
+                    cell.get_text().set_color('#059669')  # Green for net premium
+                elif col == 12:  # Target/SL column
                     cell.get_text().set_color('#16a34a')  # Green for target amounts
                     # Format target values as integers since they're rounded to 50
                     current_text = cell.get_text().get_text()
@@ -1094,12 +896,14 @@ def generate_analysis(instrument_name, calculation_type, selected_expiry_str):
                         cell.get_text().set_text(f"₹{int(float(current_text))}")
     
     # Enhanced footer with global theme styling
-    footer_text = f"Risk Management: 1:1 Target/SL Ratio"
+    first_row = df.iloc[0]  # Get first strategy row
+    footer_text = f"Hedged Strategy: Net Premium ₹{first_row['Net Premium']:.2f} (Sell: ₹{first_row['Combined Premium']:.2f} - Hedge: ₹{first_row['CE Hedge Price'] + first_row['PE Hedge Price']:.2f})"
     ax.text(0.5, 0.15, footer_text, transform=ax.transAxes, ha='center', va='center',
             fontsize=12, fontweight='bold', color='#16a34a',
             bbox=dict(boxstyle='round,pad=0.4', facecolor='#f0fdf4', 
                      edgecolor='#16a34a', alpha=0.8, linewidth=1))
     
+    # Clean disclaimer with global theme
     # Clean disclaimer with global theme
     ax.text(0.5, 0.06, "For educational purposes only", 
             transform=ax.transAxes, ha='center', va='center',
@@ -1114,7 +918,7 @@ def generate_analysis(instrument_name, calculation_type, selected_expiry_str):
     plt.close(fig)
     payoff_filepath = generate_payoff_chart(df, lot_size, current_price, instrument_name, zone_label, expiry_label)
     
-    # Create enhanced HTML table for web display
+    # Create enhanced HTML table for web display with hedge information
     table_html = f"""
     <div class="table-responsive">
         <table class="table table-hover">
@@ -1123,9 +927,12 @@ def generate_analysis(instrument_name, calculation_type, selected_expiry_str):
                     <th scope="col">Entry</th>
                     <th scope="col">CE Strike</th>
                     <th scope="col">CE Price</th>
+                    <th scope="col">CE Hedge</th>
                     <th scope="col">PE Strike</th>
                     <th scope="col">PE Price</th>
-                    <th scope="col">Target/SL (1:1)</th>
+                    <th scope="col">PE Hedge</th>
+                    <th scope="col">Net Premium</th>
+                    <th scope="col">Target/SL</th>
                 </tr>
             </thead>
             <tbody>
@@ -1137,9 +944,12 @@ def generate_analysis(instrument_name, calculation_type, selected_expiry_str):
                     <td><strong>{row['Entry']}</strong></td>
                     <td>{row['CE Strike']}</td>
                     <td>₹{row['CE Price']:.2f}</td>
+                    <td><span class="badge bg-secondary">{row['CE Hedge']}</span></td>
                     <td>{row['PE Strike']}</td>
                     <td>₹{row['PE Price']:.2f}</td>
-                    <td><span class="badge bg-success">{row['Target/SL (1:1)']}</span></td>
+                    <td><span class="badge bg-secondary">{row['PE Hedge']}</span></td>
+                    <td><span class="badge bg-info">₹{row['Net Premium']:.2f}</span></td>
+                    <td><span class="badge bg-success">₹{row['Target/SL']:.0f}</span></td>
                 </tr>
         """
     
@@ -1233,7 +1043,7 @@ def add_to_analysis(analysis_data):
                 print(f"❌ Both IDs exist, skipping")
                 continue
             
-        # Create trade object
+        # Create trade object with hedge position data
         new_trade = {
             "id": trade_id, 
             "start_time": start_time, 
@@ -1246,7 +1056,14 @@ def add_to_analysis(analysis_data):
             "pe_strike": entry.get('PE Strike', 0), 
             "initial_premium": entry.get('Combined Premium', 0), 
             "target_amount": entry.get('Target', 0), 
-            "stoploss_amount": entry.get('Stoploss', 0)
+            "stoploss_amount": entry.get('Stoploss', 0),
+            # Hedge position data for sell strategies
+            "ce_hedge_strike": entry.get('CE Hedge Strike', 0),
+            "pe_hedge_strike": entry.get('PE Hedge Strike', 0),
+            "ce_hedge_price": entry.get('CE Hedge Price', 0),
+            "pe_hedge_price": entry.get('PE Hedge Price', 0),
+            "net_premium": entry.get('Net Premium', entry.get('Combined Premium', 0)),
+            "total_hedge_premium": entry.get('CE Hedge Price', 0) + entry.get('PE Hedge Price', 0)
         }
         
         print(f"✅ Adding trade: {new_trade}")
@@ -1560,16 +1377,40 @@ def monitor_trades(is_eod_report=False):
 
         for trade in trades_in_group:
             current_ce, current_pe = 0.0, 0.0
+            current_ce_hedge, current_pe_hedge = 0.0, 0.0
+            
             for item in chain['records']['data']:
                 if item.get("expiryDate") == trade['expiry']:
+                    # Get main position prices
                     if item.get("strikePrice") == trade['ce_strike'] and item.get("CE"):
                         current_ce = item["CE"]["lastPrice"]
                     if item.get("strikePrice") == trade['pe_strike'] and item.get("PE"):
                         current_pe = item["PE"]["lastPrice"]
+                    
+                    # Get hedge position prices
+                    if item.get("strikePrice") == trade.get('ce_hedge_strike') and item.get("CE"):
+                        current_ce_hedge = item["CE"]["lastPrice"]
+                    if item.get("strikePrice") == trade.get('pe_hedge_strike') and item.get("PE"):
+                        current_pe_hedge = item["PE"]["lastPrice"]
 
             if current_ce == 0.0 and current_pe == 0.0: continue
 
-            pnl = (trade['initial_premium'] - (current_ce + current_pe)) * lot_size
+            # Calculate P&L based on whether position is hedged
+            has_hedge = trade.get('ce_hedge_strike', 0) > 0 or trade.get('pe_hedge_strike', 0) > 0
+            
+            if has_hedge:
+                # For hedged positions: Net P&L = (Sell Premium - Buy Premium) - (Current Sell - Current Buy)
+                initial_sell_premium = trade.get('initial_premium', 0)
+                initial_hedge_premium = trade.get('total_hedge_premium', 0)
+                
+                current_sell_premium = current_ce + current_pe
+                current_hedge_premium = current_ce_hedge + current_pe_hedge
+                
+                pnl = ((initial_sell_premium - initial_hedge_premium) - (current_sell_premium - current_hedge_premium)) * lot_size
+            else:
+                # For non-hedged positions: Original logic
+                pnl = (trade['initial_premium'] - (current_ce + current_pe)) * lot_size
+                
             any_trade_updated = True
 
             tag_key = trade.get('entry_tag', 'General Trades')

@@ -3,6 +3,7 @@ matplotlib
 pandas
 requests
 yfinance
+dhanhq
 apscheduler
 pytz
 numpy

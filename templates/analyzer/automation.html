@@ -8,8 +8,8 @@
     {% csrf_token %}
 </form>
 
-<!-- Modern Dashboard Header -->
-<div class="dashboard-header modern">
+<!-- Dashboard Style Header -->
+<div class="dashboard-header">
     <div class="container-fluid">
         <div class="row align-items-center">
             <div class="col-md-8">
@@ -22,7 +22,7 @@
                 </div>
             </div>
             <div class="col-md-4 text-end">
-                <button type="button" class="btn btn-success btn-sm btn-add-schedule shadow-sm" onclick="showAddScheduleModal()">
+                <button type="button" class="btn btn-primary" onclick="showAddScheduleModal()">
                     <i class="bi bi-plus-circle me-2"></i>Add New Schedule
                 </button>
             </div>
@@ -86,6 +86,10 @@
                                         </div>
                                         <div class="col-md-4 text-end">
                                             <div class="btn-group btn-group-sm">
+                                                <button type="button" class="btn btn-outline-primary" 
+                                                        onclick="testSchedule('{{ schedule.id }}')">
+                                                    <i class="bi bi-play-circle me-1"></i>Test Now
+                                                </button>
                                                 <button type="button" class="btn btn-outline-secondary" 
                                                         onclick="editSchedule('{{ schedule.id }}')">
                                                     <i class="bi bi-pencil me-1"></i>Edit
@@ -101,11 +105,6 @@
                                         <div class="col-12">
                                             <small class="text-muted">
                                                 <i class="bi bi-repeat me-1"></i>Runs daily until manually turned off • Instruments: {{ schedule.instruments|join:", " }}
-                                                {% if schedule.auto_add_portfolio %}
-                                                • <span class="text-success"><i class="bi bi-plus-circle me-1"></i>Auto-add to Portfolio</span>
-                                                {% else %}
-                                                • <span class="text-warning"><i class="bi bi-dash-circle me-1"></i>Manual Portfolio Add</span>
-                                                {% endif %}
                                             </small>
                                         </div>
                                     </div>
@@ -120,6 +119,45 @@
                             <p class="text-muted">Click "Add New Schedule" to create your first automation schedule</p>
                         </div>
                     {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Auto Portfolio Feature -->
+        <div class="card clean-card border-0 shadow-sm mb-4">
+            <div class="card-header bg-light border-bottom">
+                <div class="d-flex align-items-center">
+                    <i class="bi bi-briefcase text-success me-3 fs-5"></i>
+                    <div>
+                        <h5 class="mb-0 fw-bold">Auto Portfolio Management</h5>
+                        <p class="text-muted mb-0 small">Automatically add generated charts to portfolio</p>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <h6 class="mb-2 fw-bold text-dark">
+                            <i class="bi bi-plus-circle me-2 text-success"></i>
+                            Auto-Add Charts to Portfolio
+                        </h6>
+                        <p class="text-muted mb-0">
+                            Automatically add all automation-generated charts to your active portfolio for tracking and P&L monitoring. 
+                            This ensures no automated trades are missed from your portfolio.
+                        </p>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="autoPortfolioToggle" 
+                                   {% if settings.auto_add_to_portfolio %}checked{% endif %}
+                                   onchange="toggleAutoPortfolio(this.checked)">
+                            <label class="form-check-label fw-bold" for="autoPortfolioToggle">
+                                <span id="autoPortfolioStatus" class="{% if settings.auto_add_to_portfolio %}text-success{% else %}text-danger{% endif %}">
+                                    {% if settings.auto_add_to_portfolio %}Enabled{% else %}Disabled{% endif %}
+                                </span>
+                            </label>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -213,23 +251,6 @@
                                     </label>
                                 </div>
                             </div>
-                        </div>
-                    </div>
-                    
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label class="form-label fw-bold">Auto-add to Portfolio</label>
-                                <div class="form-check form-switch">
-                                    <input class="form-check-input" type="checkbox" id="autoAddPortfolio" name="auto_add_portfolio" checked>
-                                    <label class="form-check-label" for="autoAddPortfolio">
-                                        Automatically add generated charts to portfolio
-                                    </label>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <!-- Empty column for spacing -->
                         </div>
                     </div>
                     
@@ -355,7 +376,6 @@ function showAddScheduleModal() {
         document.getElementById('formAction').value = 'create';
         document.getElementById('scheduleForm').reset();
         document.getElementById('scheduleEnabled').checked = true;
-        document.getElementById('autoAddPortfolio').checked = true; // Default ON
         // Auto-generate name
         generateScheduleName();
         const modal = new bootstrap.Modal(document.getElementById('scheduleModal'));
@@ -365,6 +385,40 @@ function showAddScheduleModal() {
         console.error('Error in showAddScheduleModal:', error);
         alert('Error opening modal: ' + error.message);
     }
+}
+
+function testSchedule(scheduleId) {
+    console.log('testSchedule called with ID:', scheduleId);
+    showPopNotification('Testing schedule... Please wait', 'info');
+    
+    const formData = new FormData();
+    formData.append('action', 'test');
+    formData.append('schedule_id', scheduleId);
+    formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+    
+    fetch('{% url "automation" %}', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log('Test response:', data);
+        if (data.success) {
+            showPopNotification('Test completed successfully!', 'success');
+            if (data.charts_generated) {
+                setTimeout(() => {
+                    showPopNotification('Charts generated and added to portfolio!', 'success');
+                }, 2000);
+            }
+            loadRecentActivities();
+        } else {
+            showPopNotification('Test failed: ' + data.message, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Test error:', error);
+        showPopNotification('Test failed with error: ' + error.message, 'error');
+    });
 }
 
 function editSchedule(scheduleId) {
@@ -390,7 +444,6 @@ function editSchedule(scheduleId) {
             document.getElementById('scheduleTime').value = schedule.time || '09:20';
             document.getElementById('scheduleEnabled').checked = schedule.enabled || false;
             document.getElementById('telegramAlerts').checked = schedule.telegram_alerts !== false;
-            document.getElementById('autoAddPortfolio').checked = schedule.auto_add_portfolio !== false;
             
             document.getElementById('instNifty').checked = schedule.instruments.includes('NIFTY');
             document.getElementById('instBankNifty').checked = schedule.instruments.includes('BANKNIFTY');
@@ -428,7 +481,7 @@ function deleteSchedule(scheduleId) {
             body: formData
         })
         .then(response => response.json())
-        .then(data => { // FIXED: added parentheses around data
+        .then(data => {
             if (data.success) {
                 showPopNotification('Schedule deleted successfully', 'success');
                 setTimeout(() => location.reload(), 1000);
@@ -652,191 +705,9 @@ document.addEventListener('DOMContentLoaded', function() {
 window.showAddScheduleModal = showAddScheduleModal;
 window.editSchedule = editSchedule;
 window.deleteSchedule = deleteSchedule;
+window.testSchedule = testSchedule;
 window.toggleSchedule = toggleSchedule;
 window.saveSchedule = saveSchedule;
 
-// Test notification function
-function testNotification() {
-    const testActivity = {
-        title: 'Charts Generated',
-        description: 'Test notification: NIFTY charts generated successfully',
-        time: new Date().toLocaleString('en-US', {
-            day: '2-digit',
-            month: 'short', 
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-            hour12: true
-        }),
-        timestamp: new Date().toISOString()
-    };
-    
-    showAutoGenerationNotification(testActivity);
-    showPopNotification('Test notification triggered!', 'info');
-}
-
-// Simulate automation completion (for testing)
-function simulateAutomation() {
-    // Add a real activity to the database via AJAX
-    const formData = new FormData();
-    formData.append('action', 'simulate_automation');
-    formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
-    
-    fetch('/automation/', {
-        method: 'POST',
-        body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showPopNotification('Simulated automation activity added!', 'success');
-            // The periodic check will pick this up and show notification
-        }
-    })
-    .catch(error => {
-        console.error('Error simulating automation:', error);
-    });
-}
-
-window.testNotification = testNotification;
-window.simulateAutomation = simulateAutomation;
-
-// Auto-generation notification system
-let lastCheckedActivity = localStorage.getItem('lastCheckedActivity');
-let isFirstLoad = true;
-
-function checkForNewAutomationResults() {
-    fetch('/automation/', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
-        },
-        body: 'action=get_recent_activities'
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.activities && data.activities.length > 0) {
-            const latestActivity = data.activities[0];
-            const latestTimestamp = latestActivity.timestamp;
-            
-            // Skip notification on first load
-            if (isFirstLoad) {
-                lastCheckedActivity = latestTimestamp;
-                localStorage.setItem('lastCheckedActivity', latestTimestamp);
-                isFirstLoad = false;
-                return;
-            }
-            
-            // Check if there's a new activity since last check
-            if (lastCheckedActivity && latestTimestamp > lastCheckedActivity) {
-                // Show notification for auto-generation activities
-                if (latestActivity.title.includes('Charts Generated') || 
-                    latestActivity.title.includes('Auto Generation') ||
-                    latestActivity.title.includes('Portfolio Updated')) {
-                    
-                    showAutoGenerationNotification(latestActivity);
-                }
-                
-                // Update last checked timestamp
-                lastCheckedActivity = latestTimestamp;
-                localStorage.setItem('lastCheckedActivity', latestTimestamp);
-                
-                // Refresh recent activities display
-                loadRecentActivities();
-            }
-        }
-    })
-    .catch(error => {
-        console.log('Background check error (ignored):', error);
-    });
-}
-
-function showAutoGenerationNotification(activity) {
-    // Create notification popup
-    const notification = document.createElement('div');
-    notification.className = 'alert alert-success alert-dismissible fade show position-fixed shadow-lg';
-    notification.style.cssText = `
-        top: 20px;
-        right: 20px;
-        z-index: 9999;
-        max-width: 400px;
-        border-left: 4px solid #28a745;
-        animation: slideIn 0.3s ease-out;
-    `;
-    
-    notification.innerHTML = `
-        <div class="d-flex align-items-start">
-            <div class="me-3">
-                <i class="bi bi-check-circle-fill text-success fs-4"></i>
-            </div>
-            <div class="flex-grow-1">
-                <div class="fw-bold">🚀 Automation Complete!</div>
-                <div class="small mb-2">${activity.description}</div>
-                <div class="text-muted small">
-                    <i class="bi bi-clock me-1"></i>${activity.time}
-                </div>
-            </div>
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    `;
-    
-    // Add CSS animation
-    const style = document.createElement('style');
-    style.textContent = `
-        @keyframes slideIn {
-            from { transform: translateX(100%); opacity: 0; }
-            to { transform: translateX(0); opacity: 1; }
-        }
-    `;
-    document.head.appendChild(style);
-    
-    document.body.appendChild(notification);
-    
-    // Auto-remove after 8 seconds
-    setTimeout(() => {
-        if (notification.parentNode) {
-            notification.classList.remove('show');
-            setTimeout(() => {
-                if (notification.parentNode) {
-                    notification.parentNode.removeChild(notification);
-                }
-            }, 300);
-        }
-    }, 8000);
-    
-    // Play notification sound (optional)
-    try {
-        const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEBACAAAQBKAAAEBAAAEGRUYXRHAAACAAAAAAAABAAAAPAA');
-        audio.volume = 0.3;
-        audio.play().catch(() => {}); // Ignore errors if audio fails
-    } catch (e) {
-        // Ignore audio errors
-    }
-}
-
-// Start checking for new automation results every 30 seconds
-document.addEventListener('DOMContentLoaded', function() {
-    // Load recent activities immediately
-    loadRecentActivities();
-    
-    // Set up periodic checks
-    setInterval(checkForNewAutomationResults, 30000); // Check every 30 seconds
-    
-    console.log('🔔 Auto-generation notification system started');
-});
-
 </script>
-
-<style>
-/* Modern unified dashboard header style */
-.dashboard-header.modern {background:linear-gradient(140deg,#f0fdf4 0%,#dcfce7 55%,#d1fae5 100%);border:1px solid #bbf7d0;border-radius:22px;padding:1.8rem 2.2rem;margin-bottom:2.2rem;box-shadow:0 6px 18px -6px rgba(16,185,129,.25),0 2px 4px rgba(0,0,0,.04);position:relative;overflow:hidden;}
-.dashboard-header.modern:before {content:"";position:absolute;inset:0;background:radial-gradient(circle at 85% 15%,rgba(16,185,129,.15),transparent 60%);pointer-events:none;}
-.dashboard-title {font-size:2rem;font-weight:700;color:#1f2937;margin:0;display:flex;align-items:center;letter-spacing:-.5px;}
-.dashboard-title i {color:#059669;font-size:1.9rem;}
-.dashboard-subtitle {color:#64748b;font-size:.95rem;margin:0;font-weight:500;}
-.btn-add-schedule {font-weight:600;background:#059669;border-color:#059669;border-radius:10px;padding:.65rem 1.1rem;}
-.btn-add-schedule:hover {background:#047857;border-color:#047857;}
-@media (max-width:768px){.dashboard-header.modern{padding:1.4rem 1.2rem;} .dashboard-title{font-size:1.55rem;} .dashboard-title i{font-size:1.4rem;} }
-</style>
 {% endblock %}

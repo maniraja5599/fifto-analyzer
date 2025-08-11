@@ -53,7 +53,7 @@ body {
 
 /* Clean Enterprise Sidebar */
 .sidebar {
-    width: 260px;
+    width: 240px;
     min-height: 100vh;
     background: #ffffff;
     box-shadow: 0 0 20px rgba(0, 0, 0, 0.08);
@@ -217,12 +217,52 @@ body {
 
 /* Main Content Area */
 .main-content {
-    margin-left: 260px;
-    padding: 2rem;
+    margin-left: 240px;
+    padding: 0.75rem;
     min-height: 100vh;
-    width: calc(100% - 260px);
+    width: calc(100vw - 240px);
     background: #f9fafb;
     position: relative;
+    max-width: calc(100vw - 240px);
+    overflow-x: hidden;
+    box-sizing: border-box;
+}
+
+.content-body {
+    max-width: 100%;
+    overflow-x: hidden;
+    padding-bottom: 2rem;
+}
+
+/* Mobile Menu Toggle */
+.mobile-menu-toggle {
+    position: fixed;
+    top: 1rem;
+    left: 1rem;
+    z-index: 1100;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 0.5rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    color: #374151;
+    font-size: 1.25rem;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.mobile-menu-toggle:hover {
+    background: #f3f4f6;
+    transform: scale(1.05);
+}
+
+.mobile-menu-toggle:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
 /* Professional Sidebar Footer */
@@ -302,12 +342,12 @@ body {
 /* Responsive Design for Clean Enterprise Sidebar */
 @media (max-width: 1024px) {
     .sidebar {
-        width: 240px;
+        width: 220px;
     }
     
     .main-content {
-        margin-left: 240px;
-        width: calc(100% - 240px);
+        margin-left: 220px;
+        width: calc(100% - 220px);
     }
 }
 
@@ -316,17 +356,35 @@ body {
         width: 100%;
         transform: translateX(-100%);
         transition: transform 0.3s ease;
+        z-index: 1050;
     }
     
     .sidebar.show {
         transform: translateX(0);
     }
     
+    .sidebar.show::before {
+        content: '';
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: -1;
+    }
+    
     .main-content {
         margin-left: 0;
         width: 100%;
-        padding: 1rem;
+        padding: 3rem 0.75rem 0.75rem 0.75rem;
     }
+    
+    .content-body {
+        padding: 0;
+        padding-bottom: 2rem;
+    }
+}
     
     .sidebar-nav {
         padding: 1rem 0.75rem;

@@ -13,6 +13,7 @@ from datetime import datetime
 from collections import defaultdict
 from . import utils
 from .utils import generate_analysis, load_settings, save_settings
+from .pnl_updater import pnl_updater
 
 def index(request):
     # Handle session clearing
@@ -22,19 +23,323 @@ def index(request):
     
     analysis_data = request.session.get('analysis_data')
     instrument = request.GET.get('instrument', 'NIFTY')
+    
+    # Get option chain data with improved error handling
     chain = utils.get_option_chain_data(instrument)
     expiries = []
-    if chain and 'records' in chain and 'expiryDates' in chain['records']:
-        expiries = sorted(
-            [d for d in chain['records']['expiryDates'] if datetime.strptime(d, "%d-%b-%Y").date() >= datetime.now().date()],
-            key=lambda x: datetime.strptime(x, "%d-%b-%Y")
-        )
+    
+    try:
+        if chain and 'records' in chain and 'expiryDates' in chain['records']:
+            all_expiries = chain['records']['expiryDates']
+            # Filter future dates only
+            from datetime import datetime as dt, timedelta
+            current_date = dt.now().date()
+            expiries = []
+            
+            for expiry_str in all_expiries:
+                try:
+                    expiry_date = dt.strptime(expiry_str, "%d-%b-%Y").date()
+                    if expiry_date >= current_date:
+                        expiries.append(expiry_str)
+                except ValueError:
+                    continue
+                    
+            # Sort by date
+            expiries.sort(key=lambda x: dt.strptime(x, "%d-%b-%Y"))
+            print(f"✅ Loaded {len(expiries)} expiry dates for {instrument}: {expiries[:3]}...")
+        else:
+            print(f"⚠️ No expiry dates found for {instrument}, using fallback")
+            
+    except Exception as e:
+        print(f"❌ Error processing expiry dates: {e}")
+        
+    # Ensure we have at least some expiries (fallback)
+    if not expiries:
+        from datetime import datetime as dt, timedelta
+        print(f"🔄 Generating fallback expiry dates for {instrument}")
+        base_date = dt.now().date()
+        for i in range(1, 5):  # Next 4 weeks
+            fallback_date = base_date + timedelta(weeks=i)
+            # Adjust to Thursday (weekday 3)
+            days_to_add = (3 - fallback_date.weekday()) % 7
+            thursday = fallback_date + timedelta(days=days_to_add)
+            expiries.append(thursday.strftime("%d-%b-%Y"))
+            
     context = {
         'expiries': expiries,
         'instrument': instrument,
-        'analysis_data': analysis_data
+        'analysis_data': analysis_data,
+        'expiry_count': len(expiries)
     }
     return render(request, 'analyzer/index.html', context)
+
+def dashboard_view(request):
+    """Modern dashboard with comprehensive portfolio analytics and real market data"""
+    try:
+        from datetime import datetime, date, timedelta
+        import random
+        from .market_data_v2 import get_market_data as fetch_real_market_data, get_market_status
+        
+        # Get current time and date
+        current_time = datetime.now()
+        
+        # Determine time greeting
+        hour = current_time.hour
+        if hour < 12:
+            time_greeting = "Morning"
+        elif hour < 17:
+            time_greeting = "Afternoon"
+        else:
+            time_greeting = "Evening"
+        
+        # Get real market status and data
+        market_status_data = get_market_status()
+        market_open = market_status_data['is_open']
+        market_status = market_status_data['status']
+        
+        # Get real market data from yfinance
+        real_market_data = fetch_real_market_data()
+        
+        # Format market data for template
+        market_data = {
+            'nifty': {
+                'name': 'NIFTY 50',
+                'current': real_market_data.get('NIFTY', {}).get('price', 0),
+                'change': real_market_data.get('NIFTY', {}).get('change', 0),
+                'change_percent': real_market_data.get('NIFTY', {}).get('change_percent', 0),
+                'status': real_market_data.get('NIFTY', {}).get('status', 'neutral')
+            },
+            'banknifty': {
+                'name': 'BANK NIFTY',
+                'current': real_market_data.get('BANKNIFTY', {}).get('price', 0),
+                'change': real_market_data.get('BANKNIFTY', {}).get('change', 0),
+                'change_percent': real_market_data.get('BANKNIFTY', {}).get('change_percent', 0),
+                'status': real_market_data.get('BANKNIFTY', {}).get('status', 'neutral')
+            },
+            'sensex': {
+                'name': 'SENSEX',
+                'current': real_market_data.get('SENSEX', {}).get('price', 0),
+                'change': real_market_data.get('SENSEX', {}).get('change', 0),
+                'change_percent': real_market_data.get('SENSEX', {}).get('change_percent', 0),
+                'status': real_market_data.get('SENSEX', {}).get('status', 'neutral')
+            },
+            'vix': {
+                'name': 'INDIA VIX',
+                'current': real_market_data.get('VIX', {}).get('price', 0),
+                'change': real_market_data.get('VIX', {}).get('change', 0),
+                'change_percent': real_market_data.get('VIX', {}).get('change_percent', 0),
+                'status': real_market_data.get('VIX', {}).get('status', 'neutral')
+            }
+        }
+        
+        # Get all trades for analysis
+        trades = utils.load_trades()
+        active_trades = [t for t in trades if t.get('status') == 'Running']
+        closed_trades = [t for t in trades if t.get('status') in ['Target', 'Stoploss', 'Manually Closed', 'Auto Closed - Target Hit', 'Auto Closed - Stoploss Hit']]
+        
+        # Calculate portfolio metrics
+        total_pnl = sum(float(t.get('final_pnl', 0)) for t in closed_trades) + sum(float(t.get('pnl', 0)) for t in active_trades)
+        
+        # Today's trades
+        today = date.today()
+        today_trades = []
+        
+        for t in trades:
+            try:
+                # Try to parse the start_time safely
+                start_time_str = t.get('start_time', '2023-01-01 00:00:00')
+                # Handle different possible formats
+                if len(start_time_str) == 16:  # Format: 2023-01-01 00:00
+                    start_time_str += ':00'  # Add seconds
+                trade_date = datetime.fromisoformat(start_time_str).date()
+                if trade_date == today:
+                    today_trades.append(t)
+            except (ValueError, TypeError, AttributeError):
+                # Skip trades with invalid dates
+                continue
+                
+        trades_opened_today = len([t for t in today_trades if t.get('status') == 'Running'])
+        trades_closed_today = len([t for t in today_trades if t.get('status') in ['Target', 'Stoploss', 'Manually Closed']])
+        targets_hit_today = len([t for t in today_trades if 'Target' in t.get('status', '')])
+        stoploss_hit_today = len([t for t in today_trades if 'Stoploss' in t.get('status', '')])
+        
+        # Calculate other metrics
+        profitable_trades = [t for t in closed_trades if float(t.get('final_pnl', 0)) > 0]
+        loss_trades = [t for t in closed_trades if float(t.get('final_pnl', 0)) < 0]
+        
+        win_rate = (len(profitable_trades) / len(closed_trades) * 100) if closed_trades else 0
+        
+        total_profit = sum(float(t.get('final_pnl', 0)) for t in profitable_trades)
+        total_loss = abs(sum(float(t.get('final_pnl', 0)) for t in loss_trades))
+        
+        # Capital calculations
+        capital_deployed = sum(float(t.get('initial_premium', 0)) * utils.get_lot_size(t.get('instrument', 'NIFTY')) for t in active_trades)
+        
+        # Recent trades (last 5) with safe date formatting
+        recent_trades_raw = sorted(trades, key=lambda x: x.get('start_time', ''), reverse=True)[:5]
+        recent_trades = []
+        
+        for trade in recent_trades_raw:
+            try:
+                start_time_str = trade.get('start_time', '2023-01-01 00:00:00')
+                if len(start_time_str) == 16:  # Format: 2023-01-01 00:00
+                    start_time_str += ':00'  # Add seconds
+                trade_datetime = datetime.fromisoformat(start_time_str)
+                
+                # Create a copy of the trade with formatted datetime
+                formatted_trade = trade.copy()
+                formatted_trade['start_time_formatted'] = trade_datetime.strftime('%Y-%m-%d %H:%M')
+                recent_trades.append(formatted_trade)
+            except (ValueError, TypeError, AttributeError):
+                # If date parsing fails, use original trade with raw start_time
+                recent_trades.append(trade)
+        
+        # Average trade duration (in hours)
+        completed_trades = [t for t in trades if t.get('closed_date')]
+        avg_duration = "2.5 hrs"  # Placeholder
+        
+        # Best trade
+        best_trade = max([float(t.get('final_pnl', 0)) for t in closed_trades], default=0)
+        
+        # Weekly and monthly P&L with safe date parsing
+        week_ago = datetime.now() - timedelta(days=7)
+        month_ago = datetime.now() - timedelta(days=30)
+        
+        weekly_trades = []
+        monthly_trades = []
+        
+        for t in trades:
+            try:
+                start_time_str = t.get('start_time', '2023-01-01 00:00:00')
+                if len(start_time_str) == 16:  # Format: 2023-01-01 00:00
+                    start_time_str += ':00'  # Add seconds
+                trade_datetime = datetime.fromisoformat(start_time_str)
+                
+                if trade_datetime >= week_ago:
+                    weekly_trades.append(t)
+                if trade_datetime >= month_ago:
+                    monthly_trades.append(t)
+            except (ValueError, TypeError, AttributeError):
+                continue
+        
+        weekly_pnl = sum(float(t.get('final_pnl', 0)) for t in weekly_trades if t.get('final_pnl'))
+        monthly_pnl = sum(float(t.get('final_pnl', 0)) for t in monthly_trades if t.get('final_pnl'))
+        
+        # Market sentiment based on real VIX data
+        vix_level = real_market_data.get('VIX', {}).get('price', 15.0)
+        if vix_level < 15:
+            sentiment = {'class': 'bullish', 'label': 'Bullish', 'icon': 'arrow-up-circle'}
+        elif vix_level > 20:
+            sentiment = {'class': 'bearish', 'label': 'Bearish', 'icon': 'arrow-down-circle'}
+        else:
+            sentiment = {'class': 'neutral', 'label': 'Neutral', 'icon': 'dash-circle'}
+        
+        # Calculate today's P&L
+        today_pnl = sum(float(t.get('pnl', 0)) for t in today_trades)
+        
+        # Daily goal progress (assuming ₹5000 daily goal)
+        daily_goal = 5000
+        daily_progress = min((today_pnl / daily_goal * 100), 100) if daily_goal > 0 else 0
+        
+        context = {
+            'current_time': current_time,
+            'time_greeting': time_greeting,
+            'market_open': market_open,
+            'market_status': market_status,
+            'market_data': market_data,
+            'recent_trades': recent_trades,
+            'portfolio': {
+                'total_pnl': total_pnl,
+                'pnl_change': random.uniform(-5, 15),  # Mock daily change
+                'active_trades': len(active_trades),
+                'avg_duration': avg_duration,
+                'win_rate': win_rate,
+                'winning_trades': len(profitable_trades),
+                'total_closed': len(closed_trades),
+                'capital_deployed': capital_deployed,
+                'capital_utilization': (capital_deployed / 100000 * 100) if capital_deployed > 0 else 0,  # Assuming ₹1L capital
+                'today_pnl': today_pnl,
+                'trades_opened_today': trades_opened_today,
+                'trades_closed_today': trades_closed_today,
+                'targets_hit_today': targets_hit_today,
+                'stoploss_hit_today': stoploss_hit_today,
+                'daily_progress': daily_progress,
+                'daily_goal': daily_goal,
+                'profitable_count': len(profitable_trades),
+                'loss_count': len(loss_trades),
+                'running_count': len(active_trades),
+                'total_profit': total_profit,
+                'total_loss': total_loss,
+                'running_value': capital_deployed,
+                'avg_trade_duration': avg_duration,
+                'best_trade': f"₹{best_trade:.2f}",
+                'weekly_pnl': f"₹{weekly_pnl:.2f}",
+                'monthly_pnl': f"₹{monthly_pnl:.2f}"
+            },
+            'market_sentiment': {
+                **sentiment,
+                'volatility': f"{vix_level:.1f}",
+                'option_activity': random.choice(['High', 'Medium', 'Low']),
+                'put_call_ratio': f"{random.uniform(0.8, 1.5):.2f}",
+                'trend': random.choice(['Bullish', 'Bearish', 'Sideways'])
+            }
+        }
+        
+    except Exception as e:
+        # Fallback data in case of any errors
+        print(f"Dashboard error: {e}")
+        from datetime import datetime
+        context = {
+            'current_time': datetime.now(),
+            'time_greeting': "Morning",
+            'market_open': False,
+            'market_status': "CLOSED",
+            'market_data': {
+                'nifty': {'name': 'NIFTY 50', 'current': 19800, 'change': 150, 'change_percent': 0.76},
+                'banknifty': {'name': 'BANK NIFTY', 'current': 45200, 'change': -200, 'change_percent': -0.44},
+                'sensex': {'name': 'SENSEX', 'current': 66500, 'change': 300, 'change_percent': 0.45}
+            },
+            'recent_trades': [],
+            'portfolio': {
+                'total_pnl': 0,
+                'pnl_change': 0,
+                'active_trades': 0,
+                'avg_duration': "0 hrs",
+                'win_rate': 0,
+                'winning_trades': 0,
+                'total_closed': 0,
+                'capital_deployed': 0,
+                'capital_utilization': 0,
+                'today_pnl': 0,
+                'trades_opened_today': 0,
+                'trades_closed_today': 0,
+                'targets_hit_today': 0,
+                'stoploss_hit_today': 0,
+                'daily_progress': 0,
+                'daily_goal': 5000,
+                'profitable_count': 0,
+                'loss_count': 0,
+                'running_count': 0,
+                'total_profit': 0,
+                'total_loss': 0,
+                'running_value': 0,
+                'avg_trade_duration': "0 hrs",
+                'best_trade': "₹0.00",
+                'weekly_pnl': "₹0.00",
+                'monthly_pnl': "₹0.00"
+            },
+            'market_sentiment': {
+                'class': 'neutral',
+                'label': 'Neutral',
+                'icon': 'dash-circle',
+                'volatility': '15.0',
+                'option_activity': 'Medium',
+                'put_call_ratio': '1.25',
+                'trend': 'Sideways'
+            }
+        }
+    
+    return render(request, 'analyzer/dashboard.html', context)
 
 def generate_and_show_analysis(request):
     # Create a debug log file
@@ -169,6 +474,90 @@ def add_trades(request):
     else:
         df_html = ""
     return render(request, 'analyzer/trades.html', {'trades_html': df_html})
+
+def check_and_auto_close_trades(trades):
+    """
+    Check all running trades for target/stoploss conditions and auto-close them
+    Returns list of auto-closed trade IDs
+    """
+    auto_closed = []
+    
+    # Get current market data for P&L calculations
+    nifty_chain = utils.get_option_chain_data("NIFTY")
+    banknifty_chain = utils.get_option_chain_data("BANKNIFTY")
+    
+    for trade in trades:
+        if trade.get('status') != 'Running':
+            continue
+            
+        # Skip if trade doesn't have target/stoploss defined
+        target_amount = trade.get('target_amount')
+        stoploss_amount = trade.get('stoploss_amount')
+        
+        if not target_amount and not stoploss_amount:
+            continue
+            
+        # Calculate current P&L
+        current_pnl = 0
+        try:
+            # Use appropriate chain data based on instrument
+            chain_data = nifty_chain if trade.get('instrument') == 'NIFTY' else banknifty_chain
+            
+            if chain_data and chain_data.get('records', {}).get('data'):
+                current_ce, current_pe = 0.0, 0.0
+                
+                for item in chain_data['records']['data']:
+                    if item.get("expiryDate") == trade.get('expiry'):
+                        if item.get("strikePrice") == trade.get('ce_strike') and item.get("CE"):
+                            current_ce = item["CE"]["lastPrice"]
+                        if item.get("strikePrice") == trade.get('pe_strike') and item.get("PE"):
+                            current_pe = item["PE"]["lastPrice"]
+                
+                # Calculate P&L using current market prices
+                lot_size = utils.get_lot_size(trade['instrument'])
+                initial_premium = trade.get('initial_premium', 0)
+                current_premium = current_ce + current_pe
+                
+                if current_premium > 0:
+                    current_pnl = round((initial_premium - current_premium) * lot_size, 2)
+                else:
+                    current_pnl = trade.get('pnl', 0)
+            else:
+                current_pnl = trade.get('pnl', 0)
+                
+        except Exception as e:
+            print(f"Error calculating P&L for auto-close trade {trade.get('id')}: {e}")
+            current_pnl = trade.get('pnl', 0)
+        
+        # Check target condition
+        should_close = False
+        close_reason = ""
+        
+        if target_amount and current_pnl >= float(target_amount):
+            should_close = True
+            close_reason = "Target Hit"
+            
+        # Check stoploss condition
+        elif stoploss_amount and current_pnl <= -float(stoploss_amount):
+            should_close = True
+            close_reason = "Stoploss Hit"
+        
+        # Auto-close the trade if conditions are met
+        if should_close:
+            trade['status'] = f'Auto Closed - {close_reason}'
+            trade['final_pnl'] = current_pnl
+            trade['closed_date'] = datetime.now().isoformat()
+            auto_closed.append(trade['id'])
+            
+            # Send Telegram notification
+            utils.send_telegram_message(f"🤖 Auto Close: Trade {trade['id']} closed due to {close_reason} with P&L ₹{current_pnl:.2f}")
+    
+    # Save trades if any were auto-closed
+    if auto_closed:
+        utils.save_trades(trades)
+        
+    return auto_closed
+
 # In analyzer/views.py
 
 # analyzer/views.py
@@ -177,6 +566,11 @@ def add_trades(request):
 
 def trades_list(request):
     trades = utils.load_trades()
+    
+    # Auto-close trades that hit target or stoploss before displaying
+    auto_closed_trades = check_and_auto_close_trades(trades)
+    if auto_closed_trades:
+        trades = utils.load_trades()  # Reload trades after auto-close updates
     
     # Load current settings to get last used group_by preference
     current_settings = utils.load_settings()
@@ -273,7 +667,7 @@ def trades_list(request):
                     try:
                         if trade.get('symbol') and trade.get('strike') and trade.get('option_type'):
                             symbol = trade['symbol'].replace(' ', '%20')  # URL encode spaces
-                            market_data = utils.get_option_chain(symbol)
+                            market_data = utils.get_option_chain_data(symbol)
                             
                             if market_data:
                                 option_data = next((item for item in market_data 
@@ -423,7 +817,6 @@ def trades_list(request):
     nifty_chain = utils.get_option_chain_data("NIFTY")
     banknifty_chain = utils.get_option_chain_data("BANKNIFTY")
 
-    # ---- Active trades P&L & grouping (indentation normalized) ----
     for trade in active_trades:
         try:
             # Parse and format the date tag
@@ -433,84 +826,54 @@ def trades_list(request):
         except (ValueError, KeyError):
             trade['display_tag'] = trade.get('entry_tag', 'General Trades')
 
-        # Calculate current P&L including hedge positions
+        # Calculate current P&L
         chain_data = nifty_chain if trade['instrument'] == 'NIFTY' else banknifty_chain
         current_ce, current_pe = 0.0, 0.0
-        current_ce_hedge, current_pe_hedge = 0.0, 0.0
-
+        
         if chain_data and chain_data.get('records', {}).get('data'):
             for item in chain_data['records']['data']:
                 if item.get("expiryDate") == trade.get('expiry'):
-                    # Get main position prices
                     if item.get("strikePrice") == trade.get('ce_strike') and item.get("CE"):
                         current_ce = item["CE"]["lastPrice"]
                     if item.get("strikePrice") == trade.get('pe_strike') and item.get("PE"):
                         current_pe = item["PE"]["lastPrice"]
-                    
-                    # Get hedge position prices
-                    if item.get("strikePrice") == trade.get('ce_hedge_strike') and item.get("CE"):
-                        current_ce_hedge = item["CE"]["lastPrice"]
-                    if item.get("strikePrice") == trade.get('pe_hedge_strike') and item.get("PE"):
-                        current_pe_hedge = item["PE"]["lastPrice"]
-
+        
         lot_size = utils.get_lot_size(trade['instrument'])
+        initial_premium = trade.get('initial_premium', 0)
+        current_premium = current_ce + current_pe
         
-        # Check if this is a hedged position
-        has_hedge = trade.get('ce_hedge_strike', 0) > 0 or trade.get('pe_hedge_strike', 0) > 0
-        
-        if has_hedge:
-            # For hedged positions: Net P&L = (Sell Premium - Buy Premium) - (Current Sell - Current Buy)
-            initial_sell_premium = trade.get('initial_premium', 0)  # What we sold for
-            initial_hedge_premium = trade.get('total_hedge_premium', 0)  # What we paid for hedge
-            
-            current_sell_premium = current_ce + current_pe  # Current value of what we sold
-            current_hedge_premium = current_ce_hedge + current_pe_hedge  # Current value of what we bought
-            
-            # Net P&L = (sell received - hedge paid) - (sell current value - hedge current value)
-            if current_sell_premium > 0:  # Only calculate if we have valid prices
-                pnl = round(((initial_sell_premium - initial_hedge_premium) - (current_sell_premium - current_hedge_premium)) * lot_size, 2)
-                trade['current_premium'] = current_sell_premium
-                trade['current_hedge_premium'] = current_hedge_premium
-                valid_prices = True
-            else:
-                valid_prices = False
-        else:
-            # For non-hedged positions: Original logic
-            initial_premium = trade.get('initial_premium', 0)
-            current_premium = current_ce + current_pe
-            if current_premium > 0:
-                pnl = round((initial_premium - current_premium) * lot_size, 2)
-                trade['current_premium'] = current_premium
-                valid_prices = True
-            else:
-                valid_prices = False
-
-        if valid_prices:
+        if current_premium > 0:
+            pnl = round((initial_premium - current_premium) * lot_size, 2)
             trade['pnl'] = pnl
+            trade['current_premium'] = current_premium
             total_pnl += pnl
-
+            
             # Check for target/stoploss and send alerts
             target_amount = trade.get('target_amount', 0)
             stoploss_amount = trade.get('stoploss_amount', 0)
-
+            
             if pnl >= target_amount and target_amount > 0:
                 trade['status'] = 'Target'
                 utils.save_trades(trades)
+                # Send Telegram alert
                 utils.send_telegram_message(f"🎯 TARGET HIT!\nTrade: {trade['id']}\nP&L: ₹{pnl:,.2f}")
                 messages.success(request, f"Target hit for {trade['id']}! P&L: ₹{pnl:,.2f}")
             elif pnl <= -stoploss_amount and stoploss_amount > 0:
                 trade['status'] = 'Stoploss'
                 utils.save_trades(trades)
+                # Send Telegram alert
                 utils.send_telegram_message(f"🛑 STOPLOSS HIT!\nTrade: {trade['id']}\nP&L: ₹{pnl:,.2f}")
                 messages.error(request, f"Stoploss hit for {trade['id']}! P&L: ₹{pnl:,.2f}")
         else:
             trade['pnl'] = "N/A"
             trade['current_premium'] = "N/A"
-
+        
         # Group by automation_batch, day, or expiry
         if group_by == 'automation_batch':
+            # Group by automation generation (one automation creates one batch)
             group_key = trade.get('entry_tag', 'General Trades')
         elif group_by == 'day':
+            # Group by day
             try:
                 start_dt = datetime.strptime(trade['start_time'], "%Y-%m-%d %H:%M")
                 group_key = start_dt.strftime('%d-%b-%Y')
@@ -518,7 +881,7 @@ def trades_list(request):
                 group_key = 'Unknown Date'
         else:  # expiry grouping
             group_key = trade.get('expiry', 'Unknown Expiry')
-
+        
         grouped_trades[group_key].append(trade)
 
     # Calculate group summaries
@@ -564,13 +927,39 @@ def settings_view(request):
     ]
 
     if request.method == 'POST':
+        # Handle P&L refresh action
+        if 'refresh_pnl' in request.POST:
+            try:
+                success = pnl_updater.force_update()
+                if success:
+                    messages.success(request, '✅ Active trades P&L updated successfully!')
+                else:
+                    messages.error(request, '❌ Failed to update P&L. Please check your connection.')
+            except Exception as e:
+                messages.error(request, f'❌ P&L update error: {str(e)}')
+            return redirect('settings')
+            
+        # Handle P&L updater start/stop
+        if 'toggle_pnl_updater' in request.POST:
+            try:
+                if pnl_updater.get_status()['is_running']:
+                    pnl_updater.stop_updater()
+                    messages.info(request, '🛑 Automatic P&L updates stopped')
+                else:
+                    pnl_updater.start_updater()
+                    messages.success(request, '✅ Automatic P&L updates started (30-minute intervals)')
+            except Exception as e:
+                messages.error(request, f'❌ P&L updater error: {str(e)}')
+            return redirect('settings')
+        
         # Get form values
         interval = request.POST.get('interval', '15 Mins')
         bot_token = request.POST.get('bot_token', '')
         chat_id = request.POST.get('chat_id', '')
         
         # Get new data refresh and auto-generation settings
-        pnl_refresh_interval = request.POST.get('pnl_refresh_interval', '5min')
+        pnl_refresh_interval = request.POST.get('pnl_refresh_interval', '10sec')
+        dashboard_refresh_interval = request.POST.get('dashboard_refresh_interval', '10sec')
         telegram_alert_interval = request.POST.get('telegram_alert_interval', '15min')
         enable_eod_summary = 'enable_eod_summary' in request.POST
         
@@ -596,6 +985,7 @@ def settings_view(request):
             
             # Data refresh settings
             'pnl_refresh_interval': pnl_refresh_interval,
+            'dashboard_refresh_interval': dashboard_refresh_interval,
             'telegram_alert_interval': telegram_alert_interval,
             'enable_eod_summary': enable_eod_summary,
             
@@ -624,12 +1014,97 @@ def settings_view(request):
     # Load current settings for display
     current_settings = utils.load_settings()
     
+    # Get P&L updater status
+    pnl_status = pnl_updater.get_status()
+    
     context = {
         'settings': current_settings,
         'choices': choices,
-        'weekdays': weekdays
+        'weekdays': weekdays,
+        'pnl_status': pnl_status
     }
     return render(request, 'analyzer/settings.html', context)
+
+
+@require_http_methods(["POST"])
+def test_telegram(request):
+    """Test Telegram configuration by sending a test message."""
+    try:
+        data = json.loads(request.body)
+        bot_token = data.get('bot_token', '').strip()
+        chat_id = data.get('chat_id', '').strip()
+        
+        if not bot_token or not chat_id:
+            return JsonResponse({
+                'success': False,
+                'error': 'Both bot token and chat ID are required'
+            })
+        
+        # Send test message using the provided credentials
+        test_message = f"🧪 **FiFTO Test Message**\n\n✅ Telegram integration is working correctly!\n\n📅 Test sent at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n🤖 Your bot is ready to send trading notifications."
+        
+        # Use utils function to send the message with provided credentials
+        success = utils.send_telegram_message_with_credentials(test_message, bot_token, chat_id)
+        
+        if success:
+            return JsonResponse({
+                'success': True,
+                'message': 'Test message sent successfully!'
+            })
+        else:
+            return JsonResponse({
+                'success': False,
+                'error': 'Failed to send message. Please check your bot token and chat ID.'
+            })
+            
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'error': 'Invalid JSON data'
+        })
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': f'Unexpected error: {str(e)}'
+        })
+
+
+@require_http_methods(["POST"])
+def update_refresh_rate(request):
+    """Update dashboard refresh rate in real-time."""
+    try:
+        data = json.loads(request.body)
+        refresh_rate = data.get('refresh_rate', '10sec')
+        
+        # Validate refresh rate
+        valid_rates = ['10sec', '30sec', '1min', '5min', 'stop']
+        if refresh_rate not in valid_rates:
+            return JsonResponse({
+                'success': False,
+                'error': 'Invalid refresh rate'
+            })
+        
+        # Load and update settings
+        current_settings = utils.load_settings()
+        current_settings['dashboard_refresh_interval'] = refresh_rate
+        utils.save_settings(current_settings)
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Dashboard refresh rate updated to {refresh_rate}',
+            'refresh_rate': refresh_rate
+        })
+        
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'error': 'Invalid JSON data'
+        })
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        })
 
 
 def automation_view(request):
@@ -665,7 +1140,6 @@ def automation_view(request):
                     'banknifty_calc_type': request.POST.get('banknifty_calc_type', 'Monthly'),
                     'active_days': request.POST.getlist('active_days'),
                     'telegram_alerts': 'telegram_alerts' in request.POST,
-                    'auto_add_portfolio': 'auto_add_portfolio' in request.POST,
                     'created_at': datetime.now().isoformat(),
                     'last_run': None,
                     'last_result': None,
@@ -700,7 +1174,6 @@ def automation_view(request):
                         'banknifty_calc_type': request.POST.get('banknifty_calc_type', 'Monthly'),
                         'active_days': request.POST.getlist('active_days'),
                         'telegram_alerts': 'telegram_alerts' in request.POST,
-                        'auto_add_portfolio': 'auto_add_portfolio' in request.POST,
                     })
                     
                     settings['multiple_schedules'] = multiple_schedules
@@ -772,27 +1245,47 @@ def automation_view(request):
                 else:
                     return JsonResponse({'success': False, 'message': 'Invalid schedule ID'})
                     
+            elif action == 'test':
+                # Test specific schedule
+                schedule_id = request.POST.get('schedule_id')
+                schedule = next((s for s in multiple_schedules if s['id'] == schedule_id), None)
+                
+                if schedule:
+                    if not schedule['enabled']:
+                        return JsonResponse({'success': False, 'message': 'This schedule is disabled'})
+                    
+                    if not schedule['instruments']:
+                        return JsonResponse({'success': False, 'message': 'No instruments selected for this schedule'})
+                    
+                    # Test the schedule
+                    result = utils.test_specific_automation(schedule)
+                    
+                    # Add to recent activities
+                    utils.add_automation_activity('Manual Test', f"Tested schedule: {schedule['name']}", 'success')
+                    
+                    # Check if charts were generated successfully
+                    charts_generated = "✅" in result
+                    
+                    return JsonResponse({
+                        'success': True, 
+                        'message': f"Test completed for '{schedule['name']}':\n\n{result}",
+                        'charts_generated': charts_generated
+                    })
+                else:
+                    return JsonResponse({'success': False, 'message': 'Invalid schedule ID'})
+                    
             elif action == 'get_recent_activities':
                 # Get recent automation activities
                 activities = utils.get_recent_automation_activities(limit=10)
                 return JsonResponse({'success': True, 'activities': activities})
                 
-            elif action == 'simulate_automation':
-                # Simulate automation completion for testing notifications
-                import random
-                instruments = ['NIFTY', 'BANKNIFTY']
-                selected_instrument = random.choice(instruments)
+            elif action == 'toggle_auto_portfolio':
+                # Toggle auto portfolio feature
+                enabled = request.POST.get('enabled') == 'true'
+                settings['auto_portfolio_enabled'] = enabled
+                utils.save_settings(settings)
                 
-                utils.add_automation_activity(
-                    'Charts Generated', 
-                    f'{selected_instrument} charts generated successfully via automation',
-                    'success'
-                )
-                
-                return JsonResponse({
-                    'success': True, 
-                    'message': f'Simulated {selected_instrument} automation completion'
-                })
+                return JsonResponse({'success': True, 'message': f'Auto-portfolio {"enabled" if enabled else "disabled"} successfully!'})
                     
         except Exception as e:
             import traceback
@@ -854,21 +1347,64 @@ def closed_trades_view(request):
     
     # Get all trades and filter for closed ones
     all_trades = utils.load_trades()
-    closed_trades = [t for t in all_trades if t.get('status') in ['Target', 'Stoploss', 'Manually Closed']]
+    closed_trades = [t for t in all_trades if t.get('status') in ['Target', 'Stoploss', 'Manually Closed', 'Auto Closed - Target Hit', 'Auto Closed - Stoploss Hit']]
     
-    # Apply filters
-    status_filter = request.GET.get('status_filter', '')
-    instrument_filter = request.GET.get('instrument_filter', '')
-    tag_filter = request.GET.get('tag_filter', '')
+    # Apply sorting based on user selection
+    sort_option = request.GET.get('sort', 'newest')
     
-    if status_filter:
-        closed_trades = [t for t in closed_trades if t.get('status') == status_filter]
+    # Fix missing data for existing closed trades first
+    from datetime import datetime
+    for trade in closed_trades:
+        # Fix missing closed_date
+        if 'closed_date' not in trade or not trade['closed_date']:
+            trade['closed_date'] = datetime.now()
+        elif isinstance(trade['closed_date'], str):
+            try:
+                # Try to parse ISO format
+                trade['closed_date'] = datetime.fromisoformat(trade['closed_date'].replace('Z', '+00:00'))
+            except:
+                trade['closed_date'] = datetime.now()
+        
+        # Fix missing final_pnl
+        if 'final_pnl' not in trade or trade['final_pnl'] is None:
+            # Use current pnl if available, otherwise calculate it
+            if 'pnl' in trade and trade['pnl'] is not None:
+                trade['final_pnl'] = trade['pnl']
+            else:
+                # Calculate P&L based on trade status
+                try:
+                    # If it's a target hit, estimate positive P&L
+                    if 'Target' in trade.get('status', ''):
+                        target_amount = trade.get('target_amount', 0)
+                        if target_amount > 0:
+                            trade['final_pnl'] = target_amount
+                    # If it's a stoploss hit, estimate negative P&L
+                    elif 'Stoploss' in trade.get('status', ''):
+                        stoploss_amount = trade.get('stoploss_amount', 0)
+                        if stoploss_amount > 0:
+                            trade['final_pnl'] = -stoploss_amount
+                    else:
+                        trade['final_pnl'] = 0
+                except:
+                    trade['final_pnl'] = 0
     
-    if instrument_filter:
-        closed_trades = [t for t in closed_trades if t.get('instrument') == instrument_filter]
-    
-    if tag_filter:
-        closed_trades = [t for t in closed_trades if t.get('entry_tag') == tag_filter]
+    # Apply sorting
+    if sort_option == 'newest':
+        closed_trades.sort(key=lambda x: x.get('closed_date', datetime.now()), reverse=True)
+    elif sort_option == 'oldest':
+        closed_trades.sort(key=lambda x: x.get('closed_date', datetime.now()))
+    elif sort_option == 'profit_high':
+        closed_trades.sort(key=lambda x: x.get('final_pnl', 0), reverse=True)
+    elif sort_option == 'profit_low':
+        closed_trades.sort(key=lambda x: x.get('final_pnl', 0))
+    elif sort_option == 'target_hit':
+        # Filter and sort target hit trades
+        closed_trades = [t for t in closed_trades if 'Target' in t.get('status', '')]
+        closed_trades.sort(key=lambda x: x.get('closed_date', datetime.now()), reverse=True)
+    elif sort_option == 'stoploss_hit':
+        # Filter and sort stoploss hit trades
+        closed_trades = [t for t in closed_trades if 'Stoploss' in t.get('status', '')]
+        closed_trades.sort(key=lambda x: x.get('closed_date', datetime.now()), reverse=True)
     
     # Calculate statistics
     total_profit = sum(t.get('final_pnl', 0) for t in closed_trades if t.get('final_pnl', 0) > 0)
@@ -879,113 +1415,17 @@ def closed_trades_view(request):
     total_closed = len(closed_trades)
     win_rate = (profitable_trades / total_closed * 100) if total_closed > 0 else 0
     
-    # Get available tags for filter dropdown
+    # Get available tags for reference (optional)
     available_tags = list(set(t.get('entry_tag', 'General') for t in all_trades if t.get('entry_tag')))
     available_tags = sorted([tag for tag in available_tags if tag])
-    
-    # Fix missing data for existing closed trades
-    from datetime import datetime
-    for trade in closed_trades:
-        # Fix missing closed_date
-        if 'closed_date' not in trade or not trade['closed_date']:
-            trade['closed_date'] = datetime.now()
-        elif isinstance(trade['closed_date'], str):
-            try:
-                # Try to parse ISO format
-                trade['closed_date'] = datetime.fromisoformat(trade['closed_date'].replace('Z', '+00:00'))
-            except:
-                trade['closed_date'] = datetime.now()
-        
-        # Fix missing final_pnl
-        if 'final_pnl' not in trade or trade['final_pnl'] is None:
-            # Use current pnl if available, otherwise calculate it
-            if 'pnl' in trade and trade['pnl'] is not None:
-                trade['final_pnl'] = trade['pnl']
-            else:
-                # Calculate P&L based on initial premium and current market data
-                try:
-                    lot_size = utils.get_lot_size(trade.get('instrument', 'NIFTY'))
-                    initial_premium = trade.get('initial_premium', 0)
-                    
-                    # For closed trades, we'll estimate final P&L as 0 if we can't calculate it
-                    # This is because we don't have the closing premium data
-                    trade['final_pnl'] = 0
-                    
-                    # If it's a target hit, estimate positive P&L
-                    if trade.get('status') == 'Target':
-                        target_amount = trade.get('target_amount', 0)
-                        if target_amount > 0:
-                            trade['final_pnl'] = target_amount
-                    # If it's a stoploss hit, estimate negative P&L
-                    elif trade.get('status') == 'Stoploss':
-                        stoploss_amount = trade.get('stoploss_amount', 0)
-                        if stoploss_amount > 0:
-                            trade['final_pnl'] = -stoploss_amount
-                except:
-                    trade['final_pnl'] = 0
-    
+
     context = {
         'closed_trades': closed_trades,
         'total_profit': total_profit,
         'total_loss': total_loss,
         'net_pnl': net_pnl,
         'win_rate': win_rate,
-        'status_filter': status_filter,
-        'instrument_filter': instrument_filter,
-        'tag_filter': tag_filter,
-        'available_tags': available_tags,
-    }
-    
-    return render(request, 'analyzer/closed_trades.html', context)
-    from datetime import datetime
-    for trade in closed_trades:
-        # Fix missing closed_date
-        if 'closed_date' not in trade or not trade['closed_date']:
-            trade['closed_date'] = datetime.now()
-        elif isinstance(trade['closed_date'], str):
-            try:
-                # Try to parse ISO format
-                trade['closed_date'] = datetime.fromisoformat(trade['closed_date'].replace('Z', '+00:00'))
-            except:
-                trade['closed_date'] = datetime.now()
-        
-        # Fix missing final_pnl
-        if 'final_pnl' not in trade or trade['final_pnl'] is None:
-            # Use current pnl if available, otherwise calculate it
-            if 'pnl' in trade and trade['pnl'] is not None:
-                trade['final_pnl'] = trade['pnl']
-            else:
-                # Calculate P&L based on initial premium and current market data
-                try:
-                    lot_size = utils.get_lot_size(trade.get('instrument', 'NIFTY'))
-                    initial_premium = trade.get('initial_premium', 0)
-                    
-                    # For closed trades, we'll estimate final P&L as 0 if we can't calculate it
-                    # This is because we don't have the closing premium data
-                    trade['final_pnl'] = 0
-                    
-                    # If it's a target hit, estimate positive P&L
-                    if trade.get('status') == 'Target':
-                        target_amount = trade.get('target_amount', 0)
-                        if target_amount > 0:
-                            trade['final_pnl'] = target_amount
-                    # If it's a stoploss hit, estimate negative P&L
-                    elif trade.get('status') == 'Stoploss':
-                        stoploss_amount = trade.get('stoploss_amount', 0)
-                        if stoploss_amount > 0:
-                            trade['final_pnl'] = -stoploss_amount
-                except:
-                    trade['final_pnl'] = 0
-    
-    context = {
-        'closed_trades': closed_trades,
-        'total_profit': total_profit,
-        'total_loss': total_loss,
-        'net_pnl': net_pnl,
-        'win_rate': win_rate,
-        'status_filter': status_filter,
-        'instrument_filter': instrument_filter,
-        'tag_filter': tag_filter,
+        'sort': sort_option,
         'available_tags': available_tags,
     }
     

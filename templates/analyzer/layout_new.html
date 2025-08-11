@@ -71,19 +71,27 @@
             margin: 10px 0;
             border-left: 4px solid #667eea;
         }
+        .navbar-brand .o-red {color:#7f0000;display:inline-block;font-weight:800;animation:danceJump 2.4s ease-in-out infinite;transform-origin:center bottom;}
+        @keyframes danceJump {0%{transform:translate(0,0) rotate(0deg);}10%{transform:translateY(-10px) rotate(-8deg);}20%{transform:translate(6px,-6px) rotate(6deg);}30%{transform:translate(-4px,-8px) rotate(-4deg);}40%{transform:translate(4px,-4px) rotate(4deg);}50%{transform:translateY(-12px) rotate(0deg);}60%{transform:translate(-6px,-4px) rotate(6deg);}70%{transform:translate(6px,-6px) rotate(-6deg);}80%{transform:translate(-3px,-3px) rotate(3deg);}90%{transform:translate(2px,-4px) rotate(-2deg);}100%{transform:translate(0,0) rotate(0deg);} }
+        /* Animated O styling */
+        .brand-name .o-red { color:#ff2020!important; font-size:1em; line-height:1; background:none!important; -webkit-background-clip:initial!important; -webkit-text-fill-color:#ff2020!important; -webkit-text-stroke:0px transparent; text-shadow:none; display:inline-block; font-weight:800; animation:fiftoORoll 4s ease-in-out infinite; transform-origin:center bottom; }
+        @keyframes fiftoORoll { 0%{transform:translateY(0) rotate(0deg);} 15%{transform:translateY(-5px) rotate(-4deg);} 30%{transform:translate(3px,-4px) rotate(3deg);} 45%{transform:translate(-3px,-6px) rotate(-2deg);} 60%{transform:translate(2px,-3px) rotate(2deg);} 75%{transform:translate(-2px,-2px) rotate(-1deg);} 100%{transform:translateY(0) rotate(0deg);} }
+        /* Remove underline */
+        .navbar-brand::after{content:none !important;display:none !important;animation:none !important;}
     </style>
 </head>
 <body>
     <!-- Navigation -->
     <nav class="navbar navbar-expand-lg navbar-dark">
         <div class="container">
-            <a class="navbar-brand fw-bold" href="{% url 'analyzer:index' %}">
-                <i class="fas fa-chart-line me-2"></i>FiFTO Analyzer
+            <a class="navbar-brand fw-bold" href="/">
+                <i class="fas fa-chart-line me-2"></i><span class="fi">FiF</span><span class="ft">T</span><span class="o-red">O</span> Analyzer
             </a>
             <div class="navbar-nav ms-auto">
-                <a class="nav-link" href="{% url 'analyzer:index' %}">Dashboard</a>
-                <a class="nav-link" href="{% url 'analyzer:trades' %}">Trades</a>
-                <a class="nav-link" href="{% url 'analyzer:settings' %}">Settings</a>
+                <a class="nav-link" href="/">Dashboard</a>
+                <a class="nav-link" href="{% url 'index' %}">Analysis</a>
+                <a class="nav-link" href="{% url 'trades_list' %}">Trades</a>
+                <a class="nav-link" href="{% url 'settings' %}">Settings</a>
             </div>
         </div>
     </nav>

@@ -4,7 +4,7 @@
 
 {% block content %}
 <!-- Dashboard Style Header -->
-<div class="dashboard-header modern">
+<div class="dashboard-header">
     <div class="container-fluid">
         <div class="row align-items-center">
             <div class="col-md-8">
@@ -18,26 +18,19 @@
             </div>
             <div class="col-md-4 text-end">
                 <div class="header-controls d-flex align-items-center justify-content-end gap-3">
-                    <!-- Segmented Control (View Switch) -->
-                    <div class="trading-toolbar d-flex align-items-center gap-3">
-                        <div class="segmented-control">
-                            <span class="seg-label">View</span>
-                            <div class="seg-box">
-                                <a href="{% url 'trades_list' %}" class="seg-btn">
-                                    <i class="bi bi-graph-up"></i><span>Active</span>
-                                </a>
-                                <a href="{% url 'closed_trades' %}" class="seg-btn active">
-                                    <i class="bi bi-archive-fill"></i><span>Closed</span>
-                                </a>
-                            </div>
-                        </div>
-                        {% if closed_trades %}
-                        <button type="button" class="btn btn-outline-danger btn-xs btn-delete-all" data-bs-toggle="modal" data-bs-target="#deleteAllModal" title="Delete All Closed Trades">
-                            <i class="bi bi-trash"></i>
+                    <div class="btn-group" role="group">
+                        <a href="{% url 'trades_list' %}" class="btn btn-outline-primary">
+                            <i class="bi bi-activity me-2"></i>Active Trades
+                        </a>
+                        <button type="button" class="btn btn-primary">
+                            <i class="bi bi-archive me-2"></i>Closed Trades
                         </button>
-                        {% endif %}
                     </div>
-                    <!-- /Segmented Control -->
+                    {% if closed_trades %}
+                    <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteAllModal">
+                        <i class="bi bi-trash me-2"></i>Delete All
+                    </button>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -110,6 +103,43 @@
         </div>
     </div>
 
+    <!-- Sorting Controls Section -->
+    <div class="card clean-card mb-4">
+        <div class="card-body">
+            <div class="row g-3 align-items-center">
+                <div class="col-md-8">
+                    <h6 class="mb-2 fw-semibold text-muted">Sort Options</h6>
+                    <div class="btn-group" role="group" aria-label="Sort options">
+                        <a href="?sort=newest" class="btn {% if sort == 'newest' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                            <i class="bi bi-clock-history me-2"></i>Newest First
+                        </a>
+                        <a href="?sort=oldest" class="btn {% if sort == 'oldest' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                            <i class="bi bi-clock me-2"></i>Oldest First
+                        </a>
+                        <a href="?sort=profit_high" class="btn {% if sort == 'profit_high' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                            <i class="bi bi-arrow-up-circle me-2"></i>Highest Profit
+                        </a>
+                        <a href="?sort=profit_low" class="btn {% if sort == 'profit_low' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                            <i class="bi bi-arrow-down-circle me-2"></i>Lowest Profit
+                        </a>
+                        <a href="?sort=target_hit" class="btn {% if sort == 'target_hit' %}btn-primary{% else %}btn-outline-success{% endif %}">
+                            <i class="bi bi-bullseye me-2"></i>Target Hit
+                        </a>
+                        <a href="?sort=stoploss_hit" class="btn {% if sort == 'stoploss_hit' %}btn-primary{% else %}btn-outline-danger{% endif %}">
+                            <i class="bi bi-shield-x me-2"></i>Stoploss Hit
+                        </a>
+                    </div>
+                </div>
+                <div class="col-md-4 text-end">
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-search"></i></span>
+                        <input type="text" id="quickSearch" class="form-control" placeholder="Quick search trades...">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Closed Trades Table -->
     <div class="card clean-card">
         <div class="card-header bg-light">
@@ -124,12 +154,11 @@
                 </div>
             </div>
         </div>
-        
         <div class="card-body p-0">
             {% if closed_trades %}
             <div class="table-responsive">
                 <table class="table table-hover table-sm mb-0" id="closedTradesTable">
-                    <thead class="closed-trades-thead">
+                    <thead class="table-light">
                         <tr>
                             <th class="fw-bold">Trade ID</th>
                             <th class="fw-bold">Instrument</th>
@@ -142,48 +171,6 @@
                             <th class="fw-bold">Closed Date</th>
                             <th class="fw-bold">Tag</th>
                             <th class="fw-bold">Actions</th>
-                        </tr>
-                        <!-- Filter Row in Table Header -->
-                        <tr class="filter-row">
-                            <th class="filter-cell">
-                                <form method="GET" class="filter-form">
-                                    <button type="submit" class="btn btn-success btn-xs">Apply</button>
-                                </form>
-                            </th>
-                            <th class="filter-cell">
-                                <select name="instrument_filter" class="form-select form-select-xs" onchange="this.form.submit()">
-                                    <option value="">All</option>
-                                    <option value="NIFTY" {% if instrument_filter == 'NIFTY' %}selected{% endif %}>NIFTY</option>
-                                    <option value="BANKNIFTY" {% if instrument_filter == 'BANKNIFTY' %}selected{% endif %}>BANKNIFTY</option>
-                                </select>
-                            </th>
-                            <th class="filter-cell"></th>
-                            <th class="filter-cell"></th>
-                            <th class="filter-cell"></th>
-                            <th class="filter-cell"></th>
-                            <th class="filter-cell"></th>
-                            <th class="filter-cell">
-                                <select name="status_filter" class="form-select form-select-xs" onchange="this.form.submit()">
-                                    <option value="">All</option>
-                                    <option value="Target" {% if status_filter == 'Target' %}selected{% endif %}>Target</option>
-                                    <option value="Stoploss" {% if status_filter == 'Stoploss' %}selected{% endif %}>Stoploss</option>
-                                    <option value="Manually Closed" {% if status_filter == 'Manually Closed' %}selected{% endif %}>Manual</option>
-                                </select>
-                            </th>
-                            <th class="filter-cell"></th>
-                            <th class="filter-cell">
-                                <select name="tag_filter" class="form-select form-select-xs" onchange="this.form.submit()">
-                                    <option value="">All</option>
-                                    {% for tag in available_tags %}
-                                    <option value="{{ tag }}" {% if tag_filter == tag %}selected{% endif %}>{{ tag }}</option>
-                                    {% endfor %}
-                                </select>
-                            </th>
-                            <th class="filter-cell">
-                                {% if status_filter or instrument_filter or tag_filter %}
-                                <a href="{% url 'closed_trades' %}" class="btn btn-outline-secondary btn-xs">Reset</a>
-                                {% endif %}
-                            </th>
                         </tr>
                     </thead>
                     <tbody>
@@ -345,6 +332,39 @@ function exportToCSV() {
     downloadLink.click();
     document.body.removeChild(downloadLink);
 }
+
+// Quick search functionality for closed trades
+document.addEventListener('DOMContentLoaded', function() {
+    const quickSearch = document.getElementById('quickSearch');
+    const table = document.getElementById('closedTradesTable');
+    
+    if (quickSearch && table) {
+        quickSearch.addEventListener('input', function() {
+            const searchTerm = this.value.toLowerCase();
+            const rows = table.getElementsByTagName('tbody')[0].getElementsByTagName('tr');
+            
+            for (let i = 0; i < rows.length; i++) {
+                const row = rows[i];
+                const cells = row.getElementsByTagName('td');
+                let found = false;
+                
+                for (let j = 0; j < cells.length; j++) {
+                    const cellText = cells[j].textContent.toLowerCase();
+                    if (cellText.includes(searchTerm)) {
+                        found = true;
+                        break;
+                    }
+                }
+                
+                if (found || searchTerm === '') {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            }
+        });
+    }
+});
 </script>
 
 <style>
@@ -425,7 +445,13 @@ function exportToCSV() {
 }
 
 /* Dashboard Header Styling */
-.dashboard-header { background: linear-gradient(135deg,#f0fdf4 0%,#dcfce7 100%); border-bottom:1px solid #bbf7d0; padding:2rem 0; margin-bottom:2rem; box-shadow:0 1px 3px rgba(0,0,0,.06); }
+.dashboard-header {
+    background: linear-gradient(135deg, #f8fafb 0%, #ffffff 100%);
+    border-bottom: 1px solid #e5e7eb;
+    padding: 2rem 0;
+    margin-bottom: 2rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
 
 .header-content {
     display: flex;
@@ -443,7 +469,7 @@ function exportToCSV() {
 }
 
 .dashboard-title i {
-    color: #059669;
+    color: #3b82f6;
     font-size: 1.75rem;
 }
 
@@ -468,48 +494,5 @@ function exportToCSV() {
 .btn:hover {
     transform: translateY(-1px);
 }
-
-/* Segmented control styles (mirroring Active Trades) */
-.trading-toolbar { position:relative; }
-.segmented-control { display:flex; align-items:center; gap:.6rem; }
-.seg-label { font-size:.65rem; text-transform:uppercase; letter-spacing:.05em; font-weight:600; color:#64748b; }
-.seg-box { display:flex; background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; overflow:hidden; box-shadow:0 1px 2px rgba(0,0,0,.04); }
-.seg-btn { position:relative; display:flex; align-items:center; gap:.35rem; padding:.5rem .85rem; font-size:.75rem; font-weight:600; color:#475569; text-decoration:none; line-height:1; transition:.18s ease; border-right:1px solid #e2e8f0; }
-.seg-btn:last-child { border-right:none; }
-.seg-btn i { font-size:.9rem; color:#64748b; transition:.18s ease; }
-.seg-btn:hover { background:#f1f5f9; color:#0f172a; }
-.seg-btn:hover i { color:#0f172a; }
-.seg-btn.active { background:#0d9488; color:#ffffff; box-shadow:inset 0 0 0 1px #0f766e; }
-.seg-btn.active i { color:#ffffff; }
-
-/* Modern unified dashboard header style */
-.dashboard-header.modern {background:linear-gradient(140deg,#f0fdf4 0%,#dcfce7 55%,#d1fae5 100%);border:1px solid #bbf7d0;border-radius:22px;padding:1.8rem 2.2rem;margin-bottom:2.2rem;box-shadow:0 6px 18px -6px rgba(16,185,129,.25),0 2px 4px rgba(0,0,0,.04);position:relative;overflow:hidden;}
-.dashboard-header.modern:before {content:"";position:absolute;inset:0;background:radial-gradient(circle at 85% 15%,rgba(16,185,129,.15),transparent 60%);pointer-events:none;}
-.dashboard-title i {color:#059669;font-size:1.9rem;}
-
-/* Compact delete all button */
-.btn-delete-all{padding:.45rem .55rem;font-size:.7rem;line-height:1;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;min-width:34px;}
-.btn-delete-all i{font-size:.9rem;margin:0;}
-.btn-xs{padding:.35rem .55rem;font-size:.65rem;border-radius:6px;}
-
-/* Closed trades light header */
-.closed-trades-thead{background:linear-gradient(135deg,#f4faf7 0%,#edfdf5 55%,#e7fcf3 100%);position:relative;color:#065f46;}
-.closed-trades-thead:after{content:"";position:absolute;left:0;right:0;bottom:0;height:3px;background:linear-gradient(90deg,#059669,#10b981,#34d399);} 
-.closed-trades-thead th{background:transparent;border:0;padding:.9rem .75rem;font-size:.7rem;letter-spacing:.05em;text-transform:uppercase;font-weight:700;white-space:nowrap;color:#065f46;}
-.closed-trades-thead th i{font-size:.95rem;opacity:.9;color:#047857;}
-@media (max-width:992px){.closed-trades-thead th{padding:.7rem .5rem;font-size:.64rem;}}
-
-/* Compact filters inside table */
-.compact-filters-inline{background:#ffffff;padding:.35rem .5rem;} 
-.compact-filters-inline label{font-size:.6rem;letter-spacing:.05em;}
-.compact-filters-inline select{min-width:120px;}
-@media (max-width:576px){.compact-filters-inline select{min-width:100px;} }
-
-/* Filter row in table header */
-.filter-row{background:#f8fafc!important;}
-.filter-row th{padding:.35rem .4rem!important;border-top:1px solid #e2e8f0!important;}
-.filter-cell{background:#f8fafc!important;}
-.form-select-xs{font-size:.65rem;padding:.25rem .5rem;height:auto;min-height:28px;}
-.btn-xs{padding:.2rem .4rem;font-size:.65rem;line-height:1.2;}
 </style>
 {% endblock %}
