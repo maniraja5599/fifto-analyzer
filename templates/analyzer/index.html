@@ -1,23 +1,39 @@
 {% extends "analyzer/layout.html" %}
 {% block content %}
-<!-- Clean Dashboard Header -->
-<div class="dashboard-header mb-4">
+<!-- Uniform Page Header -->
+<div class="page-header">
     <div class="row align-items-center">
-        <div class="col-md-8">
-            <div class="page-title">
-                <h1 class="h3 fw-bold mb-1">
-                    <i class="bi bi-graph-up-arrow me-2 text-primary"></i>
-                    Trading Dashboard
-                </h1>
-                <p class="text-muted mb-0">Analyze options strategies and monitor your portfolio performance</p>
+        <div class="col-lg-8">
+            <h1 class="page-title">
+                <i class="bi bi-graph-up-arrow text-primary"></i>
+                Trading Analysis Dashboard
+            </h1>
+            <p class="page-subtitle">Analyze options strategies, monitor portfolio performance, and optimize your trading decisions</p>
+            <div class="page-stats">
+                <span class="stat-badge primary">
+                    <i class="bi bi-calendar-check"></i>
+                    {{ expiries|length }} Available Expiries
+                </span>
+                <span class="stat-badge success" id="dataFetchMode" title="Data fetching mode">
+                    <i class="bi bi-lightning-charge"></i>
+                    <span id="fetchModeText">On-Demand</span>
+                </span>
+                <span class="stat-badge warning">
+                    <i class="bi bi-clock"></i>
+                    Real-time Analysis
+                </span>
             </div>
         </div>
-        <div class="col-md-4 text-end">
-            <div class="dashboard-stats">
-                <div class="badge bg-primary fs-6 px-3 py-2">
-                    <i class="bi bi-calendar-check me-2"></i>
-                    {{ expiries|length }} Available Expiries
-                </div>
+        <div class="col-lg-4">
+            <div class="page-actions">
+                <span class="stat-badge">
+                    <i class="bi bi-speedometer2 text-info"></i>
+                    System Online
+                </span>
+                <span class="stat-badge">
+                    <i class="bi bi-shield-check text-success"></i>
+                    Secure Connection
+                </span>
             </div>
         </div>
     </div>
@@ -73,15 +89,30 @@
                         </div>
                     </div>
 
-                    <!-- Generate Button Section -->
-                    <div class="text-center">
-                        <button type="submit" class="btn btn-primary btn-lg px-5">
-                            <i class="bi bi-lightning-charge me-2"></i>Generate Charts
-                        </button>
+                    <!-- Generate Button Section with Cache Management -->
+                    <div class="row align-items-center">
+                        <div class="col-md-8 text-center text-md-start">
+                            <button type="submit" class="btn btn-primary btn-lg px-5">
+                                <i class="bi bi-lightning-charge me-2"></i>Generate Charts
+                            </button>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <div class="btn-group" role="group">
+                                <button type="button" class="btn btn-outline-warning btn-sm" onclick="checkExpiryFetchErrors()" title="Check expiry data status">
+                                    <i class="bi bi-search me-1"></i>Check Status
+                                </button>
+                                <button type="button" class="btn btn-outline-danger btn-sm" onclick="clearLocalStorage()" title="Clear browser cache">
+                                    <i class="bi bi-trash me-1"></i>Clear Cache
+                                </button>
+                            </div>
+                        </div>
                     </div>
+                    <!-- Status Display -->
+                    <div id="statusDisplay" class="mt-3"></div>
                 </form>
             </div>
         </div>
+        
         {% if analysis_data %}
         <!-- Analysis Results Card -->
         <div class="card clean-card border-0 shadow-sm mb-4">
@@ -91,47 +122,50 @@
                         <i class="bi bi-graph-up-arrow text-primary me-3 fs-5"></i>
                         <div>
                             <h5 class="mb-0 fw-bold">Analysis Results</h5>
-                            <p class="text-muted mb-0 small">Your options strategy analysis is ready</p>
+                            <p class="text-muted mb-0 small">{{ analysis_data.instrument }} {{ analysis_data.expiry }} - {{ analysis_data.df_data|length }} strategies generated</p>
                         </div>
                     </div>
-                    <div class="action-buttons">
-                        {% if analysis_data %}
-                            <div class="alert alert-success mb-3 border-0 shadow-sm">
-                                <div class="d-flex align-items-center">
-                                    <i class="bi bi-check-circle-fill text-success me-3 fs-5"></i>
-                                    <div>
-                                        <h6 class="mb-1 fw-bold">Analysis Ready</h6>
-                                        <small class="text-muted">{{ analysis_data.instrument }} {{ analysis_data.expiry }} - {{ analysis_data.df_data|length }} strategies generated</small>
-                                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <!-- Supply/Demand Zones Display -->
+                {% if analysis_data.zone_based %}
+                <div class="alert alert-info border-0 shadow-sm mb-4">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-arrow-up-circle text-danger me-2 fs-5"></i>
+                                <div>
+                                    <h6 class="mb-0 fw-bold text-danger">Supply Zone (Resistance)</h6>
+                                    <span class="fs-5 fw-bold">₹{{ analysis_data.supply_zone|floatformat:0 }}</span>
                                 </div>
                             </div>
-                            
-                            <div class="d-flex gap-2 justify-content-center">
-                                <a href="{% url 'add_trades' %}" class="btn btn-success btn-lg px-4">
-                                    <i class="bi bi-plus-circle me-2"></i>Add to Portfolio
-                                </a>
-                                <button type="button" class="btn btn-outline-secondary btn-lg px-4" onclick="clearAnalysis()">
-                                    <i class="bi bi-arrow-clockwise me-2"></i>Generate New
-                                </button>
-                            </div>
-                        {% else %}
-                            <div class="alert alert-info mb-3 border-0 shadow-sm">
-                                <div class="d-flex align-items-center">
-                                    <i class="bi bi-info-circle text-info me-3 fs-5"></i>
-                                    <div>
-                                        <h6 class="mb-1 fw-bold">No Analysis Data</h6>
-                                        <small class="text-muted">Generate an analysis first to add trades to your portfolio</small>
-                                    </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-arrow-down-circle text-success me-2 fs-5"></i>
+                                <div>
+                                    <h6 class="mb-0 fw-bold text-success">Demand Zone (Support)</h6>
+                                    <span class="fs-5 fw-bold">₹{{ analysis_data.demand_zone|floatformat:0 }}</span>
                                 </div>
                             </div>
-                            
-                            <div class="text-center">
-                                <button type="button" class="btn btn-outline-success btn-lg px-4" disabled>
-                                    <i class="bi bi-plus-circle me-2"></i>Add to Portfolio
-                                    <span class="badge bg-secondary ms-2">Generate First</span>
-                                </button>
-                            </div>
-                        {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                
+                <!-- Action Buttons - All in One Row -->
+                <div class="d-flex gap-2 justify-content-center mb-4 flex-wrap">
+                    <a href="{% url 'add_trades' %}" class="btn btn-success px-4">
+                        <i class="bi bi-plus-circle me-2"></i>Add to Portfolio
+                    </a>
+                    <button type="button" class="btn btn-outline-secondary px-4" onclick="clearAnalysis()">
+                        <i class="bi bi-arrow-clockwise me-2"></i>Generate New
+                    </button>
+                    <a href="{% url 'send_charts' %}" class="btn btn-outline-info px-4">
+                        <i class="bi bi-telegram me-1"></i>Send to Telegram
+                    </a>
+                </div>
                         
                         <script>
                         function clearAnalysis() {
@@ -148,14 +182,136 @@
                                 });
                             }
                         }
+                        
+                        function clearLocalStorage() {
+                            if (confirm('This will clear all local storage data including expiry cache and settings. Continue?')) {
+                                try {
+                                    // Clear specific items
+                                    localStorage.removeItem('expiry_dates_cache');
+                                    localStorage.removeItem('dashboard_refresh_rate');
+                                    localStorage.removeItem('dashboard_refresh_interval');
+                                    localStorage.removeItem('option_chain_cache');
+                                    localStorage.removeItem('market_data_cache');
+                                    
+                                    // Or clear everything
+                                    // localStorage.clear();
+                                    
+                                    console.log('✅ Local storage cleared successfully');
+                                    alert('Local storage cleared! Page will reload.');
+                                    location.reload();
+                                } catch (error) {
+                                    console.error('❌ Error clearing local storage:', error);
+                                    alert('Error clearing local storage: ' + error.message);
+                                }
+                            }
+                        }
+                        
+                        function checkExpiryFetchErrors() {
+                            console.log('🔍 Checking expiry date fetch status...');
+                            
+                            // Check current expiry data
+                            const expirySelect = document.querySelector('select[name="expiry"]');
+                            if (expirySelect) {
+                                const optionCount = expirySelect.options.length;
+                                console.log(`📅 Current expiry options: ${optionCount}`);
+                                
+                                if (optionCount <= 1) {
+                                    console.warn('⚠️ Few or no expiry dates found');
+                                    alert(`⚠️ Warning: Only ${optionCount} expiry date(s) loaded. Try clearing cache and refreshing.`);
+                                } else {
+                                    console.log('✅ Expiry dates loaded successfully');
+                                    alert(`✅ Status Check Complete\n${optionCount} expiry dates loaded successfully\nSystem operating normally`);
+                                }
+                            } else {
+                                console.error('❌ Expiry select element not found');
+                                alert('❌ Error: Could not find expiry selection element');
+                            }
+                            
+                            // Check cache status
+                            try {
+                                const cacheKeys = [
+                                    'expiry_dates_cache',
+                                    'dashboard_refresh_rate', 
+                                    'dashboard_refresh_interval',
+                                    'option_chain_cache',
+                                    'market_data_cache'
+                                ];
+                                
+                                let cacheStatus = 'Cache Status:\n';
+                                cacheKeys.forEach(key => {
+                                    const value = localStorage.getItem(key);
+                                    cacheStatus += `• ${key}: ${value ? '✓ Present' : '✗ Not found'}\n`;
+                                });
+                                
+                                console.log('📋 Cache Status:', cacheStatus);
+                            } catch (error) {
+                                console.error('❌ Error checking cache:', error);
+                            }
+                        }
+                        
+                        // Smart Data Fetching Status
+                        function updateDataFetchMode() {
+                            const fetchModeElement = document.getElementById('fetchModeText');
+                            const badgeElement = document.getElementById('dataFetchMode');
+                            
+                            if (!fetchModeElement || !badgeElement) return;
+                            
+                            // Check if there are active background processes
+                            // This is a simplified check - in reality, you'd query the server
+                            const isOnDemand = !document.hidden; // Simple heuristic
+                            
+                            if (isOnDemand) {
+                                fetchModeElement.textContent = 'On-Demand';
+                                badgeElement.className = 'badge bg-success fs-6 px-3 py-2';
+                                badgeElement.title = 'Data fetched only when needed - optimized performance';
+                            } else {
+                                fetchModeElement.textContent = 'Background';
+                                badgeElement.className = 'badge bg-warning fs-6 px-3 py-2';
+                                badgeElement.title = 'Background processes active';
+                            }
+                        }
+                        
+                        // Show loading indicator during data fetching
+                        function showDataFetchIndicator(message = 'Fetching data...') {
+                            const indicator = document.createElement('div');
+                            indicator.id = 'dataFetchIndicator';
+                            indicator.className = 'alert alert-info d-flex align-items-center mb-3';
+                            indicator.innerHTML = `
+                                <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                                <span>${message}</span>
+                            `;
+                            
+                            // Insert at top of page
+                            const container = document.querySelector('.row');
+                            if (container) {
+                                container.insertBefore(indicator, container.firstChild);
+                            }
+                        }
+                        
+                        function hideDataFetchIndicator() {
+                            const indicator = document.getElementById('dataFetchIndicator');
+                            if (indicator) {
+                                indicator.remove();
+                            }
+                        }
+                        
+                        // Initialize on page load
+                        document.addEventListener('DOMContentLoaded', function() {
+                            updateDataFetchMode();
+                            
+                            // Update mode periodically
+                            setInterval(updateDataFetchMode, 30000); // Every 30 seconds
+                            
+                            // Show loading indicators for form submissions
+                            const forms = document.querySelectorAll('form');
+                            forms.forEach(form => {
+                                form.addEventListener('submit', function() {
+                                    showDataFetchIndicator('Generating analysis...');
+                                });
+                            });
+                        });
                         </script>
-                        <a href="{% url 'send_charts' %}" class="btn btn-info btn-sm">
-                            <i class="bi bi-telegram me-1"></i>Send to Telegram
-                        </a>
-                    </div>
-                </div>
-            </div>
-            <div class="card-body">
+                
                 <!-- Chart Selection Section -->
                 <div class="chart-selection mb-4">
                     <ul class="nav nav-pills justify-content-center mb-4 custom-nav-pills" id="analysisTab" role="tablist">
@@ -213,6 +369,23 @@
                 </div>
             </div>
         </div>
+        {% else %}
+        <!-- No Analysis Data State -->
+        <div class="card clean-card border-0 shadow-sm mb-4">
+            <div class="card-body text-center py-5">
+                <div class="d-flex align-items-center justify-content-center mb-3">
+                    <i class="bi bi-info-circle text-info me-3 fs-1"></i>
+                    <div>
+                        <h5 class="mb-1 fw-bold">No Analysis Generated</h5>
+                        <p class="text-muted mb-0">Generate an analysis first to view results and add trades</p>
+                    </div>
+                </div>
+                <button type="button" class="btn btn-outline-primary px-4" disabled>
+                    <i class="bi bi-plus-circle me-2"></i>Add to Portfolio
+                    <span class="badge bg-secondary ms-2">Generate First</span>
+                </button>
+            </div>
+        </div>
         {% endif %}
     </div>
 </div>
@@ -224,7 +397,7 @@
 }
 
 .custom-nav-pills .nav-link.chart-btn {
-    background: white;
+    background: #f8fafc;
     border: 2px solid #e2e8f0;
     border-radius: 12px;
     padding: 1rem 1.25rem;
@@ -237,20 +410,23 @@
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
     flex: 1;
     max-width: 200px;
+    color: #475569;
 }
 
 .custom-nav-pills .nav-link.chart-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    border-color: #3b82f6;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    border-color: #cbd5e1;
+    background: #f1f5f9;
+    color: #334155;
 }
 
 .custom-nav-pills .nav-link.chart-btn.active {
-    background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+    background: #ffffff;
     border-color: #3b82f6;
-    color: white;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 16px rgba(59, 130, 246, 0.3);
+    color: #3b82f6;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
 }
 
 .btn-icon {
@@ -261,16 +437,16 @@
     justify-content: center;
     width: 32px;
     height: 32px;
-    background: rgba(59, 130, 246, 0.1);
+    background: rgba(148, 163, 184, 0.1);
     border-radius: 8px;
-    color: #3b82f6;
+    color: #64748b;
     transition: all 0.3s ease;
     flex-shrink: 0;
 }
 
 .custom-nav-pills .nav-link.chart-btn.active .btn-icon {
-    background: rgba(255, 255, 255, 0.2);
-    color: white;
+    background: rgba(59, 130, 246, 0.1);
+    color: #3b82f6;
 }
 
 .btn-content {

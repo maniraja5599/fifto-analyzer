@@ -1,0 +1,1128 @@
+{% extends 'analyzer/layout.html' %}
+{% load static %}
+
+{% block content %}
+{% csrf_token %}
+
+<!-- Streamlined Controls Only -->
+<div class="option-chain-controls mb-2" style="margin-top: 20px;">
+    <div class="row g-2 align-items-end">
+        <div class="col-md-2">
+            <label class="form-label fw-bold">Instrument</label>
+            <select class="form-select bg-dark" id="instrumentSelect" onchange="changeInstrument()">
+                {% for inst in instruments %}
+                    <option value="{{ inst }}" {% if inst == instrument %}selected{% endif %}>{{ inst }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-3 d-flex gap-1">
+            <div style="flex: 1;">
+                <label class="form-label fw-bold">Expiry Date</label>
+                <select class="form-select bg-dark" id="expirySelect" onchange="changeExpiry()">
+                    {% for exp in expiry_dates %}
+                        <option value="{{ exp }}" {% if exp == current_expiry %}selected{% endif %}>{{ exp }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div style="align-self: end;">
+                <button class="btn btn-warning btn-sm" onclick="refreshData()" title="Manually refresh option chain data - Auto-refresh disabled">
+                    <i class="bi bi-arrow-clockwise"></i>
+                </button>
+                <small class="text-muted d-block mt-1" style="font-size: 0.7rem;">
+                    <i class="bi bi-info-circle"></i> Manual refresh only
+                </small>
+            </div>
+        </div>
+        <div class="col-md-5 text-center">
+            <label class="form-label fw-bold">Current Price</label>
+            <div class="current-price-highlight mx-auto" style="background: linear-gradient(135deg, #28a745, #20c997); padding: 12px 24px; border-radius: 15px; border: 3px solid #fff; box-shadow: 0 6px 20px rgba(40, 167, 69, 0.3); max-width: 200px;">
+                <div class="fw-bold text-white" style="font-size: 1.4rem; text-shadow: 2px 2px 4px rgba(0,0,0,0.3);">₹{{ underlying_price|floatformat:2 }}</div>
+            </div>
+        </div>
+        <div class="col-md-2 text-end">
+            <div class="d-flex flex-column gap-1">
+                <button class="btn btn-success btn-sm" onclick="viewBasket()" id="createBasketBtn">
+                    <i class="bi bi-basket"></i>
+                    Basket (<span id="basketCount">0</span>)
+                </button>
+                <button class="btn btn-primary btn-sm" onclick="handleAllBasketsClick()" style="background: linear-gradient(135deg, #007bff, #0056b3); border: none;">
+                    <i class="bi bi-list-ul"></i> All Baskets
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+    {% if error_message %}
+        <div class="alert alert-danger bg-gradient border-0">
+            <i class="bi bi-exclamation-triangle-fill"></i> {{ error_message }}
+        </div>
+    {% else %}
+        <!-- Direct Option Chain Table - No OI Summary -->
+        <div class="option-chain-container mt-2">
+            <div class="option-chain-header text-center py-1 mb-0" style="background: linear-gradient(135deg, #007bff, #0056b3); border-radius: 8px 8px 0 0;">
+                <h5 class="text-white fw-bold mb-0" style="text-shadow: 2px 2px 4px rgba(0,0,0,0.3);">{{ instrument }} Option Chain - {{ current_expiry }}</h5>
+            </div>
+            <div class="option-chain-table-wrapper">
+                <div class="table-responsive" style="max-height: 75vh; overflow-y: auto;">
+                    <table class="table table-sm table-hover mb-0 option-chain-table">
+                        <thead class="sticky-top">
+                            <tr class="table-header-main">
+                                <th colspan="5" class="text-center bg-success text-white py-2">
+                                    CALL OPTIONS (CE)
+                                </th>
+                                <th class="text-center bg-light text-dark py-2 fw-bold">ACTIONS</th>
+                                <th class="text-center bg-warning text-dark py-2 fw-bold">STRIKE</th>
+                                <th class="text-center bg-light text-dark py-2 fw-bold">ACTIONS</th>
+                                <th colspan="5" class="text-center bg-danger text-white py-2">
+                                    PUT OPTIONS (PE)
+                                </th>
+                            </tr>
+                            <tr class="table-header-sub">
+                                <th class="bg-light text-dark">LTP</th>
+                                <th class="bg-light text-dark">CHG</th>
+                                <th class="bg-light text-dark">OI</th>
+                                <th class="bg-light text-dark">VOL</th>
+                                <th class="bg-light text-dark">IV%</th>
+                                <th class="text-center bg-light text-dark">
+                                    <small>CE B/S</small>
+                                </th>
+                                <th class="text-center bg-warning text-dark fw-bold">STRIKE PRICE</th>
+                                <th class="text-center bg-light text-dark">
+                                    <small>PE B/S</small>
+                                </th>
+                                <th class="bg-light text-dark">IV%</th>
+                                <th class="bg-light text-dark">VOL</th>
+                                <th class="bg-light text-dark">OI</th>
+                                <th class="bg-light text-dark">CHG</th>
+                                <th class="bg-light text-dark">LTP</th>
+                            </tr>
+                        </thead>
+                        <tbody class="option-data-rows">
+                            {% for strike in strikes %}
+                            <tr class="option-row {% if strike.has_max_oi %}table-warning{% endif %}">
+                                <!-- CE Data -->
+                                <td class="ltp-cell">{{ strike.CE.ltp|floatformat:2 }}</td>
+                                <td class="change-cell {% if strike.CE.change > 0 %}text-success{% elif strike.CE.change < 0 %}text-danger{% else %}text-muted{% endif %}">
+                                    {% if strike.CE.change > 0 %}+{% endif %}{{ strike.CE.change|floatformat:2 }}
+                                </td>
+                                <td class="oi-cell">
+                                    {% if strike.CE.oi %}
+                                        {{ strike.CE.oi|floatformat:0 }}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                                <td class="volume-cell">{{ strike.CE.volume|default:"-" }}</td>
+                                <td class="iv-cell">{{ strike.CE.iv|floatformat:1 }}%</td>
+                                
+                                <!-- CE Action Buttons (Near Strike Price) -->
+                                <td class="text-center action-cell">
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <button type="button" 
+                                                class="btn btn-outline-success btn-xs" 
+                                                onclick="addToBasket('{{ symbol }}', {{ strike.strike_price }}, 'CE', 'BUY')"
+                                                title="Buy CE">
+                                            B
+                                        </button>
+                                        <button type="button" 
+                                                class="btn btn-outline-danger btn-xs" 
+                                                onclick="addToBasket('{{ symbol }}', {{ strike.strike_price }}, 'CE', 'SELL')"
+                                                title="Sell CE">
+                                            S
+                                        </button>
+                                    </div>
+                                </td>
+                                
+                                <!-- Strike Price -->
+                                <td class="text-center strike-price bg-warning text-dark fw-bold">{{ strike.strike_price }}</td>
+                                
+                                <!-- PE Action Buttons (Near Strike Price) -->
+                                <td class="text-center action-cell">
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <button type="button" 
+                                                class="btn btn-outline-success btn-xs" 
+                                                onclick="addToBasket('{{ symbol }}', {{ strike.strike_price }}, 'PE', 'BUY')"
+                                                title="Buy PE">
+                                            B
+                                        </button>
+                                        <button type="button" 
+                                                class="btn btn-outline-danger btn-xs" 
+                                                onclick="addToBasket('{{ symbol }}', {{ strike.strike_price }}, 'PE', 'SELL')"
+                                                title="Sell PE">
+                                            S
+                                        </button>
+                                    </div>
+                                </td>
+                                
+                                <!-- PE Data -->
+                                <td class="iv-cell">{{ strike.PE.iv|floatformat:1 }}%</td>
+                                <td class="volume-cell">{{ strike.PE.volume|default:"-" }}</td>
+                                <td class="oi-cell">
+                                    {% if strike.PE.oi %}
+                                        {{ strike.PE.oi|floatformat:0 }}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                                <td class="change-cell {% if strike.PE.change > 0 %}text-success{% elif strike.PE.change < 0 %}text-danger{% else %}text-muted{% endif %}">
+                                    {% if strike.PE.change > 0 %}+{% endif %}{{ strike.PE.change|floatformat:2 }}
+                                </td>
+                                <td class="ltp-cell">{{ strike.PE.ltp|floatformat:2 }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+</div>
+
+<!-- Debug Information (moved to bottom for better layout) -->
+<div class="alert alert-secondary alert-sm mt-2" style="font-size: 0.8rem;">
+    <strong>Debug:</strong> Strikes: {{ strikes|length|default:"0" }} | 
+    Symbol: {{ symbol }} | 
+    {% if strikes and strikes|length > 0 %}
+        First: {{ strikes.0.strike_price }}
+    {% else %}
+        No data
+    {% endif %}
+</div>
+
+<!-- Basket Creation Modal -->
+<div class="modal fade" id="basketModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Basket Orders</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <h6>Selected Options in Basket</h6>
+                    <div id="basketItems" class="border rounded p-3" style="max-height: 400px; overflow-y: auto;">
+                        <!-- Basket items will be populated here -->
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="d-grid gap-2">
+                            <button type="button" class="btn btn-outline-secondary" onclick="clearBasket()">
+                                <i class="fas fa-trash"></i> Clear All
+                            </button>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="d-grid gap-2">
+                            <button type="button" class="btn btn-success" onclick="submitBasket()">
+                                <i class="fas fa-check"></i> Submit Basket
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let selectedOptions = [];
+
+// Initialize based on URL parameters
+document.addEventListener('DOMContentLoaded', function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    
+    // Set symbol if provided
+    const symbol = urlParams.get('symbol');
+    if (symbol) {
+        const symbolSelect = document.getElementById('symbolSelect');
+        if (symbolSelect) {
+            symbolSelect.value = symbol;
+            // Trigger change event to load data
+            symbolSelect.dispatchEvent(new Event('change'));
+        }
+    }
+    
+    // Auto-open basket if requested
+    const autoOpenBasket = urlParams.get('auto_open_basket');
+    const basketMode = urlParams.get('basket_mode');
+    
+    if (autoOpenBasket === 'true' || basketMode === 'true') {
+        // Show basket mode UI
+        setTimeout(() => {
+            const basketBtn = document.getElementById('createBasketBtn');
+            if (basketBtn) {
+                basketBtn.click();
+            }
+        }, 1000); // Delay to ensure data is loaded
+        
+        // Update button text to indicate basket mode
+        const createBasketBtn = document.getElementById('createBasketBtn');
+        if (createBasketBtn) {
+            createBasketBtn.innerHTML = '<i class="bi bi-basket-fill"></i> Basket Mode Active';
+            createBasketBtn.classList.add('btn-warning');
+            createBasketBtn.classList.remove('btn-light-success');
+        }
+    }
+});
+
+// Direct basket addition function
+function addToBasket(symbol, strikePrice, optionType, action) {
+    console.log('addToBasket called with:', symbol, strikePrice, optionType, action);
+    
+    const option = {
+        symbol: symbol,
+        strike_price: strikePrice,
+        option_type: optionType,
+        action: action,
+        quantity: 1 // Default quantity
+    };
+    
+    // Add to local array for immediate display
+    selectedOptions.push(option);
+    console.log('Current selectedOptions:', selectedOptions);
+    updateBasketDisplay();
+    
+    // Show success feedback
+    const button = event.target;
+    const originalText = button.innerHTML;
+    
+    // Add color-specific highlighting for selected basket items
+    button.innerHTML = '<b>' + action.charAt(0) + '</b>';
+    button.classList.remove('btn-outline-success', 'btn-outline-danger');
+    
+    if (action === 'BUY') {
+        button.classList.add('btn-basket-selected-buy');
+    } else {
+        button.classList.add('btn-basket-selected-sell');
+    }
+    
+    button.onclick = function() {
+        removeFromBasket(selectedOptions.length - 1);
+        button.innerHTML = originalText;
+        button.classList.remove('btn-basket-selected-buy', 'btn-basket-selected-sell');
+        if (action === 'BUY') {
+            button.classList.add('btn-outline-success');
+        } else {
+            button.classList.add('btn-outline-danger');
+        }
+        button.onclick = function() { addToBasket(symbol, strikePrice, optionType, action); };
+    };
+    
+    // Show local success notification (no server call until batch submit)
+    showNotification('✅ Added to basket: ' + symbol + ' ' + strikePrice + ' ' + optionType + ' ' + action, 'success');
+}
+
+function updateBasketDisplay() {
+    console.log('updateBasketDisplay called, selectedOptions.length:', selectedOptions.length);
+    
+    const basketCount = document.getElementById('basketCount');
+    const createBasketBtn = document.getElementById('createBasketBtn');
+    
+    console.log('basketCount element:', basketCount);
+    console.log('createBasketBtn element:', createBasketBtn);
+    
+    if (basketCount && createBasketBtn) {
+        basketCount.textContent = selectedOptions.length;
+        basketCount.style.display = 'inline'; // Always show the count
+        
+        if (selectedOptions.length > 0) {
+            createBasketBtn.classList.remove('btn-success');
+            createBasketBtn.classList.add('btn-warning');
+            createBasketBtn.innerHTML = `<i class="bi bi-basket-fill"></i> Basket (<span id="basketCount">${selectedOptions.length}</span>)`;
+        } else {
+            createBasketBtn.classList.remove('btn-warning');
+            createBasketBtn.classList.add('btn-success');
+            createBasketBtn.innerHTML = '<i class="bi bi-basket"></i> Basket (<span id="basketCount">0</span>)';
+        }
+        
+        // Update the count element reference after innerHTML change
+        const newBasketCount = document.getElementById('basketCount');
+        if (newBasketCount) {
+            newBasketCount.textContent = selectedOptions.length;
+            newBasketCount.style.display = 'inline';
+        }
+    } else {
+        console.error('Basket elements not found!');
+    }
+}
+
+function viewBasket() {
+    if (selectedOptions.length === 0) {
+        alert('No options selected for basket');
+        return;
+    }
+    
+    // Update modal content with directly added options
+    const basketItemsContainer = document.getElementById('basketItems');
+    basketItemsContainer.innerHTML = '';
+    
+    selectedOptions.forEach((option, index) => {
+        const itemDiv = document.createElement('div');
+        itemDiv.className = 'basket-item mb-2 p-2 border rounded';
+        itemDiv.innerHTML = `
+            <div class="row align-items-center">
+                <div class="col-md-3">
+                    <strong>${option.symbol} ${option.strike_price} ${option.option_type}</strong>
+                </div>
+                <div class="col-md-2">
+                    <span class="badge ${option.action === 'BUY' ? 'bg-success' : 'bg-danger'}">${option.action}</span>
+                </div>
+                <div class="col-md-2">
+                    <input type="number" class="form-control form-control-sm" 
+                           value="${option.quantity}" min="1" 
+                           onchange="updateQuantity(${index}, this.value)">
+                </div>
+                <div class="col-md-3">
+                    <select class="form-select form-select-sm" onchange="updateOrderType(${index}, this.value)">
+                        <option value="MARKET">Market</option>
+                        <option value="LIMIT">Limit</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <button class="btn btn-sm btn-outline-danger" onclick="removeFromBasket(${index})">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+        basketItemsContainer.appendChild(itemDiv);
+    });
+    
+    // Show the modal
+    const basketModal = new bootstrap.Modal(document.getElementById('basketModal'));
+    basketModal.show();
+}
+
+function updateQuantity(index, quantity) {
+    selectedOptions[index].quantity = parseInt(quantity);
+}
+
+function updateOrderType(index, orderType) {
+    selectedOptions[index].order_type = orderType;
+}
+
+function removeFromBasket(index) {
+    if (index >= 0 && index < selectedOptions.length) {
+        selectedOptions.splice(index, 1);
+        updateBasketDisplay();
+        console.log('Removed item from basket, new length:', selectedOptions.length);
+        
+        // Show notification
+        showNotification('🗑️ Removed from basket', 'warning');
+        
+        // Refresh modal content if open
+        if (selectedOptions.length > 0) {
+            const modalElement = document.getElementById('basketModal');
+            if (modalElement && modalElement.classList.contains('show')) {
+                viewBasket();
+            }
+        } else {
+            const modalElement = document.getElementById('basketModal');
+            if (modalElement && modalElement.classList.contains('show')) {
+                const basketModal = bootstrap.Modal.getInstance(modalElement);
+                basketModal.hide();
+            }
+        }
+    }
+}
+
+function clearBasket() {
+    selectedOptions = [];
+    updateBasketDisplay();
+    const basketModal = bootstrap.Modal.getInstance(document.getElementById('basketModal'));
+    basketModal.hide();
+}
+
+function quickSaveBasket() {
+    if (selectedOptions.length === 0) {
+        alert('No options in basket to save');
+        return;
+    }
+    
+    // Save current basket immediately without closing modal
+    fetch('/api/create_basket/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        },
+        body: JSON.stringify({
+            'selected_options': selectedOptions,
+            'basket_name': `Quick_Save_${new Date().toISOString().slice(0,16).replace(/[-:]/g, '')}`
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification(`✅ Basket saved! ID: ${data.basket_id}`, 'success');
+            
+            // Update button to show saved status temporarily
+            const quickSaveBtn = event.target;
+            const originalText = quickSaveBtn.innerHTML;
+            quickSaveBtn.innerHTML = '<i class="fas fa-check"></i> Saved!';
+            quickSaveBtn.classList.remove('btn-warning');
+            quickSaveBtn.classList.add('btn-success');
+            
+            setTimeout(() => {
+                quickSaveBtn.innerHTML = originalText;
+                quickSaveBtn.classList.remove('btn-success');
+                quickSaveBtn.classList.add('btn-warning');
+            }, 2000);
+        } else {
+            showNotification('❌ Failed to save basket: ' + data.message, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showNotification('❌ Network error while saving basket', 'error');
+    });
+}
+
+function submitBasket() {
+    if (selectedOptions.length === 0) {
+        alert('No options in basket');
+        return;
+    }
+    
+    // Submit accumulated basket to backend
+    fetch('/api/create_basket/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        },
+        body: JSON.stringify({
+            'selected_options': selectedOptions,
+            'basket_name': `Manual_Basket_${new Date().toISOString().slice(0,16).replace(/[-:]/g, '')}`
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(`✅ Basket created successfully with ${selectedOptions.length} options!\n\nBasket ID: ${data.basket_id}\nYou can view it in "All Baskets"`);
+            clearBasket();
+            
+            // Show success notification
+            showNotification(`✅ Basket saved with ${selectedOptions.length} options`, 'success');
+        } else {
+            alert('❌ Error creating basket: ' + data.message);
+            showNotification('❌ Failed to create basket: ' + data.message, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('❌ Network error submitting basket');
+        showNotification('❌ Network error while creating basket', 'error');
+    });
+}
+
+// Change instrument
+function changeInstrument() {
+    const instrument = document.getElementById('instrumentSelect').value;
+    window.location.href = `{% url 'option_chain' %}?instrument=${instrument}`;
+}
+
+// Change expiry
+function changeExpiry() {
+    const instrument = document.getElementById('instrumentSelect').value;
+    const expiry = document.getElementById('expirySelect').value;
+    window.location.href = `{% url 'option_chain' %}?instrument=${instrument}&expiry=${expiry}`;
+}
+
+// Refresh data
+function refreshData() {
+    console.log('🔄 Manual refresh triggered - Auto-refresh is disabled');
+    
+    // Show loading state
+    const refreshBtn = document.querySelector('button[onclick="refreshData()"]');
+    const originalHTML = refreshBtn.innerHTML;
+    refreshBtn.innerHTML = '<i class="bi bi-arrow-clockwise"></i> Refreshing...';
+    refreshBtn.disabled = true;
+    
+    // Add loading class for visual feedback
+    refreshBtn.classList.add('btn-secondary');
+    refreshBtn.classList.remove('btn-warning');
+    
+    // Perform manual reload
+    location.reload();
+}
+
+// Show notification function
+function showNotification(message, type) {
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type === 'success' ? 'success' : 'danger'} alert-dismissible fade show position-fixed`;
+    notification.style.cssText = 'top: 20px; right: 20px; z-index: 1050; min-width: 300px;';
+    notification.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    // Add to page
+    document.body.appendChild(notification);
+    
+    // Auto remove after 3 seconds
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.remove();
+        }
+    }, 3000);
+}
+
+// Handle All Baskets button click with confirmation if basket has items
+function handleAllBasketsClick() {
+    if (selectedOptions.length > 0) {
+        // Show confirmation modal if there are selected options
+        if (confirm(`You have ${selectedOptions.length} option(s) in your current basket.\n\nDo you want to:\n- Click "OK" to SAVE current basket and go to All Baskets\n- Click "Cancel" to go to All Baskets WITHOUT saving (current basket will be lost)`)) {
+            // User chose to save - submit current basket first
+            submitBasket();
+            // Give a moment for the save to complete, then redirect
+            setTimeout(() => {
+                window.location.href = "{% url 'basket_orders' %}";
+            }, 1000);
+        } else {
+            // User chose not to save - just go to All Baskets
+            window.location.href = "{% url 'basket_orders' %}";
+        }
+    } else {
+        // No items in basket, directly go to All Baskets
+        window.location.href = "{% url 'basket_orders' %}";
+    }
+}
+
+// Initialize basket display on page load
+document.addEventListener('DOMContentLoaded', function() {
+    updateBasketDisplay();
+    
+    // Confirm manual-only mode
+    console.log('🛑 Option Chain Auto-Refresh: DISABLED');
+    console.log('🔄 Use refresh button for manual data updates');
+});
+</script>
+
+<style>
+.table-hover tbody tr:hover {
+    background-color: rgba(0,123,255,.1);
+}
+
+.table-sm td, .table-sm th {
+    padding: 0.3rem;
+    font-size: 0.9rem;
+}
+
+.option-select {
+    transform: scale(1.2);
+}
+
+#selectedOptionsList:empty::before {
+    content: "No options selected";
+    color: #6c757d;
+    font-style: italic;
+}
+
+/* Custom btn-xs class for smaller buttons */
+.btn-xs {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+    line-height: 1.2;
+    border-radius: 0.2rem;
+}
+
+/* Enhanced OI column styling */
+.text-primary {
+    color: #0066cc !important;
+    font-weight: 600;
+}
+
+/* OI column background highlight */
+th:nth-child(4), td:nth-child(4),  /* CE OI column */
+th:nth-child(10), td:nth-child(10) { /* PE OI column */
+    background-color: rgba(0, 102, 204, 0.05);
+    border-left: 2px solid rgba(0, 102, 204, 0.2);
+    border-right: 2px solid rgba(0, 102, 204, 0.2);
+}
+
+/* OI header styling */
+th.text-primary {
+    background-color: rgba(0, 102, 204, 0.1) !important;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Large OI values highlight */
+.text-primary strong {
+    font-size: 1.05em;
+    text-shadow: 0 0 2px rgba(0, 102, 204, 0.3);
+}
+
+/* Strike price row enhancement */
+.table-warning {
+    background-color: rgba(255, 193, 7, 0.2) !important;
+}
+
+.table-warning .text-primary {
+    color: #0056b3 !important;
+    font-weight: bold;
+}
+
+/* Responsive OI columns */
+@media (max-width: 1200px) {
+    th:nth-child(4), td:nth-child(4),
+    th:nth-child(10), td:nth-child(10) {
+        min-width: 80px;
+    }
+}
+
+/* OI value formatting */
+.text-primary strong {
+    display: inline-block;
+    min-width: 60px;
+    text-align: right;
+}
+
+/* Table footer styling */
+.table tfoot td {
+    background-color: #343a40 !important;
+    color: white;
+    border-top: 2px solid #6c757d;
+}
+
+.table tfoot .badge {
+    font-size: 0.9em;
+    padding: 0.5em 1em;
+    margin: 0 0.5em;
+}
+
+/* Strike highlighting for max OI */
+.max-oi-highlight {
+    background: linear-gradient(45deg, rgba(255, 215, 0, 0.3), rgba(255, 215, 0, 0.1));
+    border-left: 3px solid gold;
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+}
+
+/* Action selector styling */
+.form-select-sm option {
+    padding: 0.25rem 0.5rem;
+}
+
+/* Modal enhancement */
+.modal-body {
+    max-height: 70vh;
+    overflow-y: auto;
+}
+
+/* Basket item styling */
+.border-bottom:last-child {
+    border-bottom: none !important;
+}
+
+/* Premium display colors */
+.text-danger.form-control {
+    color: #dc3545 !important;
+    font-weight: bold;
+}
+
+.text-success.form-control {
+    color: #198754 !important;
+    font-weight: bold;
+}
+
+/* Buy/Sell dropdown styling in table */
+.bs-select {
+    border: 1px solid #dee2e6;
+    border-radius: 0.25rem;
+    transition: all 0.15s ease-in-out;
+}
+
+.bs-select:enabled {
+    background-color: #f8f9fa;
+    border-color: #007bff;
+    box-shadow: 0 0 0 0.1rem rgba(0, 123, 255, 0.25);
+}
+
+.bs-select:disabled {
+    background-color: #e9ecef;
+    border-color: #ced4da;
+    color: #6c757d;
+    cursor: not-allowed;
+}
+
+.bs-select option[value="BUY"] {
+    color: #198754;
+    font-weight: bold;
+}
+
+.bs-select option[value="SELL"] {
+    color: #dc3545;
+    font-weight: bold;
+}
+
+/* Selection column styling */
+.table th:first-child,
+.table th:last-child,
+.table td:first-child,
+.table td:last-child {
+    min-width: 120px;
+    padding: 0.5rem 0.25rem;
+}
+
+/* Checkbox styling */
+.option-select {
+    transform: scale(1.3);
+    margin: 0.25rem;
+}
+
+/* Option Chain Refresh Button Styles */
+.option-refresh-btn {
+    border: 1px solid #dee2e6;
+    transition: all 0.2s ease-in-out;
+    font-size: 0.8rem;
+    padding: 0.25rem 0.5rem;
+    min-width: 45px;
+}
+
+.option-refresh-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.option-refresh-btn.btn-primary {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+    color: white;
+}
+
+.option-refresh-btn.btn-light {
+    background-color: #f8f9fa;
+    border-color: #dee2e6;
+    color: #495057;
+}
+
+.option-refresh-btn.btn-light:hover {
+    background-color: #e9ecef;
+    border-color: #adb5bd;
+}
+
+#refreshStatus {
+    font-size: 0.75rem;
+    margin-top: 0.25rem;
+    display: block;
+}
+
+/* Simple Option Chain Styling */
+body {
+    background: #f5f7fa;
+    min-height: 100vh;
+}
+
+.option-chain-controls {
+    background: #fafbfc;
+    padding: 1rem;
+    border-radius: 8px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+    border: 1px solid #e3e6ea;
+    margin-bottom: 1rem;
+}
+
+.option-chain-container {
+    background: #fafbfc;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+    border: 1px solid #e3e6ea;
+}
+
+.option-chain-header {
+    background: #e9ecef !important;
+    color: #495057;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.option-chain-table {
+    background: #fafbfc;
+    font-size: 0.75rem;
+}
+
+.table-header-main th {
+    font-weight: 600;
+    font-size: 0.7rem;
+    padding: 6px 4px;
+    border: 1px solid #e3e6ea;
+    text-transform: uppercase;
+}
+
+.table-header-sub th {
+    font-size: 0.65rem;
+    padding: 4px 3px;
+    border: 1px solid #e3e6ea;
+    font-weight: 500;
+    background: #f1f3f4 !important;
+    color: #495057 !important;
+}
+
+.option-row {
+    background: #fafbfc;
+    border-bottom: 1px solid #f1f3f4;
+    transition: background-color 0.1s ease;
+    font-size: 0.7rem;
+}
+
+.option-row:hover {
+    background: #f0f2f5;
+}
+
+.table-warning {
+    background-color: #fff3cd !important;
+}
+
+.action-cell {
+    padding: 2px !important;
+    width: 60px;
+}
+
+.btn-xs {
+    font-size: 0.6rem;
+    padding: 1px 4px;
+    font-weight: 500;
+    border-radius: 3px;
+    margin: 1px 0;
+    min-width: 20px;
+}
+
+.ltp-cell {
+    font-weight: 600;
+    font-size: 0.7rem;
+    padding: 4px 3px;
+    color: #212529;
+}
+
+.change-cell {
+    font-weight: 600;
+    font-size: 0.65rem;
+    padding: 4px 3px;
+}
+
+.oi-cell {
+    font-weight: 500;
+    font-size: 0.65rem;
+    padding: 4px 3px;
+}
+
+.volume-cell {
+    color: #6c757d;
+    font-size: 0.6rem;
+    padding: 4px 3px;
+    font-weight: 400;
+}
+
+.iv-cell {
+    font-weight: 400;
+    font-size: 0.6rem;
+    padding: 4px 3px;
+    color: #495057;
+}
+
+.strike-price {
+    font-size: 0.75rem !important;
+    font-weight: 700 !important;
+    padding: 6px 4px !important;
+    background: #ffc107 !important;
+    color: #212529 !important;
+    border-radius: 3px;
+}
+
+/* Compact scrollbar */
+.table-responsive::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+.table-responsive::-webkit-scrollbar-track {
+    background: #f1f3f4;
+    border-radius: 3px;
+}
+
+.table-responsive::-webkit-scrollbar-thumb {
+    background: #adb5bd;
+    border-radius: 3px;
+}
+
+.table-responsive::-webkit-scrollbar-thumb:hover {
+    background: #6c757d;
+}
+
+/* Form Controls */
+.form-select.bg-dark {
+    background: #fafbfc !important;
+    border: 1px solid #d6dae1;
+    color: #495057;
+    font-weight: 500;
+    font-size: 0.875rem;
+}
+
+.form-select.bg-dark:focus {
+    border-color: #5a9fd4;
+    box-shadow: 0 0 0 0.2rem rgba(90, 159, 212, 0.25);
+    background: #ffffff !important;
+}
+
+.form-select.bg-dark option {
+    background: #fafbfc;
+    color: #495057;
+}
+
+.form-control.bg-gradient {
+    background: #fafbfc !important;
+    border: 1px solid #d6dae1;
+    color: #495057 !important;
+    font-weight: 600;
+    font-size: 0.875rem;
+}
+
+/* Button simplification */
+.btn-outline-info {
+    border: 1px solid #17a2b8;
+    color: #17a2b8;
+    background: #ffffff;
+    font-weight: 500;
+    font-size: 0.875rem;
+}
+
+.btn-outline-info:hover {
+    background: #17a2b8;
+    border-color: #17a2b8;
+    color: white;
+}
+
+.btn-outline-secondary {
+    border: 1px solid #6c757d;
+    color: #6c757d;
+    background: #ffffff;
+    font-size: 0.875rem;
+}
+
+.btn-outline-secondary:hover {
+    background: #6c757d;
+    color: white;
+}
+
+.btn-warning {
+    background: #ffc107;
+    border: none;
+    color: #212529;
+    font-weight: 600;
+    font-size: 0.875rem;
+}
+
+.btn-success {
+    background: #28a745;
+    border: none;
+    font-weight: 600;
+    font-size: 0.875rem;
+}
+
+.btn-info {
+    background: #17a2b8;
+    border: none;
+    font-weight: 600;
+    font-size: 0.875rem;
+}
+
+/* Label simplification */
+.form-label.text-light.fw-bold {
+    color: #495057 !important;
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+/* Table column freezing - freeze up to LTP columns */
+.option-chain-table-wrapper {
+    position: relative;
+}
+
+.option-chain-table th:nth-child(1),
+.option-chain-table td:nth-child(1) {
+    position: sticky;
+    left: 0;
+    background: white;
+    z-index: 10;
+    border-right: 2px solid #dee2e6;
+    box-shadow: 2px 0 4px rgba(0,0,0,0.1);
+}
+
+.option-chain-table th:nth-child(1) {
+    z-index: 11;
+}
+
+/* Enhanced B/S button styling with highlight */
+.btn-basket-selected {
+    background: linear-gradient(45deg, #ff6b6b, #ee5a24) !important;
+    border: 2px solid #fff !important;
+    color: white !important;
+    font-weight: bold !important;
+    box-shadow: 0 4px 12px rgba(255, 107, 107, 0.4) !important;
+    transform: scale(1.1) !important;
+}
+
+.btn-outline-success {
+    transition: all 0.2s ease;
+}
+
+.btn-outline-danger {
+    transition: all 0.2s ease;
+}
+
+.btn-outline-success:hover {
+    background: #28a745 !important;
+    border-color: #28a745 !important;
+    transform: scale(1.05);
+}
+
+.btn-outline-danger:hover {
+    background: #dc3545 !important;
+    border-color: #dc3545 !important;
+    transform: scale(1.05);
+}
+
+/* B/S text bold styling */
+.btn-xs {
+    font-weight: bold !important;
+    letter-spacing: 0.5px;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+}
+
+/* Enhanced B/S button styling with color-specific highlighting */
+.btn-basket-selected-buy {
+    background: linear-gradient(45deg, #28a745, #20c997) !important;
+    border: 2px solid #fff !important;
+    color: white !important;
+    font-weight: bold !important;
+    box-shadow: 0 4px 12px rgba(40, 167, 69, 0.4) !important;
+    transform: scale(1.1) !important;
+}
+
+.btn-basket-selected-sell {
+    background: linear-gradient(45deg, #dc3545, #c82333) !important;
+    border: 2px solid #fff !important;
+    color: white !important;
+    font-weight: bold !important;
+    box-shadow: 0 4px 12px rgba(220, 53, 69, 0.4) !important;
+    transform: scale(1.1) !important;
+}
+
+/* Basket count styling to ensure visibility */
+#basketCount {
+    display: inline !important;
+    font-weight: bold;
+    background: rgba(255, 255, 255, 0.3);
+    padding: 2px 6px;
+    border-radius: 50%;
+    min-width: 20px;
+    text-align: center;
+}
+</style>
+{% endblock %}

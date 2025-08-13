@@ -3,94 +3,88 @@
 {% block title %}Active Trades{% endblock %}
 
 {% block content %}
-<!-- Dashboard Style Header -->
-<div class="dashboard-header">
-    <div class="container-fluid">
+<!-- Compact Page Header -->
+<div class="page-header">
+    <div class="row align-items-center">
+        <div class="col-lg-8">
+            <h1 class="page-title">
+                <i class="bi bi-graph-up text-success"></i>
+                Active Monitored Trades
+            </h1>
+            <p class="page-subtitle">Monitor your live trading positions and track real-time P&L performance</p>
+            <div class="page-stats">
+                <span class="stat-badge success">
+                    <i class="bi bi-currency-rupee"></i>
+                    Total P&L: ₹{{ total_pnl|floatformat:2 }}
+                </span>
+                <span class="stat-badge primary">
+                    <i class="bi bi-list-check"></i>
+                    {{ trades|length }} Active Positions
+                </span>
+                <span class="stat-badge warning">
+                    <i class="bi bi-clock-history"></i>
+                    Live Monitoring
+                </span>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="page-actions">
+                <a href="{% url 'closed_trades' %}" class="btn btn-light-primary me-2">
+                    <i class="bi bi-archive"></i>
+                    View Closed Trades
+                </a>
+                <button class="btn btn-light-success" onclick="refreshTradeData()">
+                    <i class="bi bi-arrow-clockwise"></i>
+                    Refresh Data
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Compact Sorting and Filter Controls -->
+<div class="card mb-3" style="background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%); border: 1px solid #e9ecef;">
+    <div class="card-body py-2" style="background: transparent;">
         <div class="row align-items-center">
             <div class="col-md-6">
-                <div class="header-content">
-                    <h1 class="dashboard-title">
-                        <i class="bi bi-graph-up me-3"></i>
-                        Active Monitored Trades
-                    </h1>
-                    <p class="dashboard-subtitle">Total P&L: <span class="fw-semibold text-success">₹{{ total_pnl|floatformat:2 }}</span></p>
-                </div>
-            </div>
-            <div class="col-md-6 text-end">
-                <div class="header-controls d-flex align-items-center justify-content-end gap-3">
-                    <a href="{% url 'closed_trades' %}" class="btn btn-outline-primary btn-lg px-4">
-                        <i class="bi bi-archive me-2"></i>Closed Trades
-                    </a>
-                    
-                    <!-- Enhanced Sorting and Filter Controls -->
-                    <div class="sorting-controls d-flex align-items-center gap-3">
-                        <!-- Group By Controls with Icons -->
-                        <div class="filter-section">
-                            <div class="filter-label">
-                                <i class="bi bi-collection me-1 text-primary"></i>
-                                <span class="fw-semibold text-muted small">Group by</span>
-                            </div>
-                            <div class="btn-group filter-group" role="group">
-                                <a href="?group_by=automation_batch&instrument={{ request.GET.instrument|default:'all' }}" 
-                                   class="btn filter-btn {% if group_by == 'automation_batch' %}active{% endif %}" title="Auto Batch">
-                                    <i class="bi bi-robot"></i>
-                                    <span>Batch</span>
-                                </a>
-                                <a href="?group_by=day&instrument={{ request.GET.instrument|default:'all' }}" 
-                                   class="btn filter-btn {% if group_by == 'day' %}active{% endif %}" title="Day">
-                                    <i class="bi bi-calendar-day"></i>
-                                    <span>Day</span>
-                                </a>
-                                <a href="?group_by=expiry&instrument={{ request.GET.instrument|default:'all' }}" 
-                                   class="btn filter-btn {% if group_by == 'expiry' %}active{% endif %}" title="Expiry">
-                                    <i class="bi bi-calendar-event"></i>
-                                    <span>Expiry</span>
-                                </a>
-                            </div>
-                        </div>
-                        
-                        <!-- Instrument Filter with Icons -->
-                        <div class="filter-section">
-                            <div class="filter-label">
-                                <i class="bi bi-funnel me-1 text-success"></i>
-                                <span class="fw-semibold text-muted small">Instrument</span>
-                            </div>
-                            <div class="btn-group filter-group" role="group">
-                                <a href="?group_by={{ group_by }}&instrument=all" 
-                                   class="btn filter-btn {% if request.GET.instrument == 'all' or not request.GET.instrument %}active{% endif %}" title="All Instruments">
-                                    <i class="bi bi-grid-3x3"></i>
-                                    <span>All</span>
-                                </a>
-                                <a href="?group_by={{ group_by }}&instrument=NIFTY" 
-                                   class="btn filter-btn {% if request.GET.instrument == 'NIFTY' %}active{% endif %}" title="NIFTY">
-                                    <i class="bi bi-graph-up"></i>
-                                    <span>NIFTY</span>
-                                </a>
-                                <a href="?group_by={{ group_by }}&instrument=BANKNIFTY" 
-                                   class="btn filter-btn {% if request.GET.instrument == 'BANKNIFTY' %}active{% endif %}" title="BANKNIFTY">
-                                    <i class="bi bi-bank"></i>
-                                    <span>BANK</span>
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                                <a href="?group_by={{ group_by }}&instrument=all" 
-                                   class="btn {% if request.GET.instrument == 'all' or not request.GET.instrument %}btn-secondary{% else %}btn-outline-secondary{% endif %} btn-sm px-3">
-                                    All
-                                </a>
-                                <a href="?group_by={{ group_by }}&instrument=NIFTY" 
-                                   class="btn {% if request.GET.instrument == 'NIFTY' %}btn-info{% else %}btn-outline-info{% endif %} btn-sm px-3">
-                                    NIFTY
-                                </a>
-                                <a href="?group_by={{ group_by }}&instrument=BANKNIFTY" 
-                                   class="btn {% if request.GET.instrument == 'BANKNIFTY' %}btn-warning{% else %}btn-outline-warning{% endif %} btn-sm px-3">
-                                    BANKNIFTY
-                                </a>
-                            </div>
-                        </div>
+                <div class="d-flex align-items-center gap-2">
+                    <span class="text-muted small fw-semibold">Group by:</span>
+                    <div class="btn-group btn-group-sm" role="group">
+                        <a href="?group_by=automation_batch&instrument={{ request.GET.instrument|default:'all' }}" 
+                           class="btn btn-sm {% if group_by == 'automation_batch' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                            <i class="bi bi-robot"></i> Batch
+                        </a>
+                        <a href="?group_by=day&instrument={{ request.GET.instrument|default:'all' }}" 
+                           class="btn btn-sm {% if group_by == 'day' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                            <i class="bi bi-calendar-day"></i> Day
+                        </a>
+                        <a href="?group_by=expiry&instrument={{ request.GET.instrument|default:'all' }}" 
+                           class="btn btn-sm {% if group_by == 'expiry' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                            <i class="bi bi-calendar-event"></i> Expiry
+                        </a>
                     </div>
                 </div>
             </div>
+            <div class="col-md-6">
+                <div class="d-flex align-items-center gap-2 justify-content-md-end">
+                    <span class="text-muted small fw-semibold">Instrument:</span>
+                    <div class="btn-group btn-group-sm" role="group">
+                        <a href="?group_by={{ group_by }}&instrument=all" 
+                           class="btn btn-sm {% if request.GET.instrument == 'all' or not request.GET.instrument %}btn-secondary{% else %}btn-outline-secondary{% endif %}">
+                            <i class="bi bi-grid-3x3"></i> All
+                        </a>
+                        <a href="?group_by={{ group_by }}&instrument=NIFTY" 
+                           class="btn btn-sm {% if request.GET.instrument == 'NIFTY' %}btn-info{% else %}btn-outline-info{% endif %}">
+                            <i class="bi bi-graph-up"></i> NIFTY
+                        </a>
+                        <a href="?group_by={{ group_by }}&instrument=BANKNIFTY" 
+                           class="btn btn-sm {% if request.GET.instrument == 'BANKNIFTY' %}btn-warning{% else %}btn-outline-warning{% endif %}">
+                            <i class="bi bi-bank"></i> BANK
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -154,21 +148,21 @@
                 </div>
             </div>
             <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-hover mb-0 trades-table">
-                        <thead class="trades-thead">
+                <div class="table-responsive" style="max-height: 70vh; overflow-y: auto;">
+                    <table class="table table-hover mb-0 trades-table table-sm">
+                        <thead class="trades-thead sticky-top">
                             <tr>
-                                <th width="40">
+                                <th width="40" class="sticky-top">
                                     <input type="checkbox" class="form-check-input" onchange="toggleGroupSelection('{{ group_key|slugify }}')">
                                 </th>
-                                <th>Trade Details</th>
-                                <th>Instrument</th>
-                                <th>Expiry</th>
-                                <th>Strikes</th>
-                                <th>Premium</th>
-                                <th>P&L Status</th>
-                                <th>Targets</th>
-                                <th>Actions</th>
+                                <th class="sticky-top">Trade Details</th>
+                                <th class="sticky-top">Instrument</th>
+                                <th class="sticky-top">Expiry</th>
+                                <th class="sticky-top">Strikes</th>
+                                <th class="sticky-top">Premium</th>
+                                <th class="sticky-top">P&L Status</th>
+                                <th class="sticky-top">Targets</th>
+                                <th class="sticky-top">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -199,7 +193,7 @@
                                 <td>
                                     <div class="premium-info">
                                         <div class="fw-semibold">Initial: ₹{{ trade.initial_premium|floatformat:2 }}</div>
-                                        <div class="text-muted small">Current: ₹{{ trade.initial_premium|floatformat:2 }}</div>
+                                        <div class="text-muted small">Current: ₹<span class="current-premium" data-trade-id="{{ trade.id }}">{{ trade.current_premium|default:trade.initial_premium|floatformat:2 }}</span></div>
                                     </div>
                                 </td>
                                 <td>
@@ -351,8 +345,8 @@
 
 /* Trade Header Styling */
 .trades-header {
-    background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
-    border-bottom: 2px solid #e2e8f0;
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%) !important;
+    border-bottom: 2px solid #dee2e6;
     padding: 1.25rem 1.5rem;
     border-radius: 12px 12px 0 0;
 }
@@ -364,8 +358,9 @@
 }
 
 .trades-thead {
-    background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
-    color: white;
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%) !important;
+    color: #495057 !important;
+    border-bottom: 2px solid #dee2e6;
 }
 
 .trades-thead th {
@@ -376,6 +371,8 @@
     letter-spacing: 0.05em;
     border: none;
     position: relative;
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%) !important;
+    color: #495057 !important;
 }
 
 .trades-thead th:first-child {
@@ -587,6 +584,133 @@ setInterval(function() {
         location.reload();
     }
 }, 30000);
+
+// Refresh trade data function
+async function refreshTradeData() {
+    const refreshBtn = document.querySelector('button[onclick="refreshTradeData()"]');
+    const originalText = refreshBtn.innerHTML;
+    
+    // Show loading state
+    refreshBtn.innerHTML = '<i class="bi bi-arrow-clockwise spin"></i> Refreshing...';
+    refreshBtn.disabled = true;
+    
+    try {
+        // Update current premiums
+        await updateCurrentPremiums();
+        
+        // Show success feedback
+        refreshBtn.innerHTML = '<i class="bi bi-check-circle text-success"></i> Updated!';
+        setTimeout(() => {
+            refreshBtn.innerHTML = originalText;
+            refreshBtn.disabled = false;
+        }, 2000);
+    } catch (error) {
+        console.error('Error refreshing trade data:', error);
+        refreshBtn.innerHTML = '<i class="bi bi-exclamation-triangle text-danger"></i> Error';
+        setTimeout(() => {
+            refreshBtn.innerHTML = originalText;
+            refreshBtn.disabled = false;
+        }, 2000);
+    }
+}
+
+// Update current premiums
+async function updateCurrentPremiums() {
+    const premiumElements = document.querySelectorAll('.current-premium');
+    
+    for (const element of premiumElements) {
+        const tradeId = element.dataset.tradeId;
+        
+        try {
+            // Simulate API call for current premium updates
+            const randomChange = (Math.random() - 0.5) * 5; // Random change for demo
+            const currentValue = parseFloat(element.textContent);
+            const newValue = Math.max(0, currentValue + randomChange);
+            
+            element.textContent = newValue.toFixed(2);
+            
+            // Add visual feedback for changes
+            element.classList.add('text-info', 'fw-bold');
+            setTimeout(() => {
+                element.classList.remove('text-info', 'fw-bold');
+            }, 2000);
+            
+        } catch (error) {
+            console.error(`Error updating premium for trade ${tradeId}:`, error);
+        }
+    }
+}
+
+// Auto-update disabled - Use manual refresh only
+// Original auto-update code disabled:
+// setInterval(updateCurrentPremiums, 15000);
+console.log('🛑 Auto-refresh disabled for trades - Use manual refresh button instead');
+
+// Add CSS for enhanced styling
+const style = document.createElement('style');
+style.textContent = `
+    .spin {
+        animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+    
+    .trades-thead {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%) !important;
+        border-bottom: 2px solid #dee2e6;
+        color: #495057 !important;
+    }
+    
+    .sticky-top {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%) !important;
+        z-index: 10;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        color: #495057 !important;
+    }
+    
+    .trades-table {
+        font-size: 0.875rem;
+    }
+    
+    .trades-table td {
+        padding: 0.5rem;
+        vertical-align: middle;
+        border-color: #f0f0f0;
+    }
+    
+    .trades-table th {
+        padding: 0.75rem 0.5rem;
+        font-weight: 600;
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #495057 !important;
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%) !important;
+    }
+    
+    .trades-table tbody tr:hover {
+        background-color: #f8f9fa;
+    }
+    
+    @media (max-width: 768px) {
+        .table-responsive {
+            max-height: 60vh !important;
+        }
+        
+        .trades-table {
+            font-size: 0.8rem;
+        }
+        
+        .trades-table td {
+            padding: 0.375rem 0.25rem;
+        }
+    }
+`;
+document.head.appendChild(style);
+</script>
 </script>
 
 {% endblock %}

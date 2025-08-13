@@ -3,26 +3,40 @@
 {% block title %}Settings{% endblock %}
 
 {% block content %}
-<!-- Dashboard Style Header -->
-<div class="dashboard-header">
-    <div class="container-fluid">
-        <div class="row align-items-center">
-            <div class="col-md-8">
-                <div class="header-content">
-                    <h1 class="dashboard-title">
-                        <i class="bi bi-gear-fill me-3"></i>
-                        Application Settings
-                    </h1>
-                    <p class="dashboard-subtitle">Configure your trading preferences and system behavior</p>
-                </div>
+<!-- Uniform Page Header -->
+<div class="page-header">
+    <div class="row align-items-center">
+        <div class="col-lg-8">
+            <h1 class="page-title">
+                <i class="bi bi-gear text-secondary"></i>
+                Application Settings
+            </h1>
+            <p class="page-subtitle">Configure your trading preferences, system behavior, and notifications</p>
+            <div class="page-stats">
+                <span class="stat-badge primary">
+                    <i class="bi bi-check-circle"></i>
+                    System Active
+                </span>
+                <span class="stat-badge success">
+                    <i class="bi bi-shield-check"></i>
+                    Secure Configuration
+                </span>
+                <span class="stat-badge warning">
+                    <i class="bi bi-bell"></i>
+                    Alerts Enabled
+                </span>
             </div>
-            <div class="col-md-4 text-end">
-                <div class="status-badge-container">
-                    <span class="status-badge status-active">
-                        <i class="bi bi-check-circle me-2"></i>
-                        System Active
-                    </span>
-                </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="page-actions">
+                <button type="button" class="btn btn-light-success me-2" onclick="location.reload()">
+                    <i class="bi bi-arrow-clockwise"></i>
+                    Refresh Settings
+                </button>
+                <button type="button" class="btn btn-light-primary" onclick="testConfiguration()">
+                    <i class="bi bi-play-circle"></i>
+                    Test Configuration
+                </button>
             </div>
         </div>
     </div>
@@ -55,9 +69,7 @@
                         <button class="nav-link" id="trading-tab" data-bs-toggle="tab" data-bs-target="#trading-config" type="button" role="tab">
                             <i class="bi bi-graph-up me-2"></i>Trading Config
                         </button>
-                        <button class="nav-link" id="refresh-tab" data-bs-toggle="tab" data-bs-target="#refresh-config" type="button" role="tab">
-                            <i class="bi bi-arrow-clockwise me-2"></i>Refresh Settings
-                        </button>
+                        <!-- Refresh Settings Tab Removed - On-demand mode only -->
                     </div>
                 </nav>
                 
@@ -216,182 +228,49 @@
                                                     </div>
                                                 </div>
                                             </div>
+                                            
+                                            <!-- Manual Refresh Controls -->
+                                            <div class="row g-3 mt-3">
+                                                <div class="col-12">
+                                                    <h6 class="mb-3">
+                                                        <i class="bi bi-arrow-clockwise text-info me-2"></i>
+                                                        Manual Data Refresh (On-Demand)
+                                                    </h6>
+                                                    <div class="row g-2">
+                                                        <div class="col-md-3">
+                                                            <button type="submit" name="refresh_trades" class="btn btn-outline-primary btn-sm w-100">
+                                                                <i class="bi bi-list-ul me-1"></i>Refresh Trades
+                                                            </button>
+                                                        </div>
+                                                        <div class="col-md-3">
+                                                            <button type="submit" name="refresh_pnl" class="btn btn-outline-success btn-sm w-100">
+                                                                <i class="bi bi-graph-up me-1"></i>Refresh P&L
+                                                            </button>
+                                                        </div>
+                                                        <div class="col-md-3">
+                                                            <button type="submit" name="refresh_option_chain" class="btn btn-outline-info btn-sm w-100">
+                                                                <i class="bi bi-grid me-1"></i>Refresh Options
+                                                            </button>
+                                                        </div>
+                                                        <div class="col-md-3">
+                                                            <button type="submit" name="clear_cache" class="btn btn-outline-warning btn-sm w-100">
+                                                                <i class="bi bi-trash me-1"></i>Clear Cache
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                    <small class="text-muted mt-2 d-block">
+                                                        <i class="bi bi-info-circle me-1"></i>
+                                                        Use these buttons to manually refresh data when needed instead of automatic background updates
+                                                    </small>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
                         
-                        <!-- Refresh Settings -->
-                        <div class="tab-pane fade" id="refresh-config" role="tabpanel">
-                            <div class="p-4">
-                                <div class="row g-4">
-                                    <!-- P&L Management Section -->
-                                    <div class="col-12">
-                                        <div class="setting-group">
-                                            <h6 class="setting-title">
-                                                <i class="bi bi-graph-up-arrow text-success me-2"></i>
-                                                Active Trades P&L Management
-                                            </h6>
-                                            <p class="setting-description">Real-time P&L updates for active trades (30-minute intervals)</p>
-                                            
-                                            <div class="row g-3">
-                                                <div class="col-md-8">
-                                                    <div class="d-flex align-items-center">
-                                                        {% if pnl_status.is_running %}
-                                                        <span class="badge bg-success me-3 px-3 py-2">
-                                                            <i class="bi bi-play-circle me-1"></i>P&L Updater Running
-                                                        </span>
-                                                        {% else %}
-                                                        <span class="badge bg-secondary me-3 px-3 py-2">
-                                                            <i class="bi bi-pause-circle me-1"></i>P&L Updater Stopped
-                                                        </span>
-                                                        {% endif %}
-                                                        
-                                                        {% if pnl_status.last_update %}
-                                                        <small class="text-muted">Last Update: {{ pnl_status.last_update|slice:":19" }}</small>
-                                                        {% endif %}
-                                                    </div>
-                                                    {% if pnl_status.market_open %}
-                                                    <small class="text-success">🟢 Market is open - Auto updates active</small>
-                                                    {% else %}
-                                                    <small class="text-warning">🟡 Market closed - Updates paused</small>
-                                                    {% endif %}
-                                                </div>
-                                                <div class="col-md-4">
-                                                    <div class="d-grid gap-2">
-                                                        <button type="submit" name="refresh_pnl" class="btn btn-info btn-sm">
-                                                            <i class="bi bi-arrow-clockwise me-1"></i>Force P&L Update
-                                                        </button>
-                                                        <button type="submit" name="toggle_pnl_updater" class="btn btn-outline-primary btn-sm">
-                                                            {% if pnl_status.is_running %}
-                                                            <i class="bi bi-pause-circle me-1"></i>Stop Auto Updates
-                                                            {% else %}
-                                                            <i class="bi bi-play-circle me-1"></i>Start Auto Updates
-                                                            {% endif %}
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <!-- Data Refresh Settings -->
-                                    <div class="col-12">
-                                        <div class="setting-group">
-                                            <h6 class="setting-title">
-                                                <i class="bi bi-arrow-clockwise text-primary me-2"></i>
-                                                Data Refresh Settings
-                                            </h6>
-                                            <p class="setting-description">Configure how often data is updated and refreshed</p>
-                                            
-                                            <div class="row g-3">
-                                                <div class="col-md-4">
-                                                    <label for="interval" class="form-label fw-bold">System Update</label>
-                                                    <select class="form-select" name="interval" id="interval">
-                                                        {% for choice in choices %}
-                                                        <option value="{{ choice }}" {% if settings.interval == choice %}selected{% endif %}>
-                                                            {{ choice }}
-                                                        </option>
-                                                        {% endfor %}
-                                                    </select>
-                                                    <small class="text-muted">General system update frequency</small>
-                                                </div>
-                                                <div class="col-md-4">
-                                                    <label for="dashboard_refresh_interval" class="form-label fw-bold">Dashboard Refresh</label>
-                                                    <select class="form-select" name="dashboard_refresh_interval" id="dashboard_refresh_interval">
-                                                        <option value="10sec" {% if settings.dashboard_refresh_interval == '10sec' %}selected{% endif %}>⚡ 10 Seconds (Fast)</option>
-                                                        <option value="30sec" {% if settings.dashboard_refresh_interval == '30sec' %}selected{% endif %}>🔄 30 Seconds (Medium)</option>
-                                                        <option value="1min" {% if settings.dashboard_refresh_interval == '1min' %}selected{% endif %}>🕐 1 Minute (Slow)</option>
-                                                        <option value="5min" {% if settings.dashboard_refresh_interval == '5min' %}selected{% endif %}>⏰ 5 Minutes (Manual)</option>
-                                                    </select>
-                                                    <small class="text-muted">Dashboard auto-refresh rate</small>
-                                                </div>
-                                                <div class="col-md-4">
-                                                    <label for="pnl_refresh_interval" class="form-label fw-bold">P&L Data Update</label>
-                                                    <select class="form-select" name="pnl_refresh_interval" id="pnl_refresh_interval">
-                                                        <option value="10sec" {% if settings.pnl_refresh_interval == '10sec' %}selected{% endif %}>⚡ 10 Seconds</option>
-                                                        <option value="30sec" {% if settings.pnl_refresh_interval == '30sec' %}selected{% endif %}>🔄 30 Seconds</option>
-                                                        <option value="1min" {% if settings.pnl_refresh_interval == '1min' %}selected{% endif %}>🕐 1 Minute</option>
-                                                        <option value="5min" {% if settings.pnl_refresh_interval == '5min' %}selected{% endif %}>⏰ 5 Minutes</option>
-                                                    </select>
-                                                    <small class="text-muted">P&L calculation frequency</small>
-                                                </div>
-                                                <div class="col-12">
-                                                    <div class="alert alert-info border-0 rounded-3">
-                                                        <div class="d-flex align-items-start">
-                                                            <i class="bi bi-info-circle me-2 mt-1"></i>
-                                                            <div>
-                                                                <strong>Refresh Rate Guide:</strong>
-                                                                <ul class="mb-0 mt-1">
-                                                                    <li><strong>10 Seconds:</strong> Real-time updates (recommended for active trading)</li>
-                                                                    <li><strong>30 Seconds:</strong> Balanced performance and data freshness</li>
-                                                                    <li><strong>1 Minute:</strong> Conservative refresh for stable performance</li>
-                                                                    <li><strong>Active trades P&L:</strong> Auto-updates every 30 minutes during market hours</li>
-                                                                </ul>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                
-                                                <!-- Real-Time Dashboard Controls -->
-                                                <div class="col-12">
-                                                    <div class="card bg-light border-0 rounded-3">
-                                                        <div class="card-body p-3">
-                                                            <h6 class="card-title mb-3">
-                                                                <i class="bi bi-speedometer2 text-success me-2"></i>
-                                                                Live Dashboard Controls
-                                                            </h6>
-                                                            <div class="row g-2">
-                                                                <div class="col-md-3">
-                                                                    <div class="d-grid">
-                                                                        <button type="button" id="refresh-10sec" class="btn btn-success btn-sm">
-                                                                            <i class="bi bi-lightning me-1"></i>10 Sec
-                                                                        </button>
-                                                                    </div>
-                                                                </div>
-                                                                <div class="col-md-3">
-                                                                    <div class="d-grid">
-                                                                        <button type="button" id="refresh-30sec" class="btn btn-primary btn-sm">
-                                                                            <i class="bi bi-arrow-clockwise me-1"></i>30 Sec
-                                                                        </button>
-                                                                    </div>
-                                                                </div>
-                                                                <div class="col-md-3">
-                                                                    <div class="d-grid">
-                                                                        <button type="button" id="refresh-1min" class="btn btn-info btn-sm">
-                                                                            <i class="bi bi-clock me-1"></i>1 Min
-                                                                        </button>
-                                                                    </div>
-                                                                </div>
-                                                                <div class="col-md-3">
-                                                                    <div class="d-grid">
-                                                                        <button type="button" id="refresh-stop" class="btn btn-outline-secondary btn-sm">
-                                                                            <i class="bi bi-pause me-1"></i>Stop
-                                                                        </button>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                            <small class="text-muted mt-2 d-block">Quick controls to change dashboard refresh rate instantly</small>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <div class="col-12">
-                                                    <div class="form-check form-switch">
-                                                        <input class="form-check-input" type="checkbox" name="enable_eod_summary" id="enable_eod_summary"
-                                                               {% if settings.enable_eod_summary %}checked{% endif %}>
-                                                        <label class="form-check-label" for="enable_eod_summary">
-                                                            <strong>Enable End-of-Day Summary</strong>
-                                                            <br><small class="text-muted">Generate daily trading summary reports at market close</small>
-                                                        </label>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                        <!-- Refresh Settings Tab Removed - On-demand mode only -->
                     </div>
                     
                     <!-- Save Button -->
@@ -800,4 +679,13 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 </script>
+
+<style>
+/* Card hover effect */
+.card.bg-light:hover {
+    box-shadow: 0 8px 25px rgba(0,0,0,0.1) !important;
+    transition: all 0.3s ease;
+}
+</style>
+
 {% endblock %}

@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Page</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-align: center;
+            padding: 50px;
+            margin: 0;
+        }
+        .test-container {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 30px;
+            border-radius: 10px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+        }
+        p {
+            font-size: 1.2rem;
+            line-height: 1.6;
+        }
+        .status {
+            background: #28a745;
+            padding: 10px 20px;
+            border-radius: 5px;
+            display: inline-block;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🎯 FiFTO Dashboard Test</h1>
+        <p>If you can see this page, the VS Code Simple Browser is working correctly!</p>
+        <div class="status">✅ Browser Display: WORKING</div>
+        <br><br>
+        <p>Now try going back to: <br><strong>http://127.0.0.1:8001/</strong></p>
+        <p>or <strong>http://localhost:8001</strong></p>
+    </div>
+    
+    <script>
+        // Simple JavaScript test
+        console.log('✅ JavaScript is working in VS Code Simple Browser');
+        
+        // Add some dynamic content
+        setTimeout(() => {
+            const status = document.querySelector('.status');
+            status.innerHTML = '✅ Browser + JavaScript: WORKING';
+            status.style.background = '#17a2b8';
+        }, 1000);
+    </script>
+</body>
+</html>

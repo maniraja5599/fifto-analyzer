@@ -5,14 +5,16 @@ from . import views
 from . import api_views
 
 urlpatterns = [
-    # Dashboard as default page
-    path('', views.dashboard_view, name='dashboard'),
+    # Analysis page as default (dashboard removed)
+    path('', views.index, name='index'),
     
-    # Analysis page
-    path('analysis/', views.index, name='index'),
+    # Analysis page (also accessible via /analysis/)
+    path('analysis/', views.index, name='analysis'),
 
     # API endpoints
     path('api/market-data/', api_views.market_data_api, name='market_data_api'),
+    path('api/enhanced-market-data/', api_views.enhanced_market_data_api, name='enhanced_market_data_api'),
+    path('api/test-data-sources/', api_views.test_data_sources_api, name='test_data_sources_api'),
     path('api/market-status/', api_views.market_status_api, name='market_status_api'),
     path('api/historical-data/', api_views.historical_data_api, name='historical_data_api'),
 
@@ -28,9 +30,16 @@ urlpatterns = [
     path('automation/', views.automation_view, name='automation'),
     path('test_automation/', views.test_automation_view, name='test_automation'),
     path('settings/', views.settings_view, name='settings'),
+    path('nse-test/', views.nse_test_view, name='nse_test'),
     path('test_telegram/', views.test_telegram, name='test_telegram'),
-    path('update_refresh_rate/', views.update_refresh_rate, name='update_refresh_rate'),
 
     # Action for closing a specific trade
     path('close_trade/<str:trade_id>/', views.close_trade, name='close_trade'),
+    
+    # Option Chain and Basket Orders
+    path('option_chain/', views.option_chain_view, name='option_chain'),
+    path('set_option_chain_refresh/', views.set_option_chain_refresh, name='set_option_chain_refresh'),
+    path('api/create_basket/', views.create_basket_order, name='create_basket_order'),
+    path('basket_orders/', views.basket_orders_view, name='basket_orders'),
+    path('api/clear_all_baskets/', views.clear_all_baskets, name='clear_all_baskets'),
 ]

@@ -1,34 +1,85 @@
 """
-API endpoints for market data
+API endpoints for market data - Enhanced with NSE integration
 """
+import os
+import json
+from datetime import datetime, time
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
-from .market_data_v2 import get_market_data, get_market_status  # uses unified dhan_api internally now
+from django.conf import settings
+from .market_data import get_market_data, get_market_status  # uses unified dhan_api internally now
 from .historical_data import historical_fetcher
+
+# Import enhanced market data with NSE support
+try:
+    from .market_data_enhanced import get_enhanced_market_data, test_data_sources
+    ENHANCED_DATA_AVAILABLE = True
+except ImportError:
+    ENHANCED_DATA_AVAILABLE = False
+
+# Import yfinance market service
+try:
+    from django_market_service import get_django_market_data, get_django_historical_data
+    YFINANCE_AVAILABLE = True
+except ImportError:
+    YFINANCE_AVAILABLE = False
+    print("⚠️ YFinance service not available, falling back to DhanHQ")
 
 @csrf_exempt
 @require_http_methods(["GET"])
 def market_data_api(request):
     """
-    API endpoint to get real-time market data with cache-busting headers
+    API endpoint to get real-time market data from live market service
     """
     try:
-        market_data = get_market_data()
-        market_status = get_market_status()
+        # Read directly from the live market service cache
+        cache_file = os.path.join(settings.BASE_DIR, 'market_data_cache.json')
         
-        response_data = {
-            'success': True,
-            'market_status': market_status,
-            'market_data': {
-                'nifty': market_data.get('NIFTY', {}),
-                'banknifty': market_data.get('BANKNIFTY', {}),
-                'sensex': market_data.get('SENSEX', {}),
-                'vix': market_data.get('VIX', {})
-            },
-            'timestamp': market_data.get('NIFTY', {}).get('last_updated', ''),
-            'source': 'DhanHQ API v2'
-        }
+        if os.path.exists(cache_file):
+            with open(cache_file, 'r') as f:
+                cache_data = json.load(f)
+                
+            # Extract market data
+            market_data = {
+                'NIFTY': cache_data.get('NIFTY', {}),
+                'BANKNIFTY': cache_data.get('BANKNIFTY', {}),
+                'SENSEX': cache_data.get('SENSEX', {}),
+                'VIX': cache_data.get('VIX', {})
+            }
+            
+            # Check market hours
+            now = datetime.now().time()
+            market_open = time(9, 15)  # 9:15 AM
+            market_close = time(15, 30)  # 3:30 PM
+            is_market_open = market_open <= now <= market_close
+            
+            response_data = {
+                'success': True,
+                'market_status': {
+                    'is_open': is_market_open,
+                    'status': 'LIVE' if is_market_open else 'CLOSED'
+                },
+                'market_data': market_data,
+                'timestamp': cache_data.get('timestamp', ''),
+                'source': cache_data.get('source', 'live_market_service'),
+                'cache_status': 'active'
+            }
+        else:
+            # Fallback data if cache doesn't exist
+            response_data = {
+                'success': True,
+                'market_status': {'is_open': False, 'status': 'CLOSED'},
+                'market_data': {
+                    'NIFTY': {'current_price': 24500.0, 'change': 0, 'change_percent': 0},
+                    'BANKNIFTY': {'current_price': 51000.0, 'change': 0, 'change_percent': 0},
+                    'SENSEX': {'current_price': 80000.0, 'change': 0, 'change_percent': 0},
+                    'VIX': {'current_price': 15.0, 'change': 0, 'change_percent': 0}
+                },
+                'timestamp': datetime.now().isoformat(),
+                'source': 'fallback',
+                'cache_status': 'no_cache'
+            }
         
         response = JsonResponse(response_data)
         
@@ -42,7 +93,13 @@ def market_data_api(request):
     except Exception as e:
         response = JsonResponse({
             'success': False,
-            'error': str(e)
+            'error': str(e),
+            'market_data': {
+                'NIFTY': {'current_price': 0, 'change': 0, 'change_percent': 0},
+                'BANKNIFTY': {'current_price': 0, 'change': 0, 'change_percent': 0},
+                'SENSEX': {'current_price': 0, 'change': 0, 'change_percent': 0},
+                'VIX': {'current_price': 0, 'change': 0, 'change_percent': 0}
+            }
         }, status=500)
         
         # Add cache-busting headers even for error responses
@@ -76,29 +133,27 @@ def market_status_api(request):
 @require_http_methods(["GET"])
 def historical_data_api(request):
     """
-    API endpoint to get historical market data for charts
+    API endpoint to get historical market data for charts using yfinance
     """
     try:
         # Get parameters
-        symbols = request.GET.get('symbols', 'NIFTY,BANKNIFTY,SENSEX').split(',')
-        period = request.GET.get('period', '1d')  # 1d, 5d, 1mo, etc.
-        interval = request.GET.get('interval', '5m')  # 1m, 5m, 15m, etc.
+        symbol = request.GET.get('symbol', 'NIFTY')
+        period = request.GET.get('period', '1mo')  # 1d, 5d, 1mo, 3mo, etc.
         
-        # Fetch historical data
-        historical_data = historical_fetcher.get_multiple_historical(
-            symbols=symbols,
-            period=period, 
-            interval=interval
-        )
+        if YFINANCE_AVAILABLE:
+            # Get historical data from yfinance service
+            historical_data = get_django_historical_data(symbol, period)
+        else:
+            # Fallback to empty data for now
+            historical_data = []
         
         response_data = {
             'success': True,
-            'data': historical_data,
+            'data': {symbol: historical_data},
             'period': period,
-            'interval': interval,
-            'symbols': symbols,
-            'timestamp': historical_data.get(symbols[0], {}).get('last_updated', '') if historical_data else '',
-            'source': 'yfinance + DhanHQ fallback'
+            'symbol': symbol,
+            'timestamp': historical_data[-1].get('Date', '') if historical_data else '',
+            'source': 'yfinance' if YFINANCE_AVAILABLE else 'fallback'
         }
         
         response = JsonResponse(response_data)
@@ -118,6 +173,125 @@ def historical_data_api(request):
         }, status=500)
         
         # Add cache-busting headers even for error responses
+        response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        response['Pragma'] = 'no-cache'
+        response['Expires'] = '0'
+        
+        return response
+
+@csrf_exempt
+@require_http_methods(["GET"])
+def enhanced_market_data_api(request):
+    """
+    Enhanced API endpoint with multi-source market data (DhanHQ + NSE fallback)
+    Supports source selection and testing
+    """
+    try:
+        # Get optional source parameter
+        force_source = request.GET.get('source', None)
+        
+        if ENHANCED_DATA_AVAILABLE:
+            # Use enhanced market data with NSE fallback
+            market_data = get_enhanced_market_data(force_source)
+        else:
+            # Fallback to original market data
+            market_data = get_market_data()
+        
+        # Check market hours
+        now = datetime.now().time()
+        market_open = time(9, 15)  # 9:15 AM
+        market_close = time(15, 30)  # 3:30 PM
+        is_market_open = market_open <= now <= market_close
+        
+        response_data = {
+            'success': True,
+            'market_status': {
+                'is_open': is_market_open,
+                'status': 'LIVE' if is_market_open else 'CLOSED'
+            },
+            'market_data': {
+                'NIFTY': {
+                    'current_price': market_data.get('NIFTY', {}).get('price', 0),
+                    'change': market_data.get('NIFTY', {}).get('change', 0),
+                    'change_percent': market_data.get('NIFTY', {}).get('change_percent', 0),
+                    'source': market_data.get('NIFTY', {}).get('source', 'unknown'),
+                    'last_updated': market_data.get('NIFTY', {}).get('last_updated', '')
+                },
+                'BANKNIFTY': {
+                    'current_price': market_data.get('BANKNIFTY', {}).get('price', 0),
+                    'change': market_data.get('BANKNIFTY', {}).get('change', 0),
+                    'change_percent': market_data.get('BANKNIFTY', {}).get('change_percent', 0),
+                    'source': market_data.get('BANKNIFTY', {}).get('source', 'unknown'),
+                    'last_updated': market_data.get('BANKNIFTY', {}).get('last_updated', '')
+                }
+            },
+            'timestamp': datetime.now().isoformat(),
+            'data_sources_available': ENHANCED_DATA_AVAILABLE,
+            'forced_source': force_source
+        }
+        
+        response = JsonResponse(response_data)
+        
+        # Add cache-busting headers
+        response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        response['Pragma'] = 'no-cache'
+        response['Expires'] = '0'
+        
+        return response
+        
+    except Exception as e:
+        response = JsonResponse({
+            'success': False,
+            'error': str(e),
+            'market_data': {
+                'NIFTY': {'current_price': 0, 'change': 0, 'change_percent': 0, 'source': 'error'},
+                'BANKNIFTY': {'current_price': 0, 'change': 0, 'change_percent': 0, 'source': 'error'}
+            },
+            'timestamp': datetime.now().isoformat()
+        }, status=500)
+        
+        # Add cache-busting headers
+        response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        response['Pragma'] = 'no-cache'
+        response['Expires'] = '0'
+        
+        return response
+
+@csrf_exempt
+@require_http_methods(["GET"])
+def test_data_sources_api(request):
+    """
+    API endpoint to test all available data sources
+    """
+    try:
+        if ENHANCED_DATA_AVAILABLE:
+            test_results = test_data_sources()
+        else:
+            test_results = {'error': 'Enhanced data sources not available'}
+        
+        response_data = {
+            'success': True,
+            'test_results': test_results,
+            'timestamp': datetime.now().isoformat()
+        }
+        
+        response = JsonResponse(response_data)
+        
+        # Add cache-busting headers
+        response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        response['Pragma'] = 'no-cache'
+        response['Expires'] = '0'
+        
+        return response
+        
+    except Exception as e:
+        response = JsonResponse({
+            'success': False,
+            'error': str(e),
+            'timestamp': datetime.now().isoformat()
+        }, status=500)
+        
+        # Add cache-busting headers
         response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
         response['Pragma'] = 'no-cache'
         response['Expires'] = '0'

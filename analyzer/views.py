@@ -13,7 +13,7 @@ from datetime import datetime
 from collections import defaultdict
 from . import utils
 from .utils import generate_analysis, load_settings, save_settings
-from .pnl_updater import pnl_updater
+from .pnl_updater import pnl_updater, PnLUpdater
 
 def index(request):
     # Handle session clearing
@@ -29,8 +29,8 @@ def index(request):
     expiries = []
     
     try:
-        if chain and 'records' in chain and 'expiryDates' in chain['records']:
-            all_expiries = chain['records']['expiryDates']
+        if chain and 'expiryDates' in chain:
+            all_expiries = chain['expiryDates']
             # Filter future dates only
             from datetime import datetime as dt, timedelta
             current_date = dt.now().date()
@@ -38,11 +38,17 @@ def index(request):
             
             for expiry_str in all_expiries:
                 try:
-                    expiry_date = dt.strptime(expiry_str, "%d-%b-%Y").date()
+                    expiry_date = dt.strptime(expiry_str, "%Y-%m-%d").date()
                     if expiry_date >= current_date:
-                        expiries.append(expiry_str)
+                        expiries.append(expiry_date.strftime("%d-%b-%Y"))
                 except ValueError:
-                    continue
+                    # Try alternative format
+                    try:
+                        expiry_date = dt.strptime(expiry_str, "%d-%b-%Y").date()
+                        if expiry_date >= current_date:
+                            expiries.append(expiry_str)
+                    except ValueError:
+                        continue
                     
             # Sort by date
             expiries.sort(key=lambda x: dt.strptime(x, "%d-%b-%Y"))
@@ -72,274 +78,6 @@ def index(request):
         'expiry_count': len(expiries)
     }
     return render(request, 'analyzer/index.html', context)
-
-def dashboard_view(request):
-    """Modern dashboard with comprehensive portfolio analytics and real market data"""
-    try:
-        from datetime import datetime, date, timedelta
-        import random
-        from .market_data_v2 import get_market_data as fetch_real_market_data, get_market_status
-        
-        # Get current time and date
-        current_time = datetime.now()
-        
-        # Determine time greeting
-        hour = current_time.hour
-        if hour < 12:
-            time_greeting = "Morning"
-        elif hour < 17:
-            time_greeting = "Afternoon"
-        else:
-            time_greeting = "Evening"
-        
-        # Get real market status and data
-        market_status_data = get_market_status()
-        market_open = market_status_data['is_open']
-        market_status = market_status_data['status']
-        
-        # Get real market data from yfinance
-        real_market_data = fetch_real_market_data()
-        
-        # Format market data for template
-        market_data = {
-            'nifty': {
-                'name': 'NIFTY 50',
-                'current': real_market_data.get('NIFTY', {}).get('price', 0),
-                'change': real_market_data.get('NIFTY', {}).get('change', 0),
-                'change_percent': real_market_data.get('NIFTY', {}).get('change_percent', 0),
-                'status': real_market_data.get('NIFTY', {}).get('status', 'neutral')
-            },
-            'banknifty': {
-                'name': 'BANK NIFTY',
-                'current': real_market_data.get('BANKNIFTY', {}).get('price', 0),
-                'change': real_market_data.get('BANKNIFTY', {}).get('change', 0),
-                'change_percent': real_market_data.get('BANKNIFTY', {}).get('change_percent', 0),
-                'status': real_market_data.get('BANKNIFTY', {}).get('status', 'neutral')
-            },
-            'sensex': {
-                'name': 'SENSEX',
-                'current': real_market_data.get('SENSEX', {}).get('price', 0),
-                'change': real_market_data.get('SENSEX', {}).get('change', 0),
-                'change_percent': real_market_data.get('SENSEX', {}).get('change_percent', 0),
-                'status': real_market_data.get('SENSEX', {}).get('status', 'neutral')
-            },
-            'vix': {
-                'name': 'INDIA VIX',
-                'current': real_market_data.get('VIX', {}).get('price', 0),
-                'change': real_market_data.get('VIX', {}).get('change', 0),
-                'change_percent': real_market_data.get('VIX', {}).get('change_percent', 0),
-                'status': real_market_data.get('VIX', {}).get('status', 'neutral')
-            }
-        }
-        
-        # Get all trades for analysis
-        trades = utils.load_trades()
-        active_trades = [t for t in trades if t.get('status') == 'Running']
-        closed_trades = [t for t in trades if t.get('status') in ['Target', 'Stoploss', 'Manually Closed', 'Auto Closed - Target Hit', 'Auto Closed - Stoploss Hit']]
-        
-        # Calculate portfolio metrics
-        total_pnl = sum(float(t.get('final_pnl', 0)) for t in closed_trades) + sum(float(t.get('pnl', 0)) for t in active_trades)
-        
-        # Today's trades
-        today = date.today()
-        today_trades = []
-        
-        for t in trades:
-            try:
-                # Try to parse the start_time safely
-                start_time_str = t.get('start_time', '2023-01-01 00:00:00')
-                # Handle different possible formats
-                if len(start_time_str) == 16:  # Format: 2023-01-01 00:00
-                    start_time_str += ':00'  # Add seconds
-                trade_date = datetime.fromisoformat(start_time_str).date()
-                if trade_date == today:
-                    today_trades.append(t)
-            except (ValueError, TypeError, AttributeError):
-                # Skip trades with invalid dates
-                continue
-                
-        trades_opened_today = len([t for t in today_trades if t.get('status') == 'Running'])
-        trades_closed_today = len([t for t in today_trades if t.get('status') in ['Target', 'Stoploss', 'Manually Closed']])
-        targets_hit_today = len([t for t in today_trades if 'Target' in t.get('status', '')])
-        stoploss_hit_today = len([t for t in today_trades if 'Stoploss' in t.get('status', '')])
-        
-        # Calculate other metrics
-        profitable_trades = [t for t in closed_trades if float(t.get('final_pnl', 0)) > 0]
-        loss_trades = [t for t in closed_trades if float(t.get('final_pnl', 0)) < 0]
-        
-        win_rate = (len(profitable_trades) / len(closed_trades) * 100) if closed_trades else 0
-        
-        total_profit = sum(float(t.get('final_pnl', 0)) for t in profitable_trades)
-        total_loss = abs(sum(float(t.get('final_pnl', 0)) for t in loss_trades))
-        
-        # Capital calculations
-        capital_deployed = sum(float(t.get('initial_premium', 0)) * utils.get_lot_size(t.get('instrument', 'NIFTY')) for t in active_trades)
-        
-        # Recent trades (last 5) with safe date formatting
-        recent_trades_raw = sorted(trades, key=lambda x: x.get('start_time', ''), reverse=True)[:5]
-        recent_trades = []
-        
-        for trade in recent_trades_raw:
-            try:
-                start_time_str = trade.get('start_time', '2023-01-01 00:00:00')
-                if len(start_time_str) == 16:  # Format: 2023-01-01 00:00
-                    start_time_str += ':00'  # Add seconds
-                trade_datetime = datetime.fromisoformat(start_time_str)
-                
-                # Create a copy of the trade with formatted datetime
-                formatted_trade = trade.copy()
-                formatted_trade['start_time_formatted'] = trade_datetime.strftime('%Y-%m-%d %H:%M')
-                recent_trades.append(formatted_trade)
-            except (ValueError, TypeError, AttributeError):
-                # If date parsing fails, use original trade with raw start_time
-                recent_trades.append(trade)
-        
-        # Average trade duration (in hours)
-        completed_trades = [t for t in trades if t.get('closed_date')]
-        avg_duration = "2.5 hrs"  # Placeholder
-        
-        # Best trade
-        best_trade = max([float(t.get('final_pnl', 0)) for t in closed_trades], default=0)
-        
-        # Weekly and monthly P&L with safe date parsing
-        week_ago = datetime.now() - timedelta(days=7)
-        month_ago = datetime.now() - timedelta(days=30)
-        
-        weekly_trades = []
-        monthly_trades = []
-        
-        for t in trades:
-            try:
-                start_time_str = t.get('start_time', '2023-01-01 00:00:00')
-                if len(start_time_str) == 16:  # Format: 2023-01-01 00:00
-                    start_time_str += ':00'  # Add seconds
-                trade_datetime = datetime.fromisoformat(start_time_str)
-                
-                if trade_datetime >= week_ago:
-                    weekly_trades.append(t)
-                if trade_datetime >= month_ago:
-                    monthly_trades.append(t)
-            except (ValueError, TypeError, AttributeError):
-                continue
-        
-        weekly_pnl = sum(float(t.get('final_pnl', 0)) for t in weekly_trades if t.get('final_pnl'))
-        monthly_pnl = sum(float(t.get('final_pnl', 0)) for t in monthly_trades if t.get('final_pnl'))
-        
-        # Market sentiment based on real VIX data
-        vix_level = real_market_data.get('VIX', {}).get('price', 15.0)
-        if vix_level < 15:
-            sentiment = {'class': 'bullish', 'label': 'Bullish', 'icon': 'arrow-up-circle'}
-        elif vix_level > 20:
-            sentiment = {'class': 'bearish', 'label': 'Bearish', 'icon': 'arrow-down-circle'}
-        else:
-            sentiment = {'class': 'neutral', 'label': 'Neutral', 'icon': 'dash-circle'}
-        
-        # Calculate today's P&L
-        today_pnl = sum(float(t.get('pnl', 0)) for t in today_trades)
-        
-        # Daily goal progress (assuming ₹5000 daily goal)
-        daily_goal = 5000
-        daily_progress = min((today_pnl / daily_goal * 100), 100) if daily_goal > 0 else 0
-        
-        context = {
-            'current_time': current_time,
-            'time_greeting': time_greeting,
-            'market_open': market_open,
-            'market_status': market_status,
-            'market_data': market_data,
-            'recent_trades': recent_trades,
-            'portfolio': {
-                'total_pnl': total_pnl,
-                'pnl_change': random.uniform(-5, 15),  # Mock daily change
-                'active_trades': len(active_trades),
-                'avg_duration': avg_duration,
-                'win_rate': win_rate,
-                'winning_trades': len(profitable_trades),
-                'total_closed': len(closed_trades),
-                'capital_deployed': capital_deployed,
-                'capital_utilization': (capital_deployed / 100000 * 100) if capital_deployed > 0 else 0,  # Assuming ₹1L capital
-                'today_pnl': today_pnl,
-                'trades_opened_today': trades_opened_today,
-                'trades_closed_today': trades_closed_today,
-                'targets_hit_today': targets_hit_today,
-                'stoploss_hit_today': stoploss_hit_today,
-                'daily_progress': daily_progress,
-                'daily_goal': daily_goal,
-                'profitable_count': len(profitable_trades),
-                'loss_count': len(loss_trades),
-                'running_count': len(active_trades),
-                'total_profit': total_profit,
-                'total_loss': total_loss,
-                'running_value': capital_deployed,
-                'avg_trade_duration': avg_duration,
-                'best_trade': f"₹{best_trade:.2f}",
-                'weekly_pnl': f"₹{weekly_pnl:.2f}",
-                'monthly_pnl': f"₹{monthly_pnl:.2f}"
-            },
-            'market_sentiment': {
-                **sentiment,
-                'volatility': f"{vix_level:.1f}",
-                'option_activity': random.choice(['High', 'Medium', 'Low']),
-                'put_call_ratio': f"{random.uniform(0.8, 1.5):.2f}",
-                'trend': random.choice(['Bullish', 'Bearish', 'Sideways'])
-            }
-        }
-        
-    except Exception as e:
-        # Fallback data in case of any errors
-        print(f"Dashboard error: {e}")
-        from datetime import datetime
-        context = {
-            'current_time': datetime.now(),
-            'time_greeting': "Morning",
-            'market_open': False,
-            'market_status': "CLOSED",
-            'market_data': {
-                'nifty': {'name': 'NIFTY 50', 'current': 19800, 'change': 150, 'change_percent': 0.76},
-                'banknifty': {'name': 'BANK NIFTY', 'current': 45200, 'change': -200, 'change_percent': -0.44},
-                'sensex': {'name': 'SENSEX', 'current': 66500, 'change': 300, 'change_percent': 0.45}
-            },
-            'recent_trades': [],
-            'portfolio': {
-                'total_pnl': 0,
-                'pnl_change': 0,
-                'active_trades': 0,
-                'avg_duration': "0 hrs",
-                'win_rate': 0,
-                'winning_trades': 0,
-                'total_closed': 0,
-                'capital_deployed': 0,
-                'capital_utilization': 0,
-                'today_pnl': 0,
-                'trades_opened_today': 0,
-                'trades_closed_today': 0,
-                'targets_hit_today': 0,
-                'stoploss_hit_today': 0,
-                'daily_progress': 0,
-                'daily_goal': 5000,
-                'profitable_count': 0,
-                'loss_count': 0,
-                'running_count': 0,
-                'total_profit': 0,
-                'total_loss': 0,
-                'running_value': 0,
-                'avg_trade_duration': "0 hrs",
-                'best_trade': "₹0.00",
-                'weekly_pnl': "₹0.00",
-                'monthly_pnl': "₹0.00"
-            },
-            'market_sentiment': {
-                'class': 'neutral',
-                'label': 'Neutral',
-                'icon': 'dash-circle',
-                'volatility': '15.0',
-                'option_activity': 'Medium',
-                'put_call_ratio': '1.25',
-                'trend': 'Sideways'
-            }
-        }
-    
-    return render(request, 'analyzer/dashboard.html', context)
 
 def generate_and_show_analysis(request):
     # Create a debug log file
@@ -951,6 +689,20 @@ def settings_view(request):
             except Exception as e:
                 messages.error(request, f'❌ P&L updater error: {str(e)}')
             return redirect('settings')
+            
+        # Handle option chain refresh settings
+        if 'set_option_chain_refresh' in request.POST:
+            try:
+                interval_minutes = int(request.POST.get('option_chain_interval', 0))
+                pnl_updater.set_option_chain_refresh_interval(interval_minutes)
+                
+                if interval_minutes == 0:
+                    messages.info(request, '🛑 Option chain refresh disabled')
+                else:
+                    messages.success(request, f'✅ Option chain refresh set to {interval_minutes} minute{"s" if interval_minutes != 1 else ""}')
+            except Exception as e:
+                messages.error(request, f'❌ Option chain refresh error: {str(e)}')
+            return redirect('settings')
         
         # Get form values
         interval = request.POST.get('interval', '15 Mins')
@@ -959,9 +711,9 @@ def settings_view(request):
         
         # Get new data refresh and auto-generation settings
         pnl_refresh_interval = request.POST.get('pnl_refresh_interval', '10sec')
-        dashboard_refresh_interval = request.POST.get('dashboard_refresh_interval', '10sec')
         telegram_alert_interval = request.POST.get('telegram_alert_interval', '15min')
         enable_eod_summary = 'enable_eod_summary' in request.POST
+        option_chain_refresh_interval = request.POST.get('option_chain_refresh_interval', '1min')
         
         # Get alert preferences
         enable_target_alerts = 'enable_target_alerts' in request.POST
@@ -985,9 +737,9 @@ def settings_view(request):
             
             # Data refresh settings
             'pnl_refresh_interval': pnl_refresh_interval,
-            'dashboard_refresh_interval': dashboard_refresh_interval,
             'telegram_alert_interval': telegram_alert_interval,
             'enable_eod_summary': enable_eod_summary,
+            'option_chain_refresh_interval': option_chain_refresh_interval,
             
             # Alert preferences
             'enable_target_alerts': enable_target_alerts,
@@ -1066,44 +818,6 @@ def test_telegram(request):
         return JsonResponse({
             'success': False,
             'error': f'Unexpected error: {str(e)}'
-        })
-
-
-@require_http_methods(["POST"])
-def update_refresh_rate(request):
-    """Update dashboard refresh rate in real-time."""
-    try:
-        data = json.loads(request.body)
-        refresh_rate = data.get('refresh_rate', '10sec')
-        
-        # Validate refresh rate
-        valid_rates = ['10sec', '30sec', '1min', '5min', 'stop']
-        if refresh_rate not in valid_rates:
-            return JsonResponse({
-                'success': False,
-                'error': 'Invalid refresh rate'
-            })
-        
-        # Load and update settings
-        current_settings = utils.load_settings()
-        current_settings['dashboard_refresh_interval'] = refresh_rate
-        utils.save_settings(current_settings)
-        
-        return JsonResponse({
-            'success': True,
-            'message': f'Dashboard refresh rate updated to {refresh_rate}',
-            'refresh_rate': refresh_rate
-        })
-        
-    except json.JSONDecodeError:
-        return JsonResponse({
-            'success': False,
-            'error': 'Invalid JSON data'
-        })
-    except Exception as e:
-        return JsonResponse({
-            'success': False,
-            'error': str(e)
         })
 
 
@@ -1648,3 +1362,266 @@ def automation_multiple_view(request):
         'weekdays': weekdays
     }
     return render(request, 'analyzer/automation_multiple.html', context)
+
+
+def option_chain_view(request):
+    """
+    Option Chain view for NIFTY and BANKNIFTY with basket order functionality
+    """
+    instrument = request.GET.get('instrument', 'NIFTY')
+    expiry = request.GET.get('expiry', None)
+    
+    try:
+        # Get DhanHQ option chain data
+        from .dhan_api import get_dhan_option_chain
+        option_chain_data = get_dhan_option_chain(instrument)
+        
+        # Initialize context with defaults
+        context = {
+            'instrument': instrument,
+            'instruments': ['NIFTY', 'BANKNIFTY'],
+            'option_chain': None,
+            'expiry_dates': [],
+            'current_expiry': expiry,
+            'underlying_price': 0,
+            'strikes': [],
+            'symbol': instrument,
+            'error_message': None,
+            'option_chain_refresh_status': get_option_chain_refresh_status()
+        }
+        
+        if option_chain_data and 'data' in option_chain_data:
+            data = option_chain_data['data']
+            underlying_price = data.get('last_price', 0)
+            strikes_dict = data.get('oc', {})
+            expiry_dates = option_chain_data.get('expiryDates', [])
+            
+            # Set current expiry
+            if not expiry and expiry_dates:
+                expiry = expiry_dates[0]
+                context['current_expiry'] = expiry
+            
+            # Process strikes data for display
+            strikes_data = []
+            for strike_str, strike_data in strikes_dict.items():
+                try:
+                    strike = float(strike_str)
+                    ce_data = strike_data.get('ce', {})
+                    pe_data = strike_data.get('pe', {})
+                    
+                    # Create CE and PE objects to match template expectations
+                    ce_obj = {
+                        'ltp': ce_data.get('last_price', 0),
+                        'change': ce_data.get('day_change', 0),
+                        'oi': ce_data.get('oi', 0),
+                        'volume': ce_data.get('volume', 0),
+                        'iv': round(ce_data.get('implied_volatility', 0), 2),
+                        'bid': ce_data.get('top_bid_price', 0),
+                        'ask': ce_data.get('top_ask_price', 0),
+                    }
+                    
+                    pe_obj = {
+                        'ltp': pe_data.get('last_price', 0),
+                        'change': pe_data.get('day_change', 0),
+                        'oi': pe_data.get('oi', 0),
+                        'volume': pe_data.get('volume', 0),
+                        'iv': round(pe_data.get('implied_volatility', 0), 2),
+                        'bid': pe_data.get('top_bid_price', 0),
+                        'ask': pe_data.get('top_ask_price', 0),
+                    }
+                    
+                    strike_obj = {
+                        'strike_price': int(strike),
+                        'CE': type('obj', (object,), ce_obj),
+                        'PE': type('obj', (object,), pe_obj),
+                        'has_max_oi': False  # Will be calculated later
+                    }
+                    
+                    strikes_data.append(strike_obj)
+                except (ValueError, TypeError):
+                    continue
+            
+            # Sort by strike price and filter around current price
+            strikes_data.sort(key=lambda x: x['strike_price'])
+            
+            # Filter strikes around current price (±1000 points for more data)
+            if underlying_price > 0:
+                min_strike = max(10000, underlying_price - 1000)
+                max_strike = min(50000, underlying_price + 1000)
+                strikes_data = [s for s in strikes_data if min_strike <= s['strike_price'] <= max_strike]
+            
+            # Calculate max OI for highlighting
+            if strikes_data:
+                max_ce_oi = max(s['CE'].oi for s in strikes_data)
+                max_pe_oi = max(s['PE'].oi for s in strikes_data)
+                
+                for strike_obj in strikes_data:
+                    if strike_obj['CE'].oi == max_ce_oi or strike_obj['PE'].oi == max_pe_oi:
+                        strike_obj['has_max_oi'] = True
+            
+            context.update({
+                'option_chain': option_chain_data,
+                'expiry_dates': expiry_dates[:10],  # First 10 expiries
+                'underlying_price': underlying_price,
+                'strikes': strikes_data[:50],  # First 50 relevant strikes for more data
+                'symbol': instrument,  # Add symbol for JavaScript
+            })
+            
+            print(f"✅ Context updated successfully with {len(strikes_data[:50])} strikes")
+            
+            # Debug logging
+            print(f"🔍 Option Chain Debug - Symbol: {instrument}, Strikes Count: {len(strikes_data[:50])}")
+            if strikes_data and len(strikes_data) > 0:
+                first_strike = strikes_data[0]
+                print(f"📊 First strike sample: Strike={first_strike['strike_price']}")
+                print(f"📊 CE LTP={first_strike.get('CE', {}).get('ltp', 'N/A')}, PE LTP={first_strike.get('PE', {}).get('ltp', 'N/A')}")
+                print(f"📦 Template context keys: instrument={instrument}, current_expiry={expiry}, strikes count={len(strikes_data[:50])}")
+            else:
+                print("⚠️  No strikes data found!")
+            
+            print(f"🔵 End of successful processing block")
+            
+        else:
+            print("❌ Entering ELSE clause - option chain data failed")
+            context['error_message'] = f"Could not load option chain data for {instrument}"
+            
+    except Exception as e:
+        print(f"❌ Exception occurred: {str(e)}")
+        # Only override context if it doesn't have valid data
+        if 'strikes' not in context or len(context.get('strikes', [])) == 0:
+            context = {
+                'instrument': instrument,
+                'instruments': ['NIFTY', 'BANKNIFTY'],
+                'option_chain': None,
+                'expiry_dates': [],
+                'current_expiry': expiry,
+                'underlying_price': 0,
+                'strikes': [],
+                'symbol': instrument,
+                'error_message': f"Error loading option chain: {str(e)}"
+            }
+        else:
+            # Preserve successful data - don't set error_message to avoid hiding table
+            print(f"⚠️ Exception occurred but preserving {len(context.get('strikes', []))} strikes")
+    
+    print(f"🎯 Final context before template: strikes={len(context.get('strikes', []))}, instrument={context.get('instrument', 'None')}")
+    
+    return render(request, 'analyzer/option_chain.html', context)
+
+
+def get_option_chain_refresh_status():
+    """
+    Get the current option chain refresh status - Always disabled for manual terminal fetch
+    """
+    # Auto-refresh disabled to allow manual terminal data fetching
+    return "Off"
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def set_option_chain_refresh(request):
+    """
+    Set option chain refresh interval - Disabled for manual terminal fetch
+    """
+    # Auto-refresh functionality disabled to allow manual terminal data fetching
+    return JsonResponse({
+        'success': False,
+        'message': 'Auto-refresh disabled. Use terminal for manual data fetching.',
+        'status': 'Off'
+    })
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def create_basket_order(request):
+    """
+    Create basket order from selected option strikes
+    """
+    try:
+        data = json.loads(request.body)
+        
+        selected_options = data.get('selected_options', [])
+        basket_name = data.get('basket_name', f"Basket_{datetime.now().strftime('%Y%m%d_%H%M')}")
+        
+        if not selected_options:
+            return JsonResponse({'success': False, 'message': 'No options selected'})
+        
+        # Transform option data to match template expectations
+        transformed_options = []
+        for option in selected_options:
+            transformed_option = {
+                'instrument': option.get('symbol', ''),
+                'strike': option.get('strike_price', 0),
+                'type': option.get('option_type', ''),
+                'action': option.get('action', ''),
+                'quantity': option.get('quantity', 1),
+                'order_type': option.get('order_type', 'MARKET'),
+                'ltp': 0  # Will be fetched from market data if needed
+            }
+            transformed_options.append(transformed_option)
+        
+        # Save basket order to session
+        basket_orders = request.session.get('basket_orders', [])
+        
+        new_basket = {
+            'id': len(basket_orders) + 1,
+            'name': basket_name,
+            'created_at': datetime.now().isoformat(),
+            'options': transformed_options,
+            'status': 'created'
+        }
+        
+        basket_orders.append(new_basket)
+        request.session['basket_orders'] = basket_orders
+        
+        return JsonResponse({
+            'success': True, 
+            'message': f'Basket order "{basket_name}" created with {len(selected_options)} options',
+            'basket_id': new_basket['id']
+        })
+        
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': f'Error creating basket: {str(e)}'})
+
+
+def basket_orders_view(request):
+    """
+    View all basket orders
+    """
+    basket_orders = request.session.get('basket_orders', [])
+    
+    context = {
+        'basket_orders': basket_orders
+    }
+    
+    return render(request, 'analyzer/basket_orders.html', context)
+
+
+@require_http_methods(["POST"])
+def clear_all_baskets(request):
+    """
+    Clear all basket orders from session
+    """
+    try:
+        # Clear all basket orders from session
+        request.session['basket_orders'] = []
+        return JsonResponse({
+            'success': True, 
+            'message': 'All baskets cleared successfully'
+        })
+    except Exception as e:
+        return JsonResponse({
+            'success': False, 
+            'error': f'Error clearing baskets: {str(e)}'
+        })
+
+def nse_test_view(request):
+    """
+    NSE Data Sources Test Dashboard
+    """
+    context = {
+        'page_title': 'NSE Data Sources Test',
+        'description': 'Test and monitor all available market data sources'
+    }
+    
+    return render(request, 'analyzer/nse_test.html', context)

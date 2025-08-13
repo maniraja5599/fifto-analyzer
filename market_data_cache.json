@@ -1,0 +1,36 @@
+{
+  "NIFTY": {
+    "current_price": 24619.35,
+    "change": 131.95,
+    "change_percent": 0.54,
+    "previous_close": 24487.4,
+    "last_updated": "2025-08-14T04:01:14.612771",
+    "symbol": "^NSEI"
+  },
+  "BANKNIFTY": {
+    "current_price": 55181.45,
+    "change": 137.75,
+    "change_percent": 0.25,
+    "previous_close": 55043.7,
+    "last_updated": "2025-08-14T04:01:14.985213",
+    "symbol": "^NSEBANK"
+  },
+  "SENSEX": {
+    "current_price": 80539.91,
+    "change": 304.32,
+    "change_percent": 0.38,
+    "previous_close": 80235.59,
+    "last_updated": "2025-08-14T04:01:15.365335",
+    "symbol": "^BSESN"
+  },
+  "VIX": {
+    "current_price": 12.14,
+    "change": -0.09,
+    "change_percent": -0.76,
+    "previous_close": 12.23,
+    "last_updated": "2025-08-14T04:01:15.650401",
+    "symbol": "^INDIAVIX"
+  },
+  "timestamp": "2025-08-14T04:01:15.650431",
+  "source": "yfinance"
+}

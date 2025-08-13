@@ -27,6 +27,7 @@ import yfinance as yf
 BASE_DIR_USER = os.path.expanduser('~') # User's home directory for data files
 TRADES_DB_FILE = os.path.join(BASE_DIR_USER, "active_trades.json")
 SETTINGS_FILE = os.path.join(BASE_DIR_USER, "app_settings.json")
+EXPIRY_CACHE_FILE = os.path.join(BASE_DIR_USER, "expiry_cache.json")
 STATIC_FOLDER_PATH = os.path.join(settings.BASE_DIR, 'static') # Django project's static folder
 
 # --- Settings & Trade Management ---
@@ -97,6 +98,74 @@ def get_lot_size(instrument):
         "BANKNIFTY": settings.get("banknifty_lot_size", 35),
     }
     return lot_sizes.get(instrument, 50)  # Default to 50 if instrument not found
+
+# --- Expiry Date Cache Management ---
+def load_expiry_cache():
+    """Load cached expiry dates."""
+    if not os.path.exists(EXPIRY_CACHE_FILE):
+        return {}
+    try:
+        with open(EXPIRY_CACHE_FILE, 'r') as f:
+            return json.load(f)
+    except (json.JSONDecodeError, FileNotFoundError):
+        return {}
+
+def save_expiry_cache(cache_data):
+    """Save expiry dates cache."""
+    try:
+        with open(EXPIRY_CACHE_FILE, 'w') as f:
+            json.dump(cache_data, f, indent=4)
+        return True
+    except Exception as e:
+        print(f"Error saving expiry cache: {e}")
+        return False
+
+def is_thursday():
+    """Check if today is Thursday."""
+    return datetime.now().weekday() == 3  # Thursday is 3
+
+def should_refresh_expiry_cache():
+    """Check if expiry cache should be refreshed (every Thursday)."""
+    cache = load_expiry_cache()
+    last_refresh = cache.get('last_refresh')
+    
+    if not last_refresh:
+        return True
+    
+    try:
+        last_refresh_date = datetime.fromisoformat(last_refresh).date()
+        today = datetime.now().date()
+        
+        # Refresh if it's Thursday and we haven't refreshed today
+        if is_thursday() and last_refresh_date < today:
+            return True
+            
+        # Also refresh if it's been more than a week
+        if (today - last_refresh_date).days > 7:
+            return True
+            
+        return False
+    except:
+        return True
+
+def get_cached_expiry_dates(instrument):
+    """Get cached expiry dates for instrument."""
+    cache = load_expiry_cache()
+    return cache.get(instrument, {}).get('expiry_dates', [])
+
+def update_expiry_cache(instrument, expiry_dates):
+    """Update expiry cache for instrument."""
+    cache = load_expiry_cache()
+    
+    if instrument not in cache:
+        cache[instrument] = {}
+    
+    cache[instrument]['expiry_dates'] = expiry_dates
+    cache[instrument]['cached_on'] = datetime.now().isoformat()
+    cache['last_refresh'] = datetime.now().isoformat()
+    
+    save_expiry_cache(cache)
+    print(f"✅ Updated expiry cache for {instrument}: {len(expiry_dates)} dates")
 
 def round_to_nearest_50(value):
     """Round a value to the nearest 50 for cleaner target/stoploss amounts."""
@@ -345,18 +414,62 @@ def get_current_market_price(instrument_name):
         
         # Fallback to option chain data
         option_chain_data = get_option_chain_data(instrument_name)
-        if option_chain_data and 'records' in option_chain_data:
-            # Extract current price from option chain
-            underlying_value = option_chain_data['records'].get('underlyingValue')
-            if underlying_value:
-                return float(underlying_value)
+        if option_chain_data:
+            # Try DhanHQ structure first
+            if 'data' in option_chain_data and 'last_price' in option_chain_data['data']:
+                return float(option_chain_data['data']['last_price'])
+            # Try NSE structure as fallback
+            elif 'records' in option_chain_data:
+                underlying_value = option_chain_data['records'].get('underlyingValue')
+                if underlying_value:
+                    return float(underlying_value)
     except:
         pass
     return None
 
 def get_option_chain_data(symbol):
     """
-    Get option chain data using DhanHQ first, then fallback to NSE
+    Get option chain data using cached expiry dates when available
+    Only fetches fresh data when cache is empty or needs refresh
+    """
+    try:
+        # Check if we should refresh expiry cache (every Thursday)
+        if should_refresh_expiry_cache():
+            print(f"🔄 Thursday refresh: Updating expiry cache for {symbol}...")
+            fresh_data = _fetch_fresh_option_chain_data(symbol)
+            if fresh_data and 'expiryDates' in fresh_data:
+                update_expiry_cache(symbol, fresh_data['expiryDates'])
+                return fresh_data
+        
+        # Try to get from cache first - this is the main optimization
+        cached_expiry_dates = get_cached_expiry_dates(symbol)
+        if cached_expiry_dates:
+            print(f"✅ Using local cached expiry dates for {symbol}: {len(cached_expiry_dates)} dates (no API call needed)")
+            # Return cached data structure without fetching fresh option chain
+            return {
+                'expiryDates': cached_expiry_dates,
+                'symbol': symbol,
+                'source': 'cache',
+                'timestamp': datetime.now().isoformat()
+            }
+        
+        # Only fetch fresh data if no cache exists
+        print(f"🔄 No cache available, fetching fresh data for {symbol} (first time)...")
+        fresh_data = _fetch_fresh_option_chain_data(symbol)
+        if fresh_data and 'expiryDates' in fresh_data:
+            update_expiry_cache(symbol, fresh_data['expiryDates'])
+            return fresh_data
+        
+        # If all else fails, use fallback
+        return get_fallback_expiry_data(symbol)
+            
+    except Exception as e:
+        print(f"❌ Error in option chain fetch for {symbol}: {e}")
+        return get_fallback_expiry_data(symbol)
+
+def _fetch_fresh_option_chain_data(symbol):
+    """
+    Internal function to fetch fresh option chain data
     """
     try:
         # Try DhanHQ first
@@ -395,11 +508,10 @@ def get_option_chain_data(symbol):
             
     except requests.exceptions.RequestException as e:
         print(f"❌ Error fetching option chain for {symbol}: {e}")
-        # Return fallback expiry data if both fail
-        return get_fallback_expiry_data(symbol)
+        return None
     except Exception as e:
-        print(f"❌ General error in option chain fetch for {symbol}: {e}")
-        return get_fallback_expiry_data(symbol)
+        print(f"❌ General error in fetch for {symbol}: {e}")
+        return None
 
 def extract_expiry_dates_from_dhan_data(dhan_data, symbol):
     """
@@ -507,8 +619,12 @@ def get_fallback_expiry_data(symbol):
         
         print(f"🔄 Using fallback expiry dates for {symbol}: {expiries[:3]}...")
         
-        # Return in NSE format
+        # Return in consistent format
         return {
+            'expiryDates': expiries,
+            'symbol': symbol,
+            'source': 'fallback',
+            'timestamp': datetime.now().isoformat(),
             'records': {
                 'expiryDates': expiries,
                 'data': [],
@@ -520,6 +636,15 @@ def get_fallback_expiry_data(symbol):
         print(f"❌ Fallback expiry generation error: {e}")
         # Ultimate fallback with static dates
         return {
+            'expiryDates': [
+                (datetime.now() + timedelta(days=7)).strftime("%d-%b-%Y"),
+                (datetime.now() + timedelta(days=14)).strftime("%d-%b-%Y"),
+                (datetime.now() + timedelta(days=21)).strftime("%d-%b-%Y"),
+                (datetime.now() + timedelta(days=28)).strftime("%d-%b-%Y")
+            ],
+            'symbol': symbol,
+            'source': 'ultimate_fallback',
+            'timestamp': datetime.now().isoformat(),
             'records': {
                 'expiryDates': [
                     (datetime.now() + timedelta(days=7)).strftime("%d-%b-%Y"),
@@ -914,7 +1039,7 @@ def generate_analysis(instrument_name, calculation_type, selected_expiry_str):
     if not all([instrument_name, calculation_type, selected_expiry_str]):
         debug_log("❌ Missing required parameters")
         return None, "Please select valid inputs."
-    
+
     ticker_symbol = TICKERS[instrument_name]
     debug_log(f"Using ticker symbol: {ticker_symbol}")
     
@@ -935,12 +1060,13 @@ def generate_analysis(instrument_name, calculation_type, selected_expiry_str):
     
     zone_label = calculation_type
     
-    # Add error handling for option chain fetch
-    print("📡 Fetching option chain data...")
+    # Single option chain fetch - on-demand only when analysis is requested
+    print("📡 Fetching option chain data (on-demand)...")
     try:
         option_chain_data = get_option_chain_data(instrument_name)
         if option_chain_data:
             print("✅ Option chain data fetched successfully")
+            debug_log("✅ Option chain fetch successful")
         else:
             print("❌ Option chain data is None")
     except Exception as e:
@@ -956,19 +1082,59 @@ def generate_analysis(instrument_name, calculation_type, selected_expiry_str):
         debug_log("🔄 Using sample data due to API unavailability")
     else:
         try:
-            current_price = option_chain_data['records']['underlyingValue']
+            # Try different possible structures for underlying value
+            if 'records' in option_chain_data and 'underlyingValue' in option_chain_data['records']:
+                current_price = option_chain_data['records']['underlyingValue']
+            elif 'underlyingValue' in option_chain_data:
+                current_price = option_chain_data['underlyingValue']
+            elif 'underlying' in option_chain_data:
+                current_price = option_chain_data['underlying']
+            else:
+                # Fallback to current market price
+                current_price = get_current_market_price(instrument_name) or (24750 if instrument_name == "NIFTY" else 51500)
+                debug_log(f"⚠️ Could not find underlying value in option chain data, using fallback: {current_price}")
         except Exception as e:
-            return None, f"Error reading underlying value: {e}"
+            debug_log(f"❌ Error reading underlying value: {e}")
+            current_price = get_current_market_price(instrument_name) or (24750 if instrument_name == "NIFTY" else 51500)
+            debug_log(f"🔄 Using fallback current price: {current_price}")
     expiry_label = datetime.strptime(selected_expiry_str, '%d-%b-%Y').strftime("%d-%b")
     
     if option_chain_data:
-        # Extract real data from API
+        # Extract real data from DhanHQ API
         ce_prices, pe_prices = {}, {}
-        for item in option_chain_data['records']['data']:
-            if item.get("expiryDate") == selected_expiry_str:
-                if item.get("CE"): ce_prices[item['strikePrice']] = item["CE"]["lastPrice"]
-                if item.get("PE"): pe_prices[item['strikePrice']] = item["PE"]["lastPrice"]
-        debug_log(f"📊 Real API data - CE: {len(ce_prices)}, PE: {len(pe_prices)} strikes")
+        
+        # Get current price from the chain data
+        if 'data' in option_chain_data and 'last_price' in option_chain_data['data']:
+            current_price = option_chain_data['data']['last_price']
+            debug_log(f"📊 Updated current price from option chain: {current_price}")
+        
+        # Extract option data from DhanHQ structure
+        if 'data' in option_chain_data and 'oc' in option_chain_data['data']:
+            oc_data = option_chain_data['data']['oc']
+            for strike_str, strike_data in oc_data.items():
+                try:
+                    strike_price = float(strike_str)
+                    
+                    # Extract CE (Call) data
+                    if 'ce' in strike_data and 'last_price' in strike_data['ce']:
+                        ce_prices[strike_price] = strike_data['ce']['last_price']
+                    
+                    # Extract PE (Put) data  
+                    if 'pe' in strike_data and 'last_price' in strike_data['pe']:
+                        pe_prices[strike_price] = strike_data['pe']['last_price']
+                        
+                except (ValueError, KeyError) as e:
+                    continue
+                    
+            debug_log(f"📊 DhanHQ API data - CE: {len(ce_prices)}, PE: {len(pe_prices)} strikes")
+        else:
+            # Fallback: try old NSE structure if DhanHQ structure not found
+            if 'records' in option_chain_data and 'data' in option_chain_data['records']:
+                for item in option_chain_data['records']['data']:
+                    if item.get("expiryDate") == selected_expiry_str:
+                        if item.get("CE"): ce_prices[item['strikePrice']] = item["CE"]["lastPrice"]
+                        if item.get("PE"): pe_prices[item['strikePrice']] = item["PE"]["lastPrice"]
+                debug_log(f"📊 Fallback NSE data - CE: {len(ce_prices)}, PE: {len(pe_prices)} strikes")
     
     # Zone-based strike selection (using supply/demand zones)
     if supply_zone is not None and demand_zone is not None:

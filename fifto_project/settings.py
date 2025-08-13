@@ -88,7 +88,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # Your DhanHQ API Credentials (Data API Access Only)
 DHAN_CLIENT_ID = os.environ.get('DHAN_CLIENT_ID', '1000491652')  # Your DhanHQ Client ID
-DHAN_ACCESS_TOKEN = os.environ.get('DHAN_ACCESS_TOKEN', 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJpc3MiOiJkaGFuIiwicGFydG5lcklkIjoiIiwiZXhwIjoxNzU3NDg2Nzg3LCJ0b2tlbkNvbnN1bWVyVHlwZSI6IlNFTEYiLCJ3ZWJob29rVXJsIjoiIiwiZGhhbkNsaWVudElkIjoiMTAwMDQ5MTY1MiJ9.kOcdS0SbXvOhipCd30Ck5q80xpPk85VbCSMvPIIB39AckCDDYIM2fO6S5XwteVcxwYODxSesWPchbusTE2OzcQ')
+DHAN_ACCESS_TOKEN = os.environ.get('DHAN_ACCESS_TOKEN', 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJpc3MiOiJkaGFuIiwicGFydG5lcklkIjoiIiwiZXhwIjoxNzU3NTk2MzYyLCJ0b2tlbkNvbnN1bWVyVHlwZSI6IlNFTEYiLCJ3ZWJob29rVXJsIjoiIiwiZGhhbkNsaWVudElkIjoiMTAwMDQ5MTY1MiJ9.NXmyKiibeztQFbkxJrdVDRD389nKmGe72f3cRz3BmN4LDU3UTN2pzEuG7JBsKqm2Yzt45mokfjw-itNsRML4Mw')
 
 # Market Data Source Configuration
 USE_DHAN_API = True  # Set to True to use DhanHQ as primary data source
@@ -98,6 +98,16 @@ FALLBACK_TO_NSE = True  # Fallback to static data if DhanHQ fails
 DHAN_API_RATE_LIMIT = 1  # Max 1 request per second as per DhanHQ guidelines
 DHAN_API_TIMEOUT = 10  # 10 seconds timeout for API requests
 DHAN_MAX_RETRIES = 3  # Maximum retry attempts for failed requests
+
+# Dashboard Refresh Settings (Conservative to avoid API limits)
+DEFAULT_REFRESH_INTERVAL = 300000  # 5 minutes (300000ms) - Conservative default
+MIN_REFRESH_INTERVAL = 120000  # 2 minutes minimum (120000ms) - Prevent too frequent calls
+MARKET_HOURS_REFRESH = 180000  # 3 minutes during market hours (180000ms)
+MARKET_CLOSED_REFRESH = 600000  # 10 minutes when market closed (600000ms)
+
+# Smart Auto-Update Behavior
+SKIP_API_CALLS_WHEN_MARKET_CLOSED = True  # Skip DhanHQ API calls during auto-updates when market is closed
+ALLOW_MANUAL_REFRESH_WHEN_CLOSED = True   # Allow manual refresh even when market is closed
 
 # =============================================================================
 # END DhanHQ Configuration

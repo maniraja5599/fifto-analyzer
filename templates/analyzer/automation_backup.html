@@ -866,20 +866,22 @@ function addNotificationToPanel(title, message) {
     }
 }
 
-// Check for automation updates every 30 seconds
-setInterval(function() {
-    fetch('{% url "automation" %}?check_updates=1')
-    .then(response => response.json())
-    .then(data => {
-        if (data.new_results) {
-            data.new_results.forEach(result => {
-                addNotificationToPanel('Automation Complete', result.message);
-            });
-        }
-    })
-    .catch(error => {
-        // Ignore errors for background check
-    });
-}, 30000);
+// Automation background check disabled - Use manual refresh only  
+// Original background check disabled:
+// setInterval(function() {
+//     fetch('{% url "automation" %}?check_updates=1')
+//     .then(response => response.json())
+//     .then(data => {
+//         if (data.new_results) {
+//             data.new_results.forEach(result => {
+//                 addNotificationToPanel('Automation Complete', result.message);
+//             });
+//         }
+//     })
+//     .catch(error => {
+//         // Ignore errors for background check
+//     });
+// }, 30000);
+console.log('🛑 Automation background check disabled - Use manual refresh button instead');
 </script>
 {% endblock %}

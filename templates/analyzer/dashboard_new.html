@@ -19,112 +19,6 @@
             min-height: 100vh;
             color: #333;
             padding-top: 120px; /* Space for fixed header */
-            padding-left: 260px; /* Space for navigation sidebar */
-        }
-
-        /* Navigation Sidebar */
-        .nav-sidebar {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 250px;
-            height: 100vh;
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(20px);
-            border-right: 1px solid rgba(0, 0, 0, 0.1);
-            box-shadow: 4px 0 20px rgba(0, 0, 0, 0.1);
-            z-index: 999;
-            padding: 2rem 0;
-            overflow-y: auto;
-        }
-
-        .nav-header {
-            padding: 0 1.5rem;
-            margin-bottom: 2rem;
-        }
-
-        .nav-logo {
-            font-size: 1.5rem;
-            font-weight: 800;
-            color: #1e293b;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .nav-logo i {
-            color: #3b82f6;
-        }
-
-        .nav-menu {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-        }
-
-        .nav-item {
-            margin-bottom: 0.5rem;
-        }
-
-        .nav-link {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            padding: 1rem 1.5rem;
-            color: #6b7280;
-            text-decoration: none;
-            font-weight: 500;
-            transition: all 0.2s ease;
-            border-left: 3px solid transparent;
-        }
-
-        .nav-link:hover {
-            background: rgba(59, 130, 246, 0.1);
-            color: #3b82f6;
-            border-left-color: #3b82f6;
-        }
-
-        .nav-link.active {
-            background: rgba(59, 130, 246, 0.1);
-            color: #3b82f6;
-            border-left-color: #3b82f6;
-        }
-
-        .nav-icon {
-            width: 20px;
-            text-align: center;
-        }
-
-        .nav-toggle {
-            display: none;
-            position: fixed;
-            top: 1rem;
-            left: 1rem;
-            z-index: 1001;
-            background: #3b82f6;
-            color: white;
-            border: none;
-            width: 40px;
-            height: 40px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 1.2rem;
-        }
-
-        .nav-footer {
-            position: absolute;
-            bottom: 1rem;
-            left: 0;
-            right: 0;
-            padding: 0 1.5rem;
-            border-top: 1px solid rgba(0, 0, 0, 0.1);
-            padding-top: 1rem;
-        }
-
-        .nav-footer-text {
-            font-size: 0.875rem;
-            color: #9ca3af;
-            text-align: center;
         }
 
         /* Fixed Market Header */
@@ -234,7 +128,34 @@
         .sensex { --accent-color: #f59e0b; }
         .vix { --accent-color: #ef4444; }
 
-        /* Main Content Area - Removed */
+        /* Main Content Area */
+        .main-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .welcome-section {
+            text-align: center;
+            padding: 4rem 2rem;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+        }
+
+        .welcome-section h1 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            color: #1e293b;
+            margin-bottom: 1rem;
+        }
+
+        .welcome-section p {
+            font-size: 1.1rem;
+            color: #6b7280;
+            margin-bottom: 2rem;
+        }
 
         /* Option Chain Modal */
         .option-modal {
@@ -352,28 +273,28 @@
             100% { transform: rotate(360deg); }
         }
 
-        /* Demo content for scrolling - Removed */
+        /* Demo content for scrolling */
+        .demo-section {
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 16px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .demo-section h2 {
+            color: #1e293b;
+            margin-bottom: 1rem;
+        }
+
+        .demo-section p {
+            color: #6b7280;
+            line-height: 1.6;
+            margin-bottom: 1rem;
+        }
 
         /* Responsive design */
         @media (max-width: 768px) {
-            body {
-                padding-left: 0;
-                padding-top: 140px;
-            }
-
-            .nav-sidebar {
-                transform: translateX(-100%);
-                transition: transform 0.3s ease;
-            }
-
-            .nav-sidebar.show {
-                transform: translateX(0);
-            }
-
-            .nav-toggle {
-                display: block;
-            }
-
             .market-container {
                 grid-template-columns: repeat(2, 1fr);
                 gap: 0.5rem;
@@ -391,7 +312,18 @@
             .market-price {
                 font-size: 1rem;
             }
-        }
+
+            .main-content {
+                padding: 1rem;
+            }
+
+            .welcome-section h1 {
+                font-size: 2rem;
+            }
+
+            body {
+                padding-top: 140px;
+            }
         }
 
         @media (max-width: 480px) {
@@ -402,60 +334,6 @@
     </style>
 </head>
 <body>
-    <!-- Mobile Navigation Toggle -->
-    <button class="nav-toggle" onclick="toggleNavigation()">
-        <i class="fas fa-bars"></i>
-    </button>
-
-    <!-- Navigation Sidebar -->
-    <nav class="nav-sidebar" id="navSidebar">
-        <div class="nav-header">
-            <div class="nav-logo">
-                <i class="fas fa-chart-line"></i>
-                Fifto Analyzer
-            </div>
-        </div>
-        
-        <ul class="nav-menu">
-            <li class="nav-item">
-                <a href="/analysis/" class="nav-link active">
-                    <i class="fas fa-chart-bar nav-icon"></i>
-                    Analysis
-                </a>
-            </li>
-            <li class="nav-item">
-                <a href="/simple/" class="nav-link">
-                    <i class="fas fa-eye nav-icon"></i>
-                    Simple View
-                </a>
-            </li>
-            <li class="nav-item">
-                <a href="/add_trades/" class="nav-link">
-                    <i class="fas fa-plus-circle nav-icon"></i>
-                    Add Trades
-                </a>
-            </li>
-            <li class="nav-item">
-                <a href="/generate/" class="nav-link">
-                    <i class="fas fa-cog nav-icon"></i>
-                    Generate Analysis
-                </a>
-            </li>
-            <li class="nav-item">
-                <a href="/send_charts/" class="nav-link">
-                    <i class="fas fa-paper-plane nav-icon"></i>
-                    Send Charts
-                </a>
-            </li>
-        </ul>
-
-        <div class="nav-footer">
-            <div class="nav-footer-text">
-                Live Market Data<br>
-                <span id="nav-status">● Connected</span>
-            </div>
-        </div>
-    </nav>
     <!-- Fixed Market Header -->
     <header class="market-header">
         <div class="market-container">
@@ -524,6 +402,51 @@
             </div>
         </div>
     </header>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <div class="welcome-section">
+            <h1><i class="fas fa-chart-line"></i> Fifto Analyzer</h1>
+            <p>Live Market Data & Option Chain Analysis</p>
+            <p><strong>Click on NIFTY or BANKNIFTY</strong> in the header above to view their option chains</p>
+        </div>
+
+        <!-- Demo sections for scrolling -->
+        <div class="demo-section">
+            <h2>Market Analysis</h2>
+            <p>This is a demo section to show the fixed header functionality. The market data header will stay fixed at the top as you scroll through this content.</p>
+            <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.</p>
+        </div>
+
+        <div class="demo-section">
+            <h2>Trading Insights</h2>
+            <p>Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</p>
+            <p>Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt explicabo.</p>
+        </div>
+
+        <div class="demo-section">
+            <h2>Portfolio Management</h2>
+            <p>Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed quia consequuntur magni dolores eos qui ratione voluptatem sequi nesciunt.</p>
+            <p>Neque porro quisquam est, qui dolorem ipsum quia dolor sit amet, consectetur, adipisci velit, sed quia non numquam eius modi tempora incidunt ut labore et dolore magnam aliquam quaerat voluptatem.</p>
+        </div>
+
+        <div class="demo-section">
+            <h2>Risk Analysis</h2>
+            <p>Ut enim ad minima veniam, quis nostrum exercitationem ullam corporis suscipit laboriosam, nisi ut aliquid ex ea commodi consequatur?</p>
+            <p>Quis autem vel eum iure reprehenderit qui in ea voluptate velit esse quam nihil molestiae consequatur, vel illum qui dolorem eum fugiat quo voluptas nulla pariatur?</p>
+        </div>
+
+        <!-- More demo content to enable scrolling -->
+        <div class="demo-section">
+            <h2>Technical Analysis</h2>
+            <p>At vero eos et accusamus et iusto odio dignissimos ducimus qui blanditiis praesentium voluptatum deleniti atque corrupti quos dolores et quas molestias excepturi sint occaecati cupiditate non provident.</p>
+        </div>
+
+        <div class="demo-section">
+            <h2>Market Trends</h2>
+            <p>Similique sunt in culpa qui officia deserunt mollitia animi, id est laborum et dolorum fuga. Et harum quidem rerum facilis est et expedita distinctio.</p>
+        </div>
+    </main>
 
     <!-- Option Chain Modal -->
     <div class="option-modal" id="optionModal">
@@ -727,38 +650,6 @@
                 closeOptionChain();
             }
         }
-
-        // Toggle navigation sidebar (mobile)
-        function toggleNavigation() {
-            const navSidebar = document.getElementById('navSidebar');
-            navSidebar.classList.toggle('show');
-        }
-
-        // Close navigation when clicking outside (mobile)
-        document.addEventListener('click', function(event) {
-            const navSidebar = document.getElementById('navSidebar');
-            const navToggle = document.querySelector('.nav-toggle');
-            
-            if (window.innerWidth <= 768) {
-                if (!navSidebar.contains(event.target) && !navToggle.contains(event.target)) {
-                    navSidebar.classList.remove('show');
-                }
-            }
-        });
-
-        // Update navigation status
-        function updateNavigationStatus() {
-            const statusEl = document.getElementById('nav-status');
-            if (statusEl) {
-                statusEl.innerHTML = '● Live';
-                statusEl.style.color = '#22c55e';
-            }
-        }
-
-        // Update status on data load
-        setInterval(() => {
-            updateNavigationStatus();
-        }, 60000);
     </script>
 </body>
 </html>

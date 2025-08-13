@@ -1,0 +1,364 @@
+{% extends 'analyzer/layout.html' %}
+
+{% block title %}NSE Data Sources Test{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="content-card">
+                <div class="content-card-header">
+                    <h2 class="content-card-title">
+                        🔬 NSE Data Sources Test Dashboard
+                    </h2>
+                    <div class="content-card-actions">
+                        <button class="btn btn-light-primary btn-sm" onclick="refreshAllSources()">
+                            <i class="bi bi-arrow-clockwise"></i> Refresh All
+                        </button>
+                        <button class="btn btn-light-info btn-sm" onclick="testAllSources()">
+                            <i class="bi bi-tools"></i> Test Sources
+                        </button>
+                    </div>
+                </div>
+                <p class="text-muted mb-0">
+                    Test and monitor all available market data sources including DhanHQ, NSE Direct, and NSE Yahoo Finance.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Data Sources Status Cards -->
+    <div class="row mb-4">
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="content-card source-card" id="dhanSourceCard">
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                    <h6 class="mb-0">📊 DhanHQ</h6>
+                    <span class="badge bg-secondary" id="dhanStatus">Testing...</span>
+                </div>
+                <div class="source-data">
+                    <div class="price-display">
+                        NIFTY: <span id="dhanNiftyPrice">--</span><br>
+                        BANKNIFTY: <span id="dhanBankniftyPrice">--</span>
+                    </div>
+                    <small class="text-muted" id="dhanLastUpdate">Not tested</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="content-card source-card" id="nseDirectCard">
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                    <h6 class="mb-0">🏛️ NSE Direct</h6>
+                    <span class="badge bg-secondary" id="nseDirectStatus">Testing...</span>
+                </div>
+                <div class="source-data">
+                    <div class="price-display">
+                        NIFTY: <span id="nseDirectNiftyPrice">--</span><br>
+                        BANKNIFTY: <span id="nseDirectBankniftyPrice">--</span>
+                    </div>
+                    <small class="text-muted" id="nseDirectLastUpdate">Not tested</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="content-card source-card" id="nseYahooCard">
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                    <h6 class="mb-0">🌐 NSE Yahoo</h6>
+                    <span class="badge bg-secondary" id="nseYahooStatus">Testing...</span>
+                </div>
+                <div class="source-data">
+                    <div class="price-display">
+                        NIFTY: <span id="nseYahooNiftyPrice">--</span><br>
+                        BANKNIFTY: <span id="nseYahooBankniftyPrice">--</span>
+                    </div>
+                    <small class="text-muted" id="nseYahooLastUpdate">Not tested</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="content-card source-card" id="fallbackCard">
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                    <h6 class="mb-0">📋 Fallback</h6>
+                    <span class="badge bg-secondary" id="fallbackStatus">Testing...</span>
+                </div>
+                <div class="source-data">
+                    <div class="price-display">
+                        NIFTY: <span id="fallbackNiftyPrice">--</span><br>
+                        BANKNIFTY: <span id="fallbackBankniftyPrice">--</span>
+                    </div>
+                    <small class="text-muted" id="fallbackLastUpdate">Not tested</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Enhanced Market Data Test -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="content-card">
+                <div class="content-card-header">
+                    <h4 class="content-card-title">🚀 Enhanced Market Data (Auto-Failover)</h4>
+                    <button class="btn btn-light-success btn-sm" onclick="testEnhancedData()">
+                        <i class="bi bi-lightning"></i> Test Enhanced
+                    </button>
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="enhanced-data-display" id="enhancedNiftyDisplay">
+                            <h5>NIFTY 50</h5>
+                            <div class="price-info">
+                                <span class="price-value" id="enhancedNiftyPrice">--</span>
+                                <span class="price-change" id="enhancedNiftyChange">--</span>
+                            </div>
+                            <small class="data-source" id="enhancedNiftySource">Source: --</small>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="enhanced-data-display" id="enhancedBankniftyDisplay">
+                            <h5>BANKNIFTY</h5>
+                            <div class="price-info">
+                                <span class="price-value" id="enhancedBankniftyPrice">--</span>
+                                <span class="price-change" id="enhancedBankniftyChange">--</span>
+                            </div>
+                            <small class="data-source" id="enhancedBankniftySource">Source: --</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Test Results Log -->
+    <div class="row">
+        <div class="col-12">
+            <div class="content-card">
+                <div class="content-card-header">
+                    <h4 class="content-card-title">📊 Test Results Log</h4>
+                    <button class="btn btn-light-secondary btn-sm" onclick="clearLog()">
+                        <i class="bi bi-trash"></i> Clear Log
+                    </button>
+                </div>
+                <div class="test-log" id="testLog">
+                    <p class="text-muted">Click "Test Sources" to run comprehensive tests...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.source-card {
+    min-height: 140px;
+    transition: all 0.3s ease;
+}
+
+.source-card:hover {
+    transform: translateY(-2px);
+}
+
+.price-display {
+    font-family: 'Courier New', monospace;
+    font-size: 0.9rem;
+    line-height: 1.4;
+    margin: 10px 0;
+}
+
+.enhanced-data-display {
+    padding: 20px;
+    border: 1px solid var(--border-light);
+    border-radius: 12px;
+    background: linear-gradient(145deg, #f8f9fa, #e9ecef);
+    text-align: center;
+}
+
+.price-info {
+    margin: 15px 0;
+}
+
+.price-value {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--primary-color);
+}
+
+.price-change {
+    display: block;
+    font-size: 1rem;
+    margin-top: 5px;
+}
+
+.price-change.positive {
+    color: #28a745;
+}
+
+.price-change.negative {
+    color: #dc3545;
+}
+
+.data-source {
+    color: var(--bs-secondary);
+    font-weight: 500;
+}
+
+.test-log {
+    max-height: 400px;
+    overflow-y: auto;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.85rem;
+    line-height: 1.4;
+}
+
+.log-entry {
+    margin-bottom: 5px;
+    padding: 2px 0;
+}
+
+.log-success {
+    color: #28a745;
+}
+
+.log-error {
+    color: #dc3545;
+}
+
+.log-warning {
+    color: #ffc107;
+}
+
+.log-info {
+    color: #17a2b8;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-test on load
+    testAllSources();
+});
+
+async function testAllSources() {
+    addLog('🧪 Starting comprehensive data source test...', 'info');
+    
+    try {
+        const response = await fetch('/api/test-data-sources/');
+        const data = await response.json();
+        
+        if (data.success) {
+            const results = data.test_results;
+            
+            // Update each source card
+            for (const [source, result] of Object.entries(results)) {
+                updateSourceCard(source, result);
+            }
+            
+            addLog('✅ All sources tested successfully', 'success');
+        } else {
+            addLog(`❌ Test failed: ${data.error}`, 'error');
+        }
+    } catch (error) {
+        addLog(`❌ Test error: ${error.message}`, 'error');
+    }
+}
+
+function updateSourceCard(sourceName, result) {
+    const sourceMap = {
+        'DhanHQ': 'dhan',
+        'NSE_Direct': 'nseDirect',
+        'NSE_Yahoo': 'nseYahoo',
+        'Fallback': 'fallback'
+    };
+    
+    const cardPrefix = sourceMap[sourceName];
+    if (!cardPrefix) return;
+    
+    const statusElement = document.getElementById(`${cardPrefix}Status`);
+    const niftyPriceElement = document.getElementById(`${cardPrefix}NiftyPrice`);
+    const bankniftyPriceElement = document.getElementById(`${cardPrefix}BankniftyPrice`);
+    const lastUpdateElement = document.getElementById(`${cardPrefix}LastUpdate`);
+    
+    if (result.status === 'success') {
+        statusElement.textContent = 'Active';
+        statusElement.className = 'badge bg-success';
+        
+        const niftyPrice = result.nifty_price || '--';
+        const bankniftyPrice = result.banknifty_price || '--';
+        
+        if (niftyPriceElement) niftyPriceElement.textContent = `₹${niftyPrice}`;
+        if (bankniftyPriceElement) bankniftyPriceElement.textContent = `₹${bankniftyPrice}`;
+        if (lastUpdateElement) lastUpdateElement.textContent = `Updated: ${new Date().toLocaleTimeString()}`;
+        
+        addLog(`✅ ${sourceName}: NIFTY=₹${niftyPrice}, BANKNIFTY=₹${bankniftyPrice}`, 'success');
+    } else {
+        statusElement.textContent = 'Error';
+        statusElement.className = 'badge bg-danger';
+        
+        if (niftyPriceElement) niftyPriceElement.textContent = '--';
+        if (bankniftyPriceElement) bankniftyPriceElement.textContent = '--';
+        if (lastUpdateElement) lastUpdateElement.textContent = `Error: ${result.error || 'Unknown'}`;
+        
+        addLog(`❌ ${sourceName}: ${result.error || 'Unknown error'}`, 'error');
+    }
+}
+
+async function testEnhancedData() {
+    addLog('🚀 Testing enhanced market data...', 'info');
+    
+    try {
+        const response = await fetch('/api/enhanced-market-data/');
+        const data = await response.json();
+        
+        if (data.success) {
+            const niftyData = data.market_data.NIFTY;
+            const bankniftyData = data.market_data.BANKNIFTY;
+            
+            // Update NIFTY display
+            document.getElementById('enhancedNiftyPrice').textContent = `₹${niftyData.current_price}`;
+            const niftyChange = document.getElementById('enhancedNiftyChange');
+            niftyChange.textContent = `${niftyData.change >= 0 ? '+' : ''}${niftyData.change} (${niftyData.change_percent}%)`;
+            niftyChange.className = `price-change ${niftyData.change >= 0 ? 'positive' : 'negative'}`;
+            document.getElementById('enhancedNiftySource').textContent = `Source: ${niftyData.source}`;
+            
+            // Update BANKNIFTY display
+            document.getElementById('enhancedBankniftyPrice').textContent = `₹${bankniftyData.current_price}`;
+            const bankniftyChange = document.getElementById('enhancedBankniftyChange');
+            bankniftyChange.textContent = `${bankniftyData.change >= 0 ? '+' : ''}${bankniftyData.change} (${bankniftyData.change_percent}%)`;
+            bankniftyChange.className = `price-change ${bankniftyData.change >= 0 ? 'positive' : 'negative'}`;
+            document.getElementById('enhancedBankniftySource').textContent = `Source: ${bankniftyData.source}`;
+            
+            addLog(`✅ Enhanced data: Using ${niftyData.source} source`, 'success');
+        } else {
+            addLog(`❌ Enhanced data test failed: ${data.error}`, 'error');
+        }
+    } catch (error) {
+        addLog(`❌ Enhanced data error: ${error.message}`, 'error');
+    }
+}
+
+async function refreshAllSources() {
+    addLog('🔄 Refreshing all data sources...', 'info');
+    await testAllSources();
+    await testEnhancedData();
+}
+
+function addLog(message, type = 'info') {
+    const logElement = document.getElementById('testLog');
+    const timestamp = new Date().toLocaleTimeString();
+    const logEntry = document.createElement('div');
+    logEntry.className = `log-entry log-${type}`;
+    logEntry.textContent = `[${timestamp}] ${message}`;
+    
+    logElement.appendChild(logEntry);
+    logElement.scrollTop = logElement.scrollHeight;
+}
+
+function clearLog() {
+    document.getElementById('testLog').innerHTML = '<p class="text-muted">Log cleared. Click "Test Sources" to run tests...</p>';
+}
+</script>
+{% endblock %}

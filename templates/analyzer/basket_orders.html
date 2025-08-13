@@ -1,0 +1,309 @@
+{% extends 'analyzer/layout.html' %}
+{% load static %}
+
+{% block content %}
+<!-- Modern Compact Header -->
+<div class="basket-header" style="margin-top: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 10px; padding: 20px; margin-bottom: 20px;">
+    <div class="row align-items-center">
+        <div class="col-md-8">
+            <div class="d-flex align-items-center gap-3">
+                <div class="basket-icon">
+                    <i class="bi bi-basket3-fill text-warning" style="font-size: 2rem;"></i>
+                </div>
+                <div>
+                    <h3 class="mb-1 fw-bold" style="color: white;">Basket Orders</h3>
+                    <p class="mb-0" style="color: rgba(255,255,255,0.8);">{{ basket_orders|length }} baskets • Total options managed</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 text-end">
+            <div class="btn-group" role="group">
+                <a href="{% url 'option_chain' %}" class="btn btn-success btn-sm">
+                    <i class="bi bi-plus"></i> New Basket
+                </a>
+                <button class="btn btn-outline-light btn-sm" onclick="clearAllBaskets()">
+                    <i class="bi bi-trash"></i> Clear All
+                </button>
+                <button class="btn btn-outline-light btn-sm" onclick="refreshData()">
+                    <i class="bi bi-arrow-clockwise"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Stats Bar -->
+<div class="stats-bar bg-light rounded p-3 mb-3 mt-3" style="border: 1px solid #e9ecef;">
+    <div class="row text-center">
+        <div class="col-3">
+            <div class="stat-item">
+                <div class="stat-number text-primary fw-bold" style="font-size: 1.5rem;">{{ basket_orders|length }}</div>
+                <div class="stat-label text-muted small">Total Baskets</div>
+            </div>
+        </div>
+        <div class="col-3">
+            <div class="stat-item">
+                <div class="stat-number text-success fw-bold" style="font-size: 1.5rem;">
+                    {% with active_count=0 %}
+                        {% for basket in basket_orders %}
+                            {% if basket.status == 'created' or basket.status == 'active' %}
+                                {% with active_count=active_count|add:1 %}{% endwith %}
+                            {% endif %}
+                        {% endfor %}
+                        {{ active_count }}
+                    {% endwith %}
+                </div>
+                <div class="stat-label text-muted small">Active</div>
+            </div>
+        </div>
+        <div class="col-3">
+            <div class="stat-item">
+                <div class="stat-number text-info fw-bold" style="font-size: 1.5rem;">
+                    {% with total_options=0 %}
+                        {% for basket in basket_orders %}
+                            {% with total_options=total_options|add:basket.options|length %}{% endwith %}
+                        {% endfor %}
+                        {{ total_options }}
+                    {% endwith %}
+                </div>
+                <div class="stat-label text-muted small">Total Options</div>
+            </div>
+        </div>
+        <div class="col-3">
+            <div class="stat-item">
+                <div class="stat-number text-warning fw-bold" style="font-size: 1.5rem;">
+                    {% if basket_orders %}{{ basket_orders|length }}{% else %}0{% endif %}
+                </div>
+                <div class="stat-label text-muted small">Strategies</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modern Basket Cards -->
+{% if basket_orders %}
+    <div class="baskets-container">
+        {% for basket in basket_orders %}
+        <div class="basket-card bg-white rounded shadow-sm border-0 mb-3" style="border: 1px solid #e9ecef;">
+            <div class="basket-card-header bg-light border-bottom-0 rounded-top p-3">
+                <div class="row align-items-center">
+                    <div class="col-md-6">
+                        <div class="d-flex align-items-center gap-2">
+                            {% if basket.status == 'created' %}
+                                <span class="badge bg-primary">Active</span>
+                            {% elif basket.status == 'active' %}
+                                <span class="badge bg-success">Running</span>
+                            {% else %}
+                                <span class="badge bg-secondary">{{ basket.status|capfirst }}</span>
+                            {% endif %}
+                            <h5 class="mb-0 fw-bold text-dark">{{ basket.name }}</h5>
+                        </div>
+                        <div class="text-muted small mt-1">
+                            <i class="bi bi-layers me-1"></i>{{ basket.options|length }} options
+                            <span class="mx-2">•</span>
+                            <i class="bi bi-clock me-1"></i>Created today
+                        </div>
+                    </div>
+                    <div class="col-md-6 text-end">
+                        <div class="btn-group" role="group">
+                            <button class="btn btn-outline-primary btn-sm" onclick="editBasket('{{ basket.name }}')">
+                                <i class="bi bi-pencil-square"></i> Edit
+                            </button>
+                            <button class="btn btn-outline-success btn-sm" onclick="executeBasket('{{ basket.name }}')">
+                                <i class="bi bi-play-fill"></i> Execute
+                            </button>
+                            <button class="btn btn-outline-danger btn-sm" onclick="deleteBasket('{{ basket.name }}')">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="basket-card-body p-3">
+                <!-- Options Table -->
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="fw-semibold">Symbol</th>
+                                <th class="fw-semibold">Type</th>
+                                <th class="fw-semibold text-end">Strike</th>
+                                <th class="fw-semibold text-end">LTP</th>
+                                <th class="fw-semibold text-end">Qty</th>
+                                <th class="fw-semibold text-end">Action</th>
+                                <th class="fw-semibold text-end">Premium</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for option in basket.options %}
+                            <tr class="option-row">
+                                <td class="fw-medium">{{ option.symbol|default:option.instrument }}</td>
+                                <td>
+                                    {% if option.option_type|default:option.type|lower == 'ce' %}
+                                        <span class="badge bg-success">CE</span>
+                                    {% else %}
+                                        <span class="badge bg-danger">PE</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end fw-medium">{{ option.strike_price|default:option.strike }}</td>
+                                <td class="text-end">
+                                    <span class="fw-medium text-dark">₹{{ option.ltp|default:'--' }}</span>
+                                </td>
+                                <td class="text-end">
+                                    <span class="fw-medium">{{ option.quantity|default:'50' }}</span>
+                                </td>
+                                <td class="text-end">
+                                    {% if option.action|lower == 'buy' %}
+                                        <span class="badge bg-primary">BUY</span>
+                                    {% else %}
+                                        <span class="badge bg-warning">SELL</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end">
+                                    {% if option.action|lower == 'buy' %}
+                                        <span class="fw-bold text-danger">₹{{ option.ltp|default:'--' }}</span>
+                                    {% else %}
+                                        <span class="fw-bold text-success">₹{{ option.ltp|default:'--' }}</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Basket Summary -->
+                <div class="basket-summary bg-light rounded p-2 mt-3">
+                    <div class="row text-center">
+                        <div class="col-3">
+                            <small class="text-muted d-block">Net Premium</small>
+                            <span class="fw-bold text-dark">₹--</span>
+                        </div>
+                        <div class="col-3">
+                            <small class="text-muted d-block">Max Profit</small>
+                            <span class="fw-bold text-success">₹--</span>
+                        </div>
+                        <div class="col-3">
+                            <small class="text-muted d-block">Max Loss</small>
+                            <span class="fw-bold text-danger">₹--</span>
+                        </div>
+                        <div class="col-3">
+                            <small class="text-muted d-block">Breakeven</small>
+                            <span class="fw-bold text-warning">--</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+{% else %}
+    <!-- Empty State -->
+    <div class="empty-state text-center py-5" style="background: #fafbfc; border-radius: 10px; border: 2px dashed #dee2e6;">
+        <div class="empty-icon mb-3">
+            <i class="bi bi-basket3" style="font-size: 4rem; color: #dee2e6;"></i>
+        </div>
+        <h4 class="text-muted mb-2">No Basket Orders</h4>
+        <p class="text-muted mb-4">Create your first basket to start building option strategies</p>
+        <a href="{% url 'option_chain' %}" class="btn btn-primary">
+            <i class="bi bi-plus-circle me-2"></i>Create First Basket
+        </a>
+    </div>
+{% endif %}
+
+<!-- Debug Information (Hidden by default) -->
+<div class="debug-panel bg-light border rounded p-3 mt-4" style="display: none; border-left: 4px solid #ffc107;" id="debugPanel">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <h6 class="mb-0"><i class="bi bi-bug text-warning"></i> Debug Information</h6>
+        <button class="btn btn-sm btn-outline-secondary" onclick="toggleDebug()">Hide</button>
+    </div>
+    <div class="row">
+        <div class="col-md-4">
+            <small class="text-muted d-block">Total Baskets</small>
+            <span class="fw-medium">{{ basket_orders|length }}</span>
+        </div>
+        <div class="col-md-4">
+            <small class="text-muted d-block">Session Active</small>
+            <span class="fw-medium">{% if basket_orders %}Yes{% else %}No{% endif %}</span>
+        </div>
+        <div class="col-md-4">
+            <small class="text-muted d-block">Basket Names</small>
+            <span class="fw-medium">
+                {% if basket_orders %}
+                    {% for basket in basket_orders %}
+                        "{{ basket.name }}"{% if not forloop.last %}, {% endif %}
+                    {% endfor %}
+                {% else %}
+                    None
+                {% endif %}
+            </span>
+        </div>
+    </div>
+</div>
+
+<!-- Show Debug Button -->
+<div class="text-center mt-3">
+    <button class="btn btn-sm btn-outline-secondary" onclick="toggleDebug()">
+        <i class="bi bi-gear"></i> Show Debug Info
+    </button>
+</div>
+
+<script>
+function toggleDebug() {
+    const debugPanel = document.getElementById('debugPanel');
+    const isHidden = debugPanel.style.display === 'none';
+    debugPanel.style.display = isHidden ? 'block' : 'none';
+    
+    const button = event.target.closest('button');
+    button.innerHTML = isHidden ? 
+        '<i class="bi bi-gear"></i> Hide Debug Info' : 
+        '<i class="bi bi-gear"></i> Show Debug Info';
+}
+
+function refreshData() {
+    window.location.reload();
+}
+
+function clearAllBaskets() {
+    if (confirm('Are you sure you want to clear all baskets? This action cannot be undone.')) {
+        fetch('{% url "clear_all_baskets" %}', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/json',
+            },
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Error clearing baskets: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error clearing baskets');
+        });
+    }
+}
+
+function editBasket(basketName) {
+    window.location.href = `{% url 'option_chain' %}?edit_basket=${encodeURIComponent(basketName)}`;
+}
+
+function executeBasket(basketName) {
+    if (confirm(`Are you sure you want to execute basket "${basketName}"?`)) {
+        alert('Execute functionality will be implemented soon');
+    }
+}
+
+function deleteBasket(basketName) {
+    if (confirm(`Are you sure you want to delete basket "${basketName}"?`)) {
+        alert('Delete functionality will be implemented soon');
+    }
+}
+</script>
+
+{% endblock %}
