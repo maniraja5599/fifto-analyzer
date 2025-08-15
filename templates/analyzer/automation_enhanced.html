@@ -280,7 +280,16 @@ function editSchedule(scheduleId) {
             }
             
             // Show the modal
-            new bootstrap.Modal(document.getElementById('scheduleModal')).show();
+            const modalElement = document.getElementById('scheduleModal');
+            if (window.bootstrap && window.bootstrap.Modal) {
+                new bootstrap.Modal(modalElement).show();
+            } else if (window.Modal) {
+                new Modal(modalElement).show();
+            } else {
+                // Fallback: try to show modal directly
+                modalElement.style.display = 'block';
+                modalElement.classList.add('show');
+            }
         } else {
             alert('Error loading schedule data: ' + (data.message || 'Unknown error'));
         }
