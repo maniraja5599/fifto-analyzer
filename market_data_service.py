@@ -24,8 +24,7 @@ class MarketDataService:
         self.symbols = {
             'NIFTY': '^NSEI',      # Nifty 50
             'BANKNIFTY': '^NSEBANK', # Bank Nifty  
-            'SENSEX': '^BSESN',    # Sensex
-            'VIX': '^INDIAVIX'     # India VIX
+            'SENSEX': '^BSESN'     # Sensex
         }
         
         # Initialize with empty data
@@ -33,7 +32,6 @@ class MarketDataService:
             'NIFTY': {'current_price': 0, 'change': 0, 'change_percent': 0, 'last_updated': None},
             'BANKNIFTY': {'current_price': 0, 'change': 0, 'change_percent': 0, 'last_updated': None},
             'SENSEX': {'current_price': 0, 'change': 0, 'change_percent': 0, 'last_updated': None},
-            'VIX': {'current_price': 0, 'change': 0, 'change_percent': 0, 'last_updated': None},
             'last_fetch': None,
             'status': 'initializing'
         }
@@ -48,8 +46,7 @@ class MarketDataService:
             symbols = {
                 'NIFTY': ['^NSEI', 'NSEI.NS', '^CNX_NIFTY'],
                 'BANKNIFTY': ['^NSEBANK', 'NSEBANK.NS', '^NIFTY_BANK'], 
-                'SENSEX': ['^BSESN', 'SENSEX.BO', '^BSE_SENSEX'],
-                'VIX': ['^INDIAVIX', 'VIX.NS', '^INDIA_VIX']
+                'SENSEX': ['^BSESN', 'SENSEX.BO', '^BSE_SENSEX']
             }
             
             market_data = {}
@@ -148,8 +145,7 @@ class MarketDataService:
         dummy_prices = {
             'NIFTY': 24500.0,
             'BANKNIFTY': 51000.0,
-            'SENSEX': 80000.0,
-            'VIX': 15.0
+            'SENSEX': 80000.0
         }
         return dummy_prices.get(name, 1000.0)
     
@@ -221,26 +217,18 @@ class MarketDataService:
         except:
             return {}
     
-    def get_dummy_price(self, name):
-        """Get realistic dummy prices for testing"""
-        dummy_prices = {
-            'NIFTY': 24500.0,
-            'BANKNIFTY': 51000.0,
-            'SENSEX': 80000.0,
-            'VIX': 15.0
-        }
-        return dummy_prices.get(name, 1000.0)
-    
     def start_service(self):
-        """Start the background market data service"""
-        if self.running:
-            logger.warning("⚠️ Service already running")
-            return
-        
-        self.running = True
-        self.thread = threading.Thread(target=self._service_loop, daemon=True)
-        self.thread.start()
-        logger.info("🚀 Market Data Service started")
+        """Service startup disabled - use manual data fetching only"""
+        print("📝 Market Data Service available on-demand (automatic background fetching disabled)")
+        # DISABLED: Background automatic fetching removed for manual control
+        # if self.running:
+        #     logger.warning("⚠️ Service already running")
+        #     return
+        # 
+        # self.running = True
+        # self.thread = threading.Thread(target=self._service_loop, daemon=True)
+        # self.thread.start()
+        # logger.info("🚀 Market Data Service started")
     
     def stop_service(self):
         """Stop the background service"""
@@ -250,27 +238,37 @@ class MarketDataService:
         logger.info("🛑 Market Data Service stopped")
     
     def _service_loop(self):
-        """Main service loop - fetch data every minute"""
-        # Initial fetch
-        self.fetch_market_data()
+        """Background service loop DISABLED - manual fetching only"""
+        print("⚠️ Background service loop disabled - use manual refresh")
+        return
         
-        while self.running:
-            try:
-                # Wait 60 seconds
-                for _ in range(60):
-                    if not self.running:
-                        break
-                    time.sleep(1)
-                
-                if self.running:
-                    self.fetch_market_data()
-                    
-            except Exception as e:
-                logger.error(f"❌ Error in service loop: {str(e)}")
-                time.sleep(10)  # Wait 10 seconds before retrying
+        # DISABLED CODE: Automatic background fetching loop removed
+        # # Initial fetch
+        # self.fetch_market_data()
+        # 
+        # while self.running:
+        #     try:
+        #         # Wait 60 seconds
+        #         for _ in range(60):
+        #             if not self.running:
+        #                 break
+        #             time.sleep(1)
+        #         
+        #         if self.running:
+        #             self.fetch_market_data()
+        #             
+        #     except Exception as e:
+        #         logger.error(f"❌ Error in service loop: {str(e)}")
+        #         time.sleep(10)  # Wait 10 seconds before retrying
     
     def get_current_data(self):
         """Get current market data"""
+        return self.market_data
+
+    def manual_refresh(self):
+        """Manual refresh of market data - call this when data is needed"""
+        print("🔄 Manual market data refresh requested...")
+        self.fetch_market_data()
         return self.market_data
     
     def is_market_hours(self):
@@ -289,8 +287,9 @@ class MarketDataService:
 market_service = MarketDataService()
 
 def start_market_service():
-    """Start the market data service"""
-    market_service.start_service()
+    """Service startup disabled - use manual refresh instead"""
+    print("📝 Market data available on-demand (use manual_refresh_market_data())")
+    # DISABLED: market_service.start_service()
 
 def stop_market_service():
     """Stop the market data service"""
@@ -299,6 +298,10 @@ def stop_market_service():
 def get_market_data():
     """Get current market data"""
     return market_service.get_current_data()
+
+def manual_refresh_market_data():
+    """Manually refresh market data when needed"""
+    return market_service.manual_refresh()
 
 def get_historical_data(symbol='NIFTY', period='1mo'):
     """Get historical data for charts"""

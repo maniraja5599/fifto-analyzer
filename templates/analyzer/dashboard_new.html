@@ -126,7 +126,6 @@
         .nifty { --accent-color: #3b82f6; }
         .banknifty { --accent-color: #8b5cf6; }
         .sensex { --accent-color: #f59e0b; }
-        .vix { --accent-color: #ef4444; }
 
         /* Main Content Area */
         .main-content {
@@ -384,22 +383,6 @@
                     <span>Loading...</span>
                 </div>
             </div>
-
-            <!-- VIX -->
-            <div class="market-item vix">
-                <div class="market-header-row">
-                    <div class="market-symbol">
-                        <div class="market-icon">
-                            <i class="fas fa-exclamation-triangle"></i>
-                        </div>
-                        VIX
-                    </div>
-                    <div class="market-price" id="vix-price">Loading...</div>
-                </div>
-                <div class="market-change" id="vix-change">
-                    <span>Loading...</span>
-                </div>
-            </div>
         </div>
     </header>
 
@@ -502,8 +485,7 @@
             const markets = [
                 { key: 'NIFTY', id: 'nifty' },
                 { key: 'BANKNIFTY', id: 'banknifty' },
-                { key: 'SENSEX', id: 'sensex' },
-                { key: 'VIX', id: 'vix' }
+                { key: 'SENSEX', id: 'sensex' }
             ];
             
             markets.forEach(market => {
@@ -539,7 +521,7 @@
 
         // Show loading error
         function showLoadingError() {
-            const markets = ['nifty', 'banknifty', 'sensex', 'vix'];
+            const markets = ['nifty', 'banknifty', 'sensex'];
             markets.forEach(market => {
                 const priceEl = document.getElementById(market + '-price');
                 const changeEl = document.getElementById(market + '-change');

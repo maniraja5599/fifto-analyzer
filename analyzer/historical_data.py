@@ -25,8 +25,7 @@ class HistoricalDataFetcher:
         self.symbols = {
             'NIFTY': '^NSEI',
             'BANKNIFTY': '^NSEBANK', 
-            'SENSEX': '^BSESN',
-            'VIX': '^VIX'
+            'SENSEX': '^BSESN'
         }
         
     def get_historical_data(self, symbol, period='1d', interval='5m'):
@@ -34,7 +33,7 @@ class HistoricalDataFetcher:
         Get historical data for the given symbol
         
         Args:
-            symbol: NIFTY, BANKNIFTY, SENSEX, VIX
+            symbol: NIFTY, BANKNIFTY, SENSEX
             period: 1d, 5d, 1mo, 3mo, 6mo, 1y, 2y, 5y, 10y, ytd, max
             interval: 1m, 2m, 5m, 15m, 30m, 60m, 90m, 1h, 1d, 5d, 1wk, 1mo, 3mo
         
@@ -142,8 +141,7 @@ class HistoricalDataFetcher:
             base_prices = {
                 'NIFTY': 24500,
                 'BANKNIFTY': 55000,
-                'SENSEX': 80000,
-                'VIX': 14.5
+                'SENSEX': 80000
             }
             
             base_price = base_prices.get(symbol, 24500)

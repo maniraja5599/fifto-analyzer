@@ -23,14 +23,6 @@
     "last_updated": "2025-08-14T04:01:15.365335",
     "symbol": "^BSESN"
   },
-  "VIX": {
-    "current_price": 12.14,
-    "change": -0.09,
-    "change_percent": -0.76,
-    "previous_close": 12.23,
-    "last_updated": "2025-08-14T04:01:15.650401",
-    "symbol": "^INDIAVIX"
-  },
-  "timestamp": "2025-08-14T04:01:15.650431",
+  "timestamp": "2025-08-15T15:21:11.461039",
   "source": "yfinance"
 }

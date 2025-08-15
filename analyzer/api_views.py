@@ -20,7 +20,7 @@ except ImportError:
 
 # Import yfinance market service
 try:
-    from django_market_service import get_django_market_data, get_django_historical_data
+    from django_market_service import get_django_market_data, get_django_historical_data, manual_refresh_django_market_data
     YFINANCE_AVAILABLE = True
 except ImportError:
     YFINANCE_AVAILABLE = False
@@ -44,8 +44,7 @@ def market_data_api(request):
             market_data = {
                 'NIFTY': cache_data.get('NIFTY', {}),
                 'BANKNIFTY': cache_data.get('BANKNIFTY', {}),
-                'SENSEX': cache_data.get('SENSEX', {}),
-                'VIX': cache_data.get('VIX', {})
+                'SENSEX': cache_data.get('SENSEX', {})
             }
             
             # Check market hours
@@ -73,8 +72,7 @@ def market_data_api(request):
                 'market_data': {
                     'NIFTY': {'current_price': 24500.0, 'change': 0, 'change_percent': 0},
                     'BANKNIFTY': {'current_price': 51000.0, 'change': 0, 'change_percent': 0},
-                    'SENSEX': {'current_price': 80000.0, 'change': 0, 'change_percent': 0},
-                    'VIX': {'current_price': 15.0, 'change': 0, 'change_percent': 0}
+                    'SENSEX': {'current_price': 80000.0, 'change': 0, 'change_percent': 0}
                 },
                 'timestamp': datetime.now().isoformat(),
                 'source': 'fallback',
@@ -97,8 +95,7 @@ def market_data_api(request):
             'market_data': {
                 'NIFTY': {'current_price': 0, 'change': 0, 'change_percent': 0},
                 'BANKNIFTY': {'current_price': 0, 'change': 0, 'change_percent': 0},
-                'SENSEX': {'current_price': 0, 'change': 0, 'change_percent': 0},
-                'VIX': {'current_price': 0, 'change': 0, 'change_percent': 0}
+                'SENSEX': {'current_price': 0, 'change': 0, 'change_percent': 0}
             }
         }, status=500)
         
@@ -297,3 +294,34 @@ def test_data_sources_api(request):
         response['Expires'] = '0'
         
         return response
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def manual_refresh_api(request):
+    """
+    API endpoint to manually refresh market data on-demand
+    """
+    try:
+        if YFINANCE_AVAILABLE:
+            print("🔄 Manual market data refresh requested via API...")
+            fresh_data = manual_refresh_django_market_data()
+            
+            return JsonResponse({
+                'success': True,
+                'message': 'Market data refreshed successfully',
+                'data': fresh_data,
+                'timestamp': datetime.now().isoformat()
+            })
+        else:
+            return JsonResponse({
+                'success': False,
+                'error': 'Market data service not available',
+                'message': 'Manual refresh service unavailable'
+            }, status=503)
+            
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e),
+            'message': 'Manual refresh failed'
+        }, status=500)

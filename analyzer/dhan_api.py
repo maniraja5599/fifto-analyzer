@@ -58,8 +58,7 @@ class DhanHQIntegration:
         self.symbol_map = {
             'NIFTY': {'security_id': 13, 'exchange': 'IDX_I', 'instrument': 'INDEX', 'name': 'NIFTY 50'},
             'BANKNIFTY': {'security_id': 25, 'exchange': 'IDX_I', 'instrument': 'INDEX', 'name': 'BANK NIFTY'}, 
-            'SENSEX': {'security_id': 51, 'exchange': 'IDX_I', 'instrument': 'INDEX', 'name': 'BSE SENSEX'},
-            'VIX': {'security_id': 27, 'exchange': 'IDX_I', 'instrument': 'INDEX', 'name': 'INDIA VIX'}
+            'SENSEX': {'security_id': 51, 'exchange': 'IDX_I', 'instrument': 'INDEX', 'name': 'BSE SENSEX'}
         }
         
         # Rate limiting - More conservative to avoid API limits

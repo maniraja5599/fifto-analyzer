@@ -73,7 +73,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # 
 # IMPORTANT DISCLAIMER:
 # This application uses DhanHQ API ONLY for accessing market data including:
-# - Real-time quotes for NIFTY, BANKNIFTY, SENSEX, VIX
+# - Real-time quotes for NIFTY, BANKNIFTY, SENSEX
 # - Historical price data for technical analysis
 # - Option chain data for zones calculation
 # - Market status and timing information

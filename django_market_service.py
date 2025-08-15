@@ -42,18 +42,24 @@ def get_django_market_data():
     """Get market data for Django views"""
     return market_service.get_current_data()
 
+def manual_refresh_django_market_data():
+    """Manually refresh market data for Django views"""
+    print("🔄 Django manual market data refresh...")
+    return market_service.manual_refresh()
+
 def get_django_historical_data(symbol='NIFTY', period='1mo'):
     """Get historical data for Django views"""
     return market_service.get_historical_data(symbol, period)
 
-# Auto-start the service when this module is imported
+# Auto-start disabled - service will be started on-demand only
 if __name__ != "__main__":
-    # Only start if not running as main script
-    try:
-        if not market_service.running:
-            start_market_service()
-    except Exception as e:
-        print(f"⚠️ Market service startup warning: {e}")
+    # DISABLED: Automatic service startup removed for manual control
+    print("📝 Market data service available on-demand (automatic startup disabled)")
+    # try:
+    #     if not market_service.running:
+    #         start_market_service()
+    # except Exception as e:
+    #     print(f"⚠️ Market service startup warning: {e}")
 
 if __name__ == "__main__":
     # Run standalone

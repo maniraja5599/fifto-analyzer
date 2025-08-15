@@ -23,8 +23,7 @@ logger = logging.getLogger(__name__)
 MARKET_SYMBOLS = {
     'NIFTY': {'security_id': '13', 'exchange': 'IDX_I'},
     'BANKNIFTY': {'security_id': '25', 'exchange': 'IDX_I'},
-    'SENSEX': {'security_id': '1', 'exchange': 'IDX_I'},
-    'VIX': {'security_id': '12', 'exchange': 'IDX_I'}
+    'SENSEX': {'security_id': '1', 'exchange': 'IDX_I'}
 }
 
 def get_market_data():
@@ -108,8 +107,7 @@ def get_fallback_data(name):
     fallback_data = {
         'NIFTY': {'price': 24500.00, 'change': 125.50, 'change_percent': 0.51},
         'BANKNIFTY': {'price': 51200.00, 'change': -80.25, 'change_percent': -0.16},
-        'SENSEX': {'price': 80500.00, 'change': 200.75, 'change_percent': 0.25},
-        'VIX': {'price': 13.45, 'change': 0.25, 'change_percent': 1.89}
+        'SENSEX': {'price': 80500.00, 'change': 200.75, 'change_percent': 0.25}
     }
     
     data = fallback_data.get(name, {'price': 0, 'change': 0, 'change_percent': 0})

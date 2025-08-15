@@ -173,21 +173,112 @@ def round_to_nearest_50(value):
 
 def calculate_weekly_zones(instrument_name, calculation_type):
     """
-    Calculate weekly supply/demand zones with fallback methods.
+    Calculate weekly supply/demand zones using EXACT NIFSEL.py logic.
     Returns supply_zone and demand_zone for strike selection.
     """
-    print(f"🔄 Calculating {calculation_type} zones for {instrument_name}...")
+    print(f"🔄 Calculating {calculation_type} zones for {instrument_name} using EXACT NIFSEL.py logic...")
     
-    # Try primary method with yfinance
-    supply_zone, demand_zone = try_yfinance_zones(instrument_name, calculation_type)
+    # Use EXACT NIFSEL.py algorithm
+    supply_zone, demand_zone = calculate_zones_nifsel_exact(instrument_name, calculation_type)
     
     if supply_zone is not None and demand_zone is not None:
-        print(f"✅ Primary method successful for {instrument_name}")
+        print(f"✅ NIFSEL.py exact method successful for {instrument_name}")
         return supply_zone, demand_zone
     
     # Fallback to mathematical model based on current market conditions
     print(f"🔄 Using fallback mathematical model for {instrument_name}...")
     return calculate_fallback_zones(instrument_name, calculation_type)
+
+def calculate_zones_nifsel_exact(instrument_name, calculation_type):
+    """
+    EXACT implementation of NIFSEL.py zone calculation logic.
+    This is a 1:1 replication of the NIFSEL.py algorithm.
+    """
+    try:
+        import yfinance as yf
+        
+        # EXACT ticker mapping from NIFSEL.py
+        TICKERS = {"NIFTY": "^NSEI", "BANKNIFTY": "^NSEBANK"}
+        
+        if instrument_name not in TICKERS:
+            print(f"❌ Instrument {instrument_name} not supported in NIFSEL.py logic")
+            return None, None
+            
+        ticker_symbol = TICKERS[instrument_name]
+        print(f"📊 Fetching data for {ticker_symbol} using EXACT NIFSEL.py logic...")
+        
+        # EXACT period logic from NIFSEL.py
+        if calculation_type == "Weekly" and instrument_name == "NIFTY":
+            period = "6mo"  # EXACT from NIFSEL.py for Weekly NIFTY
+        else:
+            period = "5y"   # Default for other calculations
+            
+        # Fetch historical data
+        df_zones = yf.Ticker(ticker_symbol).history(period=period, interval="1d")
+        
+        if df_zones.empty:
+            print(f"❌ No data received from yfinance for {ticker_symbol}")
+            return None, None
+            
+        print(f"✅ Retrieved {len(df_zones)} days of data for {ticker_symbol}")
+        
+        # Convert index to datetime (EXACT from NIFSEL.py)
+        df_zones.index = pd.to_datetime(df_zones.index)
+        
+        # EXACT resampling logic from NIFSEL.py
+        resample_period = 'W' if calculation_type == "Weekly" else 'ME'
+        agg_df = df_zones.resample(resample_period).agg({
+            'Open': 'first', 
+            'High': 'max', 
+            'Low': 'min'
+        }).dropna()
+        
+        if len(agg_df) < 10:
+            print(f"❌ Insufficient resampled data for {instrument_name} (need 10, got {len(agg_df)})")
+            return None, None
+            
+        print(f"✅ Resampled to {len(agg_df)} periods for zone calculation")
+        
+        # EXACT rolling range calculation from NIFSEL.py
+        rng5 = (agg_df['High'] - agg_df['Low']).rolling(5).mean()
+        rng10 = (agg_df['High'] - agg_df['Low']).rolling(10).mean()
+        
+        # EXACT base price logic from NIFSEL.py
+        base = agg_df['Open']
+        
+        # EXACT zone calculation from NIFSEL.py
+        u1 = base + 0.5 * rng5  # Upper zone 1
+        u2 = base + 0.5 * rng10  # Upper zone 2
+        l1 = base - 0.5 * rng5   # Lower zone 1
+        l2 = base - 0.5 * rng10  # Lower zone 2
+        
+        # Get the latest zones (EXACT from NIFSEL.py)
+        latest_zones = pd.DataFrame({
+            'u1': u1, 
+            'u2': u2, 
+            'l1': l1, 
+            'l2': l2
+        }).dropna().iloc[-1]
+        
+        # EXACT supply/demand calculation from NIFSEL.py
+        supply_zone = round(max(latest_zones['u1'], latest_zones['u2']), 2)
+        demand_zone = round(min(latest_zones['l1'], latest_zones['l2']), 2)
+        
+        print(f"✅ EXACT NIFSEL.py zones calculated for {instrument_name} ({calculation_type}):")
+        print(f"   Latest Base (Open): ₹{base.iloc[-1]:.2f}")
+        print(f"   RNG5 (5-period SMA): ₹{rng5.iloc[-1]:.2f}")
+        print(f"   RNG10 (10-period SMA): ₹{rng10.iloc[-1]:.2f}")
+        print(f"   Supply Zone: ₹{supply_zone}")
+        print(f"   Demand Zone: ₹{demand_zone}")
+        print(f"   Zone Range: ₹{supply_zone - demand_zone:.2f}")
+        
+        return supply_zone, demand_zone
+        
+    except Exception as e:
+        print(f"❌ NIFSEL.py exact method failed for {instrument_name}: {e}")
+        import traceback
+        traceback.print_exc()
+        return None, None
 
 def try_yfinance_zones(instrument_name, calculation_type):
     """

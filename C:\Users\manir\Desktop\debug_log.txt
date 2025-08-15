@@ -94,3 +94,93 @@
 [2025-08-14 00:31:01] UTILS: Generated files: summary_bd4a19c0a1074ec8a595e4d14048f54a.png, static/payoff_d02b740261db4026a48d9382dec0fe6f.png
 [2025-08-14 00:31:01] Analysis result: <class 'dict'>, Status: ✅ Weekly analysis completed with supply/demand zones (Supply: ₹24950, Demand: ₹24350)
 [2025-08-14 00:31:01] ✅ Analysis successful - data saved to session
+[2025-08-15 15:04:44] === Generate Analysis View Called ===
+[2025-08-15 15:04:44] Request method: POST
+[2025-08-15 15:04:44] Form data received:
+[2025-08-15 15:04:44]   Instrument: NIFTY
+[2025-08-15 15:04:44]   Calculation Type: Weekly
+[2025-08-15 15:04:44]   Expiry: 21-Aug-2025
+[2025-08-15 15:04:44] Calling utils.generate_analysis()...
+[2025-08-15 15:04:44] UTILS: === generate_analysis() called ===
+[2025-08-15 15:04:44] UTILS: Parameters: instrument=NIFTY, calc_type=Weekly, expiry=21-Aug-2025
+[2025-08-15 15:04:44] UTILS: Using ticker symbol: ^NSEI
+[2025-08-15 15:04:44] UTILS: 📊 Calculating Weekly supply/demand zones...
+[2025-08-15 15:04:44] UTILS: ✅ Zones calculated - Supply: ₹24700, Demand: ₹24600
+[2025-08-15 15:04:44] UTILS: ✅ Option chain fetch successful
+[2025-08-15 15:04:46] UTILS: ⚠️ Could not find underlying value in option chain data, using fallback: 24631.3
+[2025-08-15 15:04:46] UTILS: 📊 Using zone-based strike selection
+[2025-08-15 15:04:46] UTILS: 📊 Zone-based strikes:
+[2025-08-15 15:04:46] UTILS:    CE strikes (from supply ₹24700): [24700, 24750, 24800]
+[2025-08-15 15:04:46] UTILS:    PE strikes (from demand ₹24600): [24600, 24550, 24500]
+[2025-08-15 15:04:46] UTILS: 📊 DataFrame created with shape: (3, 8)
+[2025-08-15 15:04:46] UTILS: 📊 Display DataFrame: 
+         Entry  CE Strike  CE Price  PE Strike  PE Price Target/SL (1:1)
+0  High Reward      24700       0.0      24600       0.0              ₹0
+1   Mid Reward      24750       0.0      24550       0.0              ₹0
+2   Low Reward      24800       0.0      24500       0.0              ₹0
+[2025-08-15 15:04:46] UTILS: 📊 CE Prices found: 0 items
+[2025-08-15 15:04:46] UTILS: 📊 PE Prices found: 0 items
+[2025-08-15 15:04:46] UTILS: ✅ Analysis completed successfully for NIFTY
+[2025-08-15 15:04:46] UTILS: Generated files: summary_81e471e55371430e82acb849905b8b71.png, static/payoff_a4466ea5f0a94ed3943ffad0486b6da9.png
+[2025-08-15 15:04:46] Analysis result: <class 'dict'>, Status: ✅ Weekly analysis completed with supply/demand zones (Supply: ₹24700, Demand: ₹24600)
+[2025-08-15 15:04:46] ✅ Analysis successful - data saved to session
+[2025-08-15 15:21:48] === Generate Analysis View Called ===
+[2025-08-15 15:21:48] Request method: POST
+[2025-08-15 15:21:48] Form data received:
+[2025-08-15 15:21:48]   Instrument: NIFTY
+[2025-08-15 15:21:48]   Calculation Type: Weekly
+[2025-08-15 15:21:48]   Expiry: 21-Aug-2025
+[2025-08-15 15:21:48] Calling utils.generate_analysis()...
+[2025-08-15 15:21:48] UTILS: === generate_analysis() called ===
+[2025-08-15 15:21:48] UTILS: Parameters: instrument=NIFTY, calc_type=Weekly, expiry=21-Aug-2025
+[2025-08-15 15:21:48] UTILS: Using ticker symbol: ^NSEI
+[2025-08-15 15:21:48] UTILS: 📊 Calculating Weekly supply/demand zones...
+[2025-08-15 15:21:48] UTILS: ✅ Zones calculated - Supply: ₹24700, Demand: ₹24600
+[2025-08-15 15:21:48] UTILS: ✅ Option chain fetch successful
+[2025-08-15 15:21:50] UTILS: ⚠️ Could not find underlying value in option chain data, using fallback: 24631.3
+[2025-08-15 15:21:50] UTILS: 📊 Using zone-based strike selection
+[2025-08-15 15:21:50] UTILS: 📊 Zone-based strikes:
+[2025-08-15 15:21:50] UTILS:    CE strikes (from supply ₹24700): [24700, 24750, 24800]
+[2025-08-15 15:21:50] UTILS:    PE strikes (from demand ₹24600): [24600, 24550, 24500]
+[2025-08-15 15:21:50] UTILS: 📊 DataFrame created with shape: (3, 8)
+[2025-08-15 15:21:50] UTILS: 📊 Display DataFrame: 
+         Entry  CE Strike  CE Price  PE Strike  PE Price Target/SL (1:1)
+0  High Reward      24700       0.0      24600       0.0              ₹0
+1   Mid Reward      24750       0.0      24550       0.0              ₹0
+2   Low Reward      24800       0.0      24500       0.0              ₹0
+[2025-08-15 15:21:50] UTILS: 📊 CE Prices found: 0 items
+[2025-08-15 15:21:50] UTILS: 📊 PE Prices found: 0 items
+[2025-08-15 15:21:51] UTILS: ✅ Analysis completed successfully for NIFTY
+[2025-08-15 15:21:51] UTILS: Generated files: summary_3de79db754d94b58af594f704e1e59e4.png, static/payoff_03f25a6c67114e27afdb91bcc3b0e685.png
+[2025-08-15 15:21:51] Analysis result: <class 'dict'>, Status: ✅ Weekly analysis completed with supply/demand zones (Supply: ₹24700, Demand: ₹24600)
+[2025-08-15 15:21:51] ✅ Analysis successful - data saved to session
+[2025-08-15 15:29:44] === Generate Analysis View Called ===
+[2025-08-15 15:29:44] Request method: POST
+[2025-08-15 15:29:44] Form data received:
+[2025-08-15 15:29:44]   Instrument: NIFTY
+[2025-08-15 15:29:44]   Calculation Type: Weekly
+[2025-08-15 15:29:44]   Expiry: 21-Aug-2025
+[2025-08-15 15:29:44] Calling utils.generate_analysis()...
+[2025-08-15 15:29:44] UTILS: === generate_analysis() called ===
+[2025-08-15 15:29:44] UTILS: Parameters: instrument=NIFTY, calc_type=Weekly, expiry=21-Aug-2025
+[2025-08-15 15:29:44] UTILS: Using ticker symbol: ^NSEI
+[2025-08-15 15:29:44] UTILS: 📊 Calculating Weekly supply/demand zones...
+[2025-08-15 15:29:45] UTILS: ✅ Zones calculated - Supply: ₹24700, Demand: ₹24600
+[2025-08-15 15:29:45] UTILS: ✅ Option chain fetch successful
+[2025-08-15 15:29:46] UTILS: ⚠️ Could not find underlying value in option chain data, using fallback: 24631.3
+[2025-08-15 15:29:46] UTILS: 📊 Using zone-based strike selection
+[2025-08-15 15:29:46] UTILS: 📊 Zone-based strikes:
+[2025-08-15 15:29:46] UTILS:    CE strikes (from supply ₹24700): [24700, 24750, 24800]
+[2025-08-15 15:29:46] UTILS:    PE strikes (from demand ₹24600): [24600, 24550, 24500]
+[2025-08-15 15:29:46] UTILS: 📊 DataFrame created with shape: (3, 8)
+[2025-08-15 15:29:46] UTILS: 📊 Display DataFrame: 
+         Entry  CE Strike  CE Price  PE Strike  PE Price Target/SL (1:1)
+0  High Reward      24700       0.0      24600       0.0              ₹0
+1   Mid Reward      24750       0.0      24550       0.0              ₹0
+2   Low Reward      24800       0.0      24500       0.0              ₹0
+[2025-08-15 15:29:46] UTILS: 📊 CE Prices found: 0 items
+[2025-08-15 15:29:46] UTILS: 📊 PE Prices found: 0 items
+[2025-08-15 15:29:47] UTILS: ✅ Analysis completed successfully for NIFTY
+[2025-08-15 15:29:47] UTILS: Generated files: summary_9d79cbb41a704c6a95efa24ecc24d7bf.png, static/payoff_adf68e6f963c42538dcdb6b08766a3a2.png
+[2025-08-15 15:29:47] Analysis result: <class 'dict'>, Status: ✅ Weekly analysis completed with supply/demand zones (Supply: ₹24700, Demand: ₹24600)
+[2025-08-15 15:29:47] ✅ Analysis successful - data saved to session

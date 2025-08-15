@@ -27,16 +27,16 @@ class PnLUpdater:
         self.last_option_chain_update = None
         
     def start_updater(self):
-        """Start the 30-minute P&L update thread - DISABLED for on-demand only"""
+        """Automatic P&L updates DISABLED - Use manual refresh when needed"""
         print("📝 Automatic P&L updates disabled - Use manual refresh when needed")
-        # Automatic updater disabled - use manual refresh only
+        # DISABLED: Automatic 30-minute updater removed for manual control
         # if self.update_thread is None or not self.update_thread.is_alive():
         #     self.stop_event.clear()
         #     self.update_thread = Thread(target=self._update_loop, daemon=True)
         #     self.update_thread.start()
         #     print("✅ P&L Updater started - 30 minute intervals")
             
-        # Option chain refresh disabled - use on-demand only
+        # DISABLED: Option chain refresh removed for on-demand use only
         # self.start_option_chain_refresh()
             
     def stop_updater(self):

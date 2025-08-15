@@ -143,7 +143,6 @@
     .market-card.nifty { --accent-color: #3b82f6; }
     .market-card.banknifty { --accent-color: #ef4444; }
     .market-card.sensex { --accent-color: #f59e0b; }
-    .market-card.vix { --accent-color: #8b5cf6; }
     
     .market-header {
         display: flex;
@@ -489,19 +488,6 @@
                         <div class="loading-skeleton" style="width: 80px;"></div>
                     </div>
                 </div>
-
-                <div class="market-card vix">
-                    <div class="market-header">
-                        <div class="market-name">India VIX</div>
-                        <div class="market-icon">⚡</div>
-                    </div>
-                    <div class="market-price" id="vix-price">
-                        <div class="loading-skeleton"></div>
-                    </div>
-                    <div class="market-change" id="vix-change">
-                        <div class="loading-skeleton" style="width: 80px;"></div>
-                    </div>
-                </div>
             </div>
 
             <!-- Chart Section -->
@@ -679,7 +665,7 @@ async function loadMarketData() {
 
 // Update market cards with data
 function updateMarketCards(data) {
-    const markets = ['NIFTY', 'BANKNIFTY', 'SENSEX', 'VIX'];
+    const markets = ['NIFTY', 'BANKNIFTY', 'SENSEX'];
     
     markets.forEach(market => {
         const marketData = data[market];
