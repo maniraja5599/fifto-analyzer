@@ -1,4 +1,5 @@
 {% extends "analyzer/layout.html" %}
+{% load time_filters %}
 
 {% block title %}Multiple Automation{% endblock %}
 
@@ -43,7 +44,7 @@
                             {% else %}
                                 <span class="badge bg-secondary">Inactive</span>
                             {% endif %}
-                            {{ automation.instruments|join:", " }} | {{ automation.time }} | {{ automation.days|join:", " }}
+                            {{ automation.instruments|join:", " }} | {{ automation.time|time_12hour }} | {{ automation.days|join:", " }}
                         </p>
                     </div>
                 </div>

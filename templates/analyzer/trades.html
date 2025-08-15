@@ -1,4 +1,5 @@
 {% extends "analyzer/layout.html" %}
+{% load time_filters %}
 
 {% block title %}Active Trades{% endblock %}
 
@@ -177,7 +178,7 @@
                                 <td>
                                     <div class="trade-detail">
                                         <span class="fw-bold text-primary">{{ trade.reward_type }}</span>
-                                        <small class="d-block text-muted">{{ trade.start_time }}</small>
+                                        <small class="d-block text-muted">{{ trade.start_time|datetime_12hour }}</small>
                                     </div>
                                 </td>
                                 <td>
@@ -595,56 +596,53 @@ async function refreshTradeData() {
     refreshBtn.disabled = true;
     
     try {
-        // Update current premiums
-        await updateCurrentPremiums();
+        console.log('🔄 Starting optimized trades data refresh...');
         
-        // Show success feedback
-        refreshBtn.innerHTML = '<i class="bi bi-check-circle text-success"></i> Updated!';
-        setTimeout(() => {
-            refreshBtn.innerHTML = originalText;
-            refreshBtn.disabled = false;
-        }, 2000);
+        // Call our optimized API endpoint
+        const response = await fetch('/api/refresh-trades/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || ''
+            }
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            console.log('✅ Trades data refreshed successfully:', result.data);
+            
+            // Show success feedback with detailed info
+            const { total_strikes_fetched, trades_updated, total_pnl } = result.data;
+            refreshBtn.innerHTML = `<i class="bi bi-check-circle text-success"></i> Updated ${trades_updated} trades!`;
+            
+            // Reload the page to show updated data
+            setTimeout(() => {
+                window.location.reload();
+            }, 1500);
+            
+        } else {
+            throw new Error(result.message || 'Refresh failed');
+        }
+        
     } catch (error) {
-        console.error('Error refreshing trade data:', error);
+        console.error('❌ Error refreshing trade data:', error);
         refreshBtn.innerHTML = '<i class="bi bi-exclamation-triangle text-danger"></i> Error';
         setTimeout(() => {
             refreshBtn.innerHTML = originalText;
             refreshBtn.disabled = false;
-        }, 2000);
+        }, 3000);
     }
 }
 
-// Update current premiums
-async function updateCurrentPremiums() {
-    const premiumElements = document.querySelectorAll('.current-premium');
-    
-    for (const element of premiumElements) {
-        const tradeId = element.dataset.tradeId;
-        
-        try {
-            // Simulate API call for current premium updates
-            const randomChange = (Math.random() - 0.5) * 5; // Random change for demo
-            const currentValue = parseFloat(element.textContent);
-            const newValue = Math.max(0, currentValue + randomChange);
-            
-            element.textContent = newValue.toFixed(2);
-            
-            // Add visual feedback for changes
-            element.classList.add('text-info', 'fw-bold');
-            setTimeout(() => {
-                element.classList.remove('text-info', 'fw-bold');
-            }, 2000);
-            
-        } catch (error) {
-            console.error(`Error updating premium for trade ${tradeId}:`, error);
-        }
-    }
-}
+// Remove old simulation-based update function
+// Update current premiums is now handled by the API
 
 // Auto-update disabled - Use manual refresh only
 // Original auto-update code disabled:
 // setInterval(updateCurrentPremiums, 15000);
-console.log('🛑 Auto-refresh disabled for trades - Use manual refresh button instead');
+console.log('🛑 Auto-refresh disabled for trades - Use manual refresh button for optimized updates');
+console.log('⚡ Optimized refresh fetches only strikes for active trades');
 
 // Add CSS for enhanced styling
 const style = document.createElement('style');

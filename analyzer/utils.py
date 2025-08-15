@@ -28,6 +28,8 @@ BASE_DIR_USER = os.path.expanduser('~') # User's home directory for data files
 TRADES_DB_FILE = os.path.join(BASE_DIR_USER, "active_trades.json")
 SETTINGS_FILE = os.path.join(BASE_DIR_USER, "app_settings.json")
 EXPIRY_CACHE_FILE = os.path.join(BASE_DIR_USER, "expiry_cache.json")
+OPTION_CHAIN_CACHE_FILE = os.path.join(BASE_DIR_USER, "option_chain_cache.json")
+TRADES_DATA_CACHE_FILE = os.path.join(BASE_DIR_USER, "trades_data_cache.json")
 STATIC_FOLDER_PATH = os.path.join(settings.BASE_DIR, 'static') # Django project's static folder
 
 # --- Settings & Trade Management ---
@@ -518,6 +520,121 @@ def get_current_market_price(instrument_name):
         pass
     return None
 
+def get_option_chain_data_for_trades(symbol, required_strikes):
+    """
+    Optimized function to fetch option chain data only for specific strikes
+    Used for active trades to minimize API calls
+    Uses local caching for better performance
+    
+    Args:
+        symbol: NIFTY or BANKNIFTY
+        required_strikes: List of strike prices that are needed for active trades
+    
+    Returns:
+        Filtered option chain data containing only the required strikes
+    """
+    try:
+        if not required_strikes:
+            print(f"📝 No strikes required for {symbol}, skipping API call")
+            return None
+        
+        # Try to load from cache first
+        current_expiry = get_current_expiry(symbol)
+        cached_data = load_option_chain_cache(symbol, current_expiry, max_age_minutes=3)
+        
+        if cached_data:
+            print(f"� Using cached option chain data for {symbol}")
+            return filter_strikes_from_data(cached_data, required_strikes)
+            
+        print(f"�📡 Fetching optimized option chain data for {symbol} - {len(required_strikes)} strikes: {required_strikes}")
+        
+        # Fetch fresh data (this is unavoidable for current prices)
+        fresh_data = _fetch_fresh_option_chain_data(symbol)
+        if not fresh_data:
+            print(f"❌ Failed to fetch fresh data for {symbol}")
+            return None
+        
+        # Save to cache for future use
+        save_option_chain_cache(symbol, current_expiry, fresh_data)
+        
+        # Filter data to include only required strikes
+        filtered_data = filter_strikes_from_data(fresh_data, required_strikes)
+        
+        return filtered_data
+        
+    except Exception as e:
+        print(f"❌ Error in optimized option chain fetch for {symbol}: {e}")
+        return None
+
+def filter_strikes_from_data(data, required_strikes):
+    """
+    Filter option chain data to include only required strikes
+    """
+    try:
+        filtered_data = data.copy()
+        
+        # Handle DhanHQ data structure
+        if 'data' in data and 'oc' in data['data']:
+            oc_data = data['data']['oc']
+            filtered_oc = {}
+            
+            for strike_str, strike_data in oc_data.items():
+                try:
+                    strike_price = float(strike_str)
+                    if strike_price in required_strikes:
+                        filtered_oc[strike_str] = strike_data
+                        print(f"✅ Included strike {strike_price}")
+                except (ValueError, KeyError):
+                    continue
+            
+            filtered_data['data']['oc'] = filtered_oc
+            original_count = len(oc_data)
+            filtered_count = len(filtered_oc)
+            print(f"🎯 Optimized: {filtered_count}/{original_count} strikes (saved {original_count-filtered_count} strikes)")
+            
+        # Handle NSE data structure (fallback)
+        elif 'records' in data and 'data' in data['records']:
+            original_data = data['records']['data']
+            filtered_records = []
+            
+            for item in original_data:
+                strike_price = item.get('strikePrice')
+                if strike_price in required_strikes:
+                    filtered_records.append(item)
+                    print(f"✅ Included strike {strike_price}")
+            
+            filtered_data['records']['data'] = filtered_records
+            original_count = len(original_data)
+            filtered_count = len(filtered_records)
+            print(f"🎯 Optimized: {filtered_count}/{original_count} strikes (saved {original_count-filtered_count} strikes)")
+        
+        return filtered_data
+        
+    except Exception as e:
+        print(f"❌ Error filtering strikes: {e}")
+        return data
+
+def get_current_expiry(symbol):
+    """
+    Get the current/nearest expiry for a symbol
+    """
+    try:
+        expiry_dates = get_option_chain_expiry_dates_only(symbol)
+        if expiry_dates and len(expiry_dates) > 0:
+            return expiry_dates[0]  # Return first (nearest) expiry
+        else:
+            # Fallback to next Thursday
+            from datetime import datetime, timedelta
+            today = datetime.now().date()
+            days_until_thursday = (3 - today.weekday()) % 7
+            if days_until_thursday == 0:
+                days_until_thursday = 7
+            next_thursday = today + timedelta(days=days_until_thursday)
+            return next_thursday.strftime("%d-%b-%Y")
+    except Exception as e:
+        print(f"❌ Error getting current expiry: {e}")
+        return "28-Aug-2025"  # Fallback
+
 def get_option_chain_data(symbol):
     """
     Get complete option chain data with prices for analysis
@@ -780,6 +897,146 @@ def get_fallback_expiry_data(symbol):
                 'underlyingValue': 24500
             }
         }
+
+# --- Local Data Caching Functions ---
+
+def save_option_chain_cache(symbol, expiry, data):
+    """
+    Save option chain data to local cache for faster access
+    """
+    try:
+        cache_key = f"{symbol}_{expiry}"
+        cache_data = {}
+        
+        # Load existing cache
+        if os.path.exists(OPTION_CHAIN_CACHE_FILE):
+            with open(OPTION_CHAIN_CACHE_FILE, 'r') as f:
+                cache_data = json.load(f)
+        
+        # Add new data with timestamp
+        cache_data[cache_key] = {
+            'data': data,
+            'timestamp': datetime.now().isoformat(),
+            'symbol': symbol,
+            'expiry': expiry
+        }
+        
+        # Save back to file
+        with open(OPTION_CHAIN_CACHE_FILE, 'w') as f:
+            json.dump(cache_data, f, indent=2)
+        
+        print(f"💾 Saved option chain cache for {symbol} {expiry}")
+        
+    except Exception as e:
+        print(f"❌ Error saving option chain cache: {e}")
+
+def load_option_chain_cache(symbol, expiry, max_age_minutes=5):
+    """
+    Load option chain data from local cache if it's fresh enough
+    """
+    try:
+        cache_key = f"{symbol}_{expiry}"
+        
+        if not os.path.exists(OPTION_CHAIN_CACHE_FILE):
+            return None
+        
+        with open(OPTION_CHAIN_CACHE_FILE, 'r') as f:
+            cache_data = json.load(f)
+        
+        if cache_key not in cache_data:
+            return None
+        
+        cached_item = cache_data[cache_key]
+        cache_time = datetime.fromisoformat(cached_item['timestamp'])
+        age_minutes = (datetime.now() - cache_time).total_seconds() / 60
+        
+        if age_minutes <= max_age_minutes:
+            print(f"📋 Using cached option chain data for {symbol} {expiry} (age: {age_minutes:.1f}min)")
+            return cached_item['data']
+        else:
+            print(f"⏰ Cache too old for {symbol} {expiry} (age: {age_minutes:.1f}min)")
+            return None
+            
+    except Exception as e:
+        print(f"❌ Error loading option chain cache: {e}")
+        return None
+
+def save_trades_data_cache(trades_data):
+    """
+    Save trades data to local cache for faster access
+    """
+    try:
+        cache_data = {
+            'trades': trades_data,
+            'timestamp': datetime.now().isoformat()
+        }
+        
+        with open(TRADES_DATA_CACHE_FILE, 'w') as f:
+            json.dump(cache_data, f, indent=2)
+        
+        print(f"💾 Saved trades data cache with {len(trades_data)} trades")
+        
+    except Exception as e:
+        print(f"❌ Error saving trades data cache: {e}")
+
+def load_trades_data_cache(max_age_minutes=2):
+    """
+    Load trades data from local cache if it's fresh enough
+    """
+    try:
+        if not os.path.exists(TRADES_DATA_CACHE_FILE):
+            return None
+        
+        with open(TRADES_DATA_CACHE_FILE, 'r') as f:
+            cache_data = json.load(f)
+        
+        cache_time = datetime.fromisoformat(cache_data['timestamp'])
+        age_minutes = (datetime.now() - cache_time).total_seconds() / 60
+        
+        if age_minutes <= max_age_minutes:
+            print(f"📋 Using cached trades data (age: {age_minutes:.1f}min)")
+            return cache_data['trades']
+        else:
+            print(f"⏰ Trades cache too old (age: {age_minutes:.1f}min)")
+            return None
+            
+    except Exception as e:
+        print(f"❌ Error loading trades data cache: {e}")
+        return None
+
+def get_active_trades_strikes():
+    """
+    Get only the strikes that are currently needed for active trades
+    Returns dict with 'NIFTY': [strikes], 'BANKNIFTY': [strikes]
+    """
+    try:
+        trades = load_trades()
+        active_trades = [t for t in trades if t.get('status') == 'Running']
+        
+        strikes_needed = {'NIFTY': set(), 'BANKNIFTY': set()}
+        
+        for trade in active_trades:
+            instrument = trade.get('instrument')
+            if instrument in ['NIFTY', 'BANKNIFTY']:
+                ce_strike = trade.get('ce_strike')
+                pe_strike = trade.get('pe_strike')
+                
+                if ce_strike:
+                    strikes_needed[instrument].add(float(ce_strike))
+                if pe_strike:
+                    strikes_needed[instrument].add(float(pe_strike))
+        
+        # Convert sets to sorted lists
+        result = {}
+        for instrument, strikes in strikes_needed.items():
+            result[instrument] = sorted(list(strikes))
+        
+        print(f"🎯 Active trades need: NIFTY {len(result['NIFTY'])} strikes, BANKNIFTY {len(result['BANKNIFTY'])} strikes")
+        return result
+        
+    except Exception as e:
+        print(f"❌ Error getting active trades strikes: {e}")
+        return {'NIFTY': [], 'BANKNIFTY': []}
 
 # In analyzer/utils.py
 
@@ -1309,8 +1566,8 @@ def generate_analysis(instrument_name, calculation_type, selected_expiry_str):
     df["Combined Premium"] = df["CE Price"] + df["PE Price"]
     
     # Calculate target and stoploss with global round-off by 50
-    df["Target"] = df["Combined Premium"].apply(lambda x: round_to_nearest_50((x * 0.80 * lot_size)))
-    df["Stoploss"] = df["Combined Premium"].apply(lambda x: round_to_nearest_50((x * 0.80 * lot_size)))
+    df["Target"] = df["Combined Premium"].apply(lambda x: round_to_nearest_50((x * 0.85 * lot_size)))
+    df["Stoploss"] = df["Combined Premium"].apply(lambda x: round_to_nearest_50((x * 0.85 * lot_size)))
     
     display_df = df[['Entry', 'CE Strike', 'CE Price', 'PE Strike', 'PE Price']].copy()
     # Format target/SL values as integers since they're rounded to 50
@@ -1333,11 +1590,11 @@ def generate_analysis(instrument_name, calculation_type, selected_expiry_str):
     ax.axis('off')
     
     # Professional title with global theme styling
-    fig.suptitle(f'{instrument_name} Options Analysis - {expiry_label}', 
+    fig.suptitle(f'{instrument_name} {selected_expiry_str}', 
                 fontsize=18, fontweight='bold', y=0.94, color='#1e293b', ha='center')
     
-    # Enhanced info box with global theme styling
-    info_text = f"{instrument_name}: ₹{int(current_price)}\nExpiry: {expiry_label}\nGenerated: {datetime.now().strftime('%d-%b-%Y %I:%M %p')}"
+    # Enhanced info box with global theme styling (removed ₹ symbol)
+    info_text = f"{instrument_name}: {int(current_price)}\nExpiry: {expiry_label}\nGenerated: {datetime.now().strftime('%d-%b-%Y %I:%M %p')}"
     ax.text(0.5, 0.85, info_text, transform=ax.transAxes, ha='center', va='center', 
             fontsize=12, fontfamily='monospace', color='#1e293b', fontweight='600',
             bbox=dict(boxstyle='round,pad=0.8', facecolor='#f1f5f9', 
@@ -1393,24 +1650,18 @@ def generate_analysis(instrument_name, calculation_type, selected_expiry_str):
                     if current_text and current_text.replace('.', '').isdigit():
                         cell.get_text().set_text(f"₹{int(float(current_text))}")
     
-    # Enhanced footer with updated risk management text
-    footer_text = f"Strategy Analysis: Professional Options Trading"
-    ax.text(0.5, 0.15, footer_text, transform=ax.transAxes, ha='center', va='center',
-            fontsize=12, fontweight='bold', color='#16a34a',
-            bbox=dict(boxstyle='round,pad=0.4', facecolor='#f0fdf4', 
-                     edgecolor='#16a34a', alpha=0.8, linewidth=1))
     
     # SEBI disclaimer with global theme
     ax.text(0.5, 0.08, "We are not SEBI registered. For educational purposes only.", 
             transform=ax.transAxes, ha='center', va='center',
             fontsize=9, color='#dc2626', style='italic', fontweight='600')
     
-    # Enhanced FiFTO branding with red "O"
-    ax.text(0.5, 0.02, "FiFT", transform=ax.transAxes, ha='center', va='center',
+    # Enhanced FiFTO branding with copyright and red "O" (no space)
+    ax.text(0.46, 0.02, "© FiFT", transform=ax.transAxes, ha='center', va='center',
             fontsize=11, color='#16a34a', fontweight='bold', alpha=0.9)
-    ax.text(0.565, 0.02, "O", transform=ax.transAxes, ha='center', va='center',
+    ax.text(0.495, 0.02, "O", transform=ax.transAxes, ha='center', va='center',
             fontsize=11, color='#dc2626', fontweight='bold', alpha=0.9)  # Red "O"
-    ax.text(0.58, 0.02, " Analytics", transform=ax.transAxes, ha='left', va='center',
+    ax.text(0.52, 0.02, " Analytics", transform=ax.transAxes, ha='left', va='center',
             fontsize=11, color='#16a34a', fontweight='bold', alpha=0.9)
     
     plt.savefig(summary_filepath, dpi=150, bbox_inches='tight', facecolor='white', 

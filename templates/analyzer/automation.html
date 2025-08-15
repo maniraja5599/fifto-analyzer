@@ -1,4 +1,5 @@
 {% extends "analyzer/layout.html" %}
+{% load time_filters %}
 
 {% block title %}Automation{% endblock %}
 
@@ -8,46 +9,51 @@
     {% csrf_token %}
 </form>
 
-<!-- Uniform Page Header -->
-<div class="page-header">
-    <div class="row align-items-center">
-        <div class="col-lg-8">
-            <h1 class="page-title">
-                <i class="bi bi-robot text-purple"></i>
-                Automation Center
-            </h1>
-            <p class="page-subtitle">Create and manage multiple automation schedules for seamless trading operations</p>
-            <div class="page-stats">
-                <span class="stat-badge primary">
-                    <i class="bi bi-calendar-event"></i>
-                    {{ schedules|length|default:0 }} Active Schedules
-                </span>
-                <span class="stat-badge success">
-                    <i class="bi bi-play-circle"></i>
-                    Auto-Trading Enabled
-                </span>
-                <span class="stat-badge warning">
-                    <i class="bi bi-shield-check"></i>
-                    Risk Management Active
-                </span>
+<!-- Main Container with proper spacing -->
+<div class="container-fluid">
+    <!-- Uniform Page Header -->
+    <div class="page-header mb-4">
+        <div class="row align-items-center">
+            <div class="col-lg-8 col-md-7">
+                <h1 class="page-title">
+                    <i class="bi bi-robot text-purple"></i>
+                    Automation Center
+                </h1>
+                <p class="page-subtitle">Create and manage multiple automation schedules for seamless trading operations</p>
+                <div class="page-stats">
+                    <span class="stat-badge primary">
+                        <i class="bi bi-calendar-event"></i>
+                        {{ multiple_schedules|length|default:0 }} Active Schedules
+                    </span>
+                    <span class="stat-badge success">
+                        <i class="bi bi-play-circle"></i>
+                        Auto-Trading Enabled
+                    </span>
+                    <span class="stat-badge warning d-none d-md-inline">
+                        <i class="bi bi-shield-check"></i>
+                        Risk Management Active
+                    </span>
+                </div>
             </div>
-        </div>
-        <div class="col-lg-4">
-            <div class="page-actions">
-                <button type="button" class="btn btn-light-primary me-2" onclick="showAddScheduleModal()">
-                    <i class="bi bi-plus-circle"></i>
-                    Add New Schedule
-                </button>
-                <button type="button" class="btn btn-light-success" onclick="location.reload()">
-                    <i class="bi bi-arrow-clockwise"></i>
-                    Refresh Status
-                </button>
+            <div class="col-lg-4 col-md-5">
+                <div class="page-actions text-end">
+                    <button type="button" class="btn btn-light-primary me-2 mb-2 mb-md-0" onclick="showAddScheduleModal()">
+                        <i class="bi bi-plus-circle"></i>
+                        <span class="d-none d-sm-inline">Add New Schedule</span>
+                        <span class="d-sm-none">Add</span>
+                    </button>
+                    <button type="button" class="btn btn-light-success" onclick="location.reload()">
+                        <i class="bi bi-arrow-clockwise"></i>
+                        <span class="d-none d-sm-inline">Refresh Status</span>
+                    </button>
+                    <button type="button" class="btn btn-light-info ms-2" onclick="createTestActivity()" title="Create test activity">
+                        <i class="bi bi-plus-circle"></i>
+                        <span class="d-none d-sm-inline">Test Activity</span>
+                    </button>
+                </div>
             </div>
-        </div>
         </div>
     </div>
-</div>
-</div>
 
 <div class="row">
     <div class="col-12">
@@ -70,18 +76,18 @@
                         {% for schedule in multiple_schedules %}
                         <div class="schedule-card mb-3" data-schedule-id="{{ schedule.id }}">
                             <div class="card border-0 shadow-sm bg-white">
-                                <div class="card-body bg-white">
+                                <div class="card-body bg-white p-3">
                                     <div class="row align-items-center">
-                                        <div class="col-md-3">
+                                        <div class="col-lg-3 col-md-6 col-12 mb-2 mb-lg-0">
                                             <h6 class="mb-1 fw-bold text-dark">{{ schedule.name }}</h6>
-                                            <small class="text-muted">Daily at {{ schedule.time }}</small>
+                                            <small class="text-muted">Daily at {{ schedule.time|time_12hour }}</small>
                                             {% if schedule.last_run %}
                                             <br><small class="text-success">
                                                 <i class="bi bi-check-circle me-1"></i>Last run: {{ schedule.last_run|date:"d M Y H:i" }}
                                             </small>
                                             {% endif %}
                                         </div>
-                                        <div class="col-md-3">
+                                        <div class="col-lg-3 col-md-6 col-12 mb-2 mb-lg-0">
                                             <div class="d-flex flex-wrap gap-1 mb-2">
                                                 {% for instrument in schedule.instruments %}
                                                 <span class="badge bg-primary">{{ instrument }}</span>
@@ -93,7 +99,7 @@
                                             </small>
                                             {% endif %}
                                         </div>
-                                        <div class="col-md-2">
+                                        <div class="col-lg-2 col-md-6 col-6 mb-2 mb-lg-0">
                                             <div class="form-check form-switch">
                                                 <input class="form-check-input" type="checkbox" 
                                                        {% if schedule.enabled %}checked{% endif %}
@@ -103,19 +109,22 @@
                                                 </label>
                                             </div>
                                         </div>
-                                        <div class="col-md-4 text-end">
-                                            <div class="btn-group btn-group-sm">
-                                                <button type="button" class="btn btn-light-primary" 
+                                        <div class="col-lg-4 col-md-6 col-6">
+                                            <div class="btn-group btn-group-sm w-100" role="group">
+                                                <button type="button" class="btn btn-light-primary btn-sm" 
                                                         onclick="testSchedule('{{ schedule.id }}')">
-                                                    <i class="bi bi-play-circle me-1"></i>Test Now
+                                                    <i class="bi bi-play-circle"></i>
+                                                    <span class="d-none d-lg-inline ms-1">Test</span>
                                                 </button>
-                                                <button type="button" class="btn btn-light-warning" 
+                                                <button type="button" class="btn btn-light-warning btn-sm" 
                                                         onclick="editSchedule('{{ schedule.id }}')">
-                                                    <i class="bi bi-pencil me-1"></i>Edit
+                                                    <i class="bi bi-pencil"></i>
+                                                    <span class="d-none d-lg-inline ms-1">Edit</span>
                                                 </button>
-                                                <button type="button" class="btn btn-light-danger" 
+                                                <button type="button" class="btn btn-light-danger btn-sm" 
                                                         onclick="deleteSchedule('{{ schedule.id }}')">
-                                                    <i class="bi bi-trash me-1"></i>Delete
+                                                    <i class="bi bi-trash"></i>
+                                                    <span class="d-none d-lg-inline ms-1">Delete</span>
                                                 </button>
                                             </div>
                                         </div>
@@ -142,45 +151,6 @@
             </div>
         </div>
 
-        <!-- Auto Portfolio Feature -->
-        <div class="card clean-card border-0 shadow-sm mb-4">
-            <div class="card-header bg-light border-bottom">
-                <div class="d-flex align-items-center">
-                    <i class="bi bi-briefcase text-success me-3 fs-5"></i>
-                    <div>
-                        <h5 class="mb-0 fw-bold">Auto Portfolio Management</h5>
-                        <p class="text-muted mb-0 small">Automatically add generated charts to portfolio</p>
-                    </div>
-                </div>
-            </div>
-            <div class="card-body">
-                <div class="row align-items-center">
-                    <div class="col-md-8">
-                        <h6 class="mb-2 fw-bold text-dark">
-                            <i class="bi bi-plus-circle me-2 text-success"></i>
-                            Auto-Add Charts to Portfolio
-                        </h6>
-                        <p class="text-muted mb-0">
-                            Automatically add all automation-generated charts to your active portfolio for tracking and P&L monitoring. 
-                            This ensures no automated trades are missed from your portfolio.
-                        </p>
-                    </div>
-                    <div class="col-md-4 text-end">
-                        <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" id="autoPortfolioToggle" 
-                                   {% if settings.auto_add_to_portfolio %}checked{% endif %}
-                                   onchange="toggleAutoPortfolio(this.checked)">
-                            <label class="form-check-label fw-bold" for="autoPortfolioToggle">
-                                <span id="autoPortfolioStatus" class="{% if settings.auto_add_to_portfolio %}text-success{% else %}text-danger{% endif %}">
-                                    {% if settings.auto_add_to_portfolio %}Enabled{% else %}Disabled{% endif %}
-                                </span>
-                            </label>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
         <!-- Notifications Panel -->
         <div class="card clean-card border-0 shadow-sm mb-4" id="notificationsPanel" style="display: none;">
             <div class="card-header bg-success text-white border-bottom">
@@ -202,21 +172,43 @@
         <!-- Recent Activities -->
         <div class="card clean-card border-0 shadow-sm">
             <div class="card-header bg-light border-bottom">
-                <div class="d-flex align-items-center">
-                    <i class="bi bi-clock-history text-info me-3 fs-5"></i>
-                    <div>
-                        <h5 class="mb-0 fw-bold">Recent Activities</h5>
-                        <p class="text-muted mb-0 small">Last 10 automation generations</p>
+                <div class="d-flex align-items-center justify-content-between">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-clock-history text-info me-3 fs-5"></i>
+                        <div>
+                            <h5 class="mb-0 fw-bold">Recent Activities</h5>
+                            <p class="text-muted mb-0 small">Last 10 automation generations</p>
+                        </div>
                     </div>
+                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="loadRecentActivities()">
+                        <i class="bi bi-arrow-clockwise me-1"></i>Refresh
+                    </button>
                 </div>
             </div>
             <div class="card-body">
                 <div id="recentActivitiesList">
-                    <!-- Recent activities will be loaded here -->
-                    <div class="text-center text-muted py-3">
-                        <i class="bi bi-hourglass-split"></i>
-                        Loading recent activities...
-                    </div>
+                    {% if recent_activities %}
+                        {% for activity in recent_activities %}
+                        <div class="activity-item d-flex align-items-start mb-3 pb-3 border-bottom">
+                            <div class="activity-icon me-3 mt-1">
+                                <i class="bi {% if activity.status == 'success' %}bi-check-circle-fill text-success{% else %}bi-x-circle-fill text-danger{% endif %}"></i>
+                            </div>
+                            <div class="flex-grow-1">
+                                <div class="fw-semibold">{{ activity.title }}</div>
+                                <small class="text-muted">{{ activity.description }}</small>
+                                <div class="text-muted small mt-1">
+                                    <i class="bi bi-clock me-1"></i>{{ activity.time }}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center text-muted py-3">
+                            <i class="bi bi-inbox"></i>
+                            <div class="mt-2">No recent activities found</div>
+                            <small class="text-muted">Activities will appear here after automation runs</small>
+                        </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -225,7 +217,7 @@
 
 <!-- Add/Edit Schedule Modal -->
 <div class="modal fade" id="scheduleModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="scheduleModalTitle">Add New Schedule</h5>
@@ -238,16 +230,17 @@
                     <input type="hidden" name="action" value="create" id="formAction">
                     
                     <div class="row">
-                        <div class="col-md-12">
+                        <div class="col-12">
                             <div class="mb-3">
                                 <label for="scheduleName" class="form-label fw-bold">Schedule Name</label>
                                 <div class="input-group">
                                     <input type="text" class="form-control" id="scheduleName" name="name" required>
                                     <button type="button" class="btn btn-outline-secondary" onclick="generateScheduleName()">
-                                        <i class="bi bi-magic me-1"></i>Auto Generate
+                                        <i class="bi bi-magic"></i>
+                                        <span class="d-none d-sm-inline ms-1">Auto Generate</span>
                                     </button>
                                 </div>
-                                <small class="text-muted">Example: NIFTY 03AUG25 09:20:00 AM</small>
+                                <small class="text-muted">Example: NIFTY 11AUG25 TUESDAY</small>
                             </div>
                         </div>
                     </div>
@@ -370,11 +363,25 @@
                         </div>
                     </div>
                     
-                    <div class="form-check form-switch">
-                        <input class="form-check-input" type="checkbox" id="scheduleEnabled" name="enabled" checked>
-                        <label class="form-check-label fw-bold" for="scheduleEnabled">
-                            Enable this schedule
-                        </label>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="scheduleEnabled" name="enabled" checked>
+                                <label class="form-check-label fw-bold" for="scheduleEnabled">
+                                    Enable this schedule
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="addToPortfolio" name="add_to_portfolio" checked>
+                                <label class="form-check-label fw-bold" for="addToPortfolio">
+                                    <i class="bi bi-briefcase text-success me-1"></i>
+                                    Add to Portfolio
+                                </label>
+                                <small class="text-muted d-block">Automatically add generated charts to portfolio</small>
+                            </div>
+                        </div>
                     </div>
                 </form>
             </div>
@@ -395,6 +402,7 @@ function showAddScheduleModal() {
         document.getElementById('formAction').value = 'create';
         document.getElementById('scheduleForm').reset();
         document.getElementById('scheduleEnabled').checked = true;
+        document.getElementById('addToPortfolio').checked = true; // Default on
         // Auto-generate name
         generateScheduleName();
         const modal = new bootstrap.Modal(document.getElementById('scheduleModal'));
@@ -463,6 +471,7 @@ function editSchedule(scheduleId) {
             document.getElementById('scheduleTime').value = schedule.time || '09:20';
             document.getElementById('scheduleEnabled').checked = schedule.enabled || false;
             document.getElementById('telegramAlerts').checked = schedule.telegram_alerts !== false;
+            document.getElementById('addToPortfolio').checked = schedule.add_to_portfolio !== false; // Default to true if not set
             
             document.getElementById('instNifty').checked = schedule.instruments.includes('NIFTY');
             document.getElementById('instBankNifty').checked = schedule.instruments.includes('BANKNIFTY');
@@ -596,30 +605,22 @@ function generateScheduleName() {
     const month = months[today.getMonth()];
     const year = String(today.getFullYear()).slice(-2);
     
-    const timeInput = document.getElementById('scheduleTime');
-    const timeValue = timeInput.value || '09:20';
-    const [hours, minutes] = timeValue.split(':');
-    const timeObj = new Date();
-    timeObj.setHours(parseInt(hours), parseInt(minutes));
-    const timeFormatted = timeObj.toLocaleTimeString('en-US', { 
-        hour: '2-digit', 
-        minute: '2-digit', 
-        second: '2-digit',
-        hour12: true 
-    });
+    // Get day name
+    const dayNames = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
+    const dayName = dayNames[today.getDay()];
     
     const niftySelected = document.getElementById('instNifty').checked;
     const bankniftySelected = document.getElementById('instBankNifty').checked;
     
     let name = '';
     if (niftySelected && bankniftySelected) {
-        name = `NIFTY+BANKNIFTY ${day}${month}${year} ${timeFormatted}`;
+        name = `NIFTY+BANKNIFTY ${day}${month}${year} ${dayName}`;
     } else if (niftySelected) {
-        name = `NIFTY ${day}${month}${year} ${timeFormatted}`;
+        name = `NIFTY ${day}${month}${year} ${dayName}`;
     } else if (bankniftySelected) {
-        name = `BANKNIFTY ${day}${month}${year} ${timeFormatted}`;
+        name = `BANKNIFTY ${day}${month}${year} ${dayName}`;
     } else {
-        name = `SCHEDULE ${day}${month}${year} ${timeFormatted}`;
+        name = `SCHEDULE ${day}${month}${year} ${dayName}`;
     }
     
     document.getElementById('scheduleName').value = name;
@@ -659,19 +660,52 @@ function showPopNotification(message, type = 'success') {
 
 // Load recent activities
 function loadRecentActivities() {
-    fetch('/automation/', {
+    console.log('📋 loadRecentActivities called');
+    
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
+    if (!csrfToken) {
+        console.error('❌ CSRF token not found');
+        return;
+    }
+    
+    console.log('🔑 CSRF token found:', csrfToken.value);
+    console.log('🔍 CSRF token element:', csrfToken);
+    
+    // Use FormData to include CSRF token
+    const formData = new FormData();
+    formData.append('action', 'get_recent_activities');
+    formData.append('csrfmiddlewaretoken', csrfToken.value);
+    
+    console.log('📡 Making request with FormData');
+    
+    fetch('{% url "automation" %}', {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
-        },
-        body: 'action=get_recent_activities'
+        body: formData
     })
-    .then(response => response.json())
+    .then(response => {
+        console.log('📡 Response received:', response.status, response.statusText);
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return response.json();
+    })
     .then(data => {
+        console.log('📊 Response data:', data);
         const activitiesList = document.getElementById('recentActivitiesList');
         
+        if (data.success === false) {
+            console.error('❌ Server returned error:', data.message);
+            activitiesList.innerHTML = `
+                <div class="text-center text-muted py-3">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    <div class="mt-2">Server Error: ${data.message || 'Unknown error'}</div>
+                </div>
+            `;
+            return;
+        }
+        
         if (data.activities && data.activities.length > 0) {
+            console.log('✅ Found', data.activities.length, 'activities');
             let html = '';
             data.activities.forEach(activity => {
                 const iconClass = activity.status === 'success' ? 'bi-check-circle-fill text-success' : 'bi-x-circle-fill text-danger';
@@ -692,32 +726,80 @@ function loadRecentActivities() {
             });
             activitiesList.innerHTML = html;
         } else {
+            console.log('ℹ️ No activities found');
             activitiesList.innerHTML = `
                 <div class="text-center text-muted py-3">
                     <i class="bi bi-inbox"></i>
                     <div class="mt-2">No recent activities found</div>
+                    <small class="text-muted">Activities will appear here after automation runs</small>
                 </div>
             `;
         }
     })
     .catch(error => {
-        console.error('Error loading activities:', error);
+        console.error('❌ Error loading activities:', error);
+        // Show a fallback message but also try to load static activities
         document.getElementById('recentActivitiesList').innerHTML = `
             <div class="text-center text-muted py-3">
                 <i class="bi bi-exclamation-triangle"></i>
-                <div class="mt-2">Error loading activities</div>
+                <div class="mt-2">Unable to load recent activities</div>
+                <small class="text-muted">Error: ${error.message}</small>
+                <div class="mt-2">
+                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="loadRecentActivities()">
+                        <i class="bi bi-arrow-clockwise me-1"></i>Try Again
+                    </button>
+                </div>
             </div>
         `;
     });
 }
 
+// Test function to create a sample activity
+function createTestActivity() {
+    console.log('🧪 Creating test activity...');
+    
+    const formData = new FormData();
+    formData.append('action', 'create_test_activity');
+    formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+    
+    fetch('{% url "automation" %}', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log('🧪 Test activity response:', data);
+        if (data.success) {
+            showPopNotification('Test activity created!', 'success');
+            loadRecentActivities(); // Reload activities
+        } else {
+            showPopNotification('Error creating test activity: ' + data.message, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error creating test activity:', error);
+        showPopNotification('Error creating test activity', 'error');
+    });
+}
+
 // Update name when instruments change
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('🚀 DOM Content Loaded - Automation page ready');
+    
     const instNifty = document.getElementById('instNifty');
     const instBankNifty = document.getElementById('instBankNifty');
     
     if (instNifty) instNifty.addEventListener('change', generateScheduleName);
     if (instBankNifty) instBankNifty.addEventListener('change', generateScheduleName);
+    
+    // Load recent activities when page loads
+    console.log('🔄 About to call loadRecentActivities...');
+    try {
+        loadRecentActivities();
+        console.log('✅ loadRecentActivities() called successfully');
+    } catch (error) {
+        console.error('❌ Error calling loadRecentActivities:', error);
+    }
 });
 
 // Explicitly assign functions to window object for onclick accessibility
@@ -727,6 +809,148 @@ window.deleteSchedule = deleteSchedule;
 window.testSchedule = testSchedule;
 window.toggleSchedule = toggleSchedule;
 window.saveSchedule = saveSchedule;
+window.createTestActivity = createTestActivity;
 
 </script>
+
+</div> <!-- Close container-fluid -->
+
+<style>
+/* Automation page specific improvements */
+
+/* Main content padding improvements */
+.main-content {
+    padding: 1.5rem !important;
+}
+
+.content-body {
+    padding-top: 0;
+}
+
+.container-fluid {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    max-width: none !important;
+}
+
+.page-header {
+    padding: 2rem 0 1.5rem 0;
+    margin-bottom: 1.5rem;
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.02) 0%, rgba(147, 197, 253, 0.03) 100%);
+    border-radius: 12px;
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+}
+
+.page-actions {
+    gap: 0.5rem;
+}
+
+.schedule-card {
+    transition: all 0.3s ease;
+}
+
+.schedule-card:hover {
+    transform: translateY(-2px);
+}
+
+.btn-group-sm .btn {
+    font-size: 0.8rem;
+    padding: 0.25rem 0.5rem;
+}
+
+@media (max-width: 768px) {
+    .main-content {
+        padding: 1rem !important;
+    }
+    
+    .page-header {
+        padding: 1.5rem 1rem;
+        text-align: center;
+        margin-bottom: 1rem;
+    }
+    
+    .page-title {
+        font-size: 1.5rem;
+    }
+    
+    .page-subtitle {
+        font-size: 0.9rem;
+        margin-bottom: 0.75rem;
+    }
+    
+    .stat-badge {
+        font-size: 0.75rem;
+        margin: 0.25rem;
+    }
+    
+    .page-actions {
+        margin-top: 1rem;
+        text-align: center !important;
+    }
+    
+    .schedule-card {
+        margin-bottom: 1rem;
+    }
+    }
+    
+    .page-actions .btn {
+        font-size: 0.85rem;
+        padding: 0.375rem 0.75rem;
+    }
+    
+    .card-body {
+        padding: 1rem !important;
+    }
+    
+    .btn-group-sm {
+        display: flex;
+        width: 100%;
+    }
+    
+    .btn-group-sm .btn {
+        flex: 1;
+        text-align: center;
+    }
+}
+
+@media (max-width: 576px) {
+    .main-content {
+        padding: 0.75rem !important;
+    }
+    
+    .container-fluid {
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+    }
+    
+    .page-header {
+        padding: 1rem 0.75rem;
+        margin-bottom: 0.75rem;
+    }
+    
+    .page-title {
+        font-size: 1.25rem;
+    }
+    
+    .page-subtitle {
+        font-size: 0.85rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .schedule-card .card-body {
+        padding: 0.75rem !important;
+    }
+    
+    .btn-group-sm .btn {
+        font-size: 0.7rem;
+        padding: 0.2rem 0.4rem;
+    }
+    
+    .modal-dialog {
+        margin: 0.5rem;
+    }
+}
+</style>
+
 {% endblock %}

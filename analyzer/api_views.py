@@ -18,10 +18,11 @@ try:
 except ImportError:
     ENHANCED_DATA_AVAILABLE = False
 
-# Import yfinance market service
+# Import yfinance market service (conditional to reduce background data fetching)
 try:
     from django_market_service import get_django_market_data, get_django_historical_data, manual_refresh_django_market_data
     YFINANCE_AVAILABLE = True
+    print("📊 YFinance service available - will use on-demand only")
 except ImportError:
     YFINANCE_AVAILABLE = False
     print("⚠️ YFinance service not available, falling back to DhanHQ")
@@ -44,7 +45,8 @@ def market_data_api(request):
             market_data = {
                 'NIFTY': cache_data.get('NIFTY', {}),
                 'BANKNIFTY': cache_data.get('BANKNIFTY', {}),
-                'SENSEX': cache_data.get('SENSEX', {})
+                'SENSEX': cache_data.get('SENSEX', {}),
+                'VIX': cache_data.get('VIX', {})
             }
             
             # Check market hours
@@ -72,7 +74,8 @@ def market_data_api(request):
                 'market_data': {
                     'NIFTY': {'current_price': 24500.0, 'change': 0, 'change_percent': 0},
                     'BANKNIFTY': {'current_price': 51000.0, 'change': 0, 'change_percent': 0},
-                    'SENSEX': {'current_price': 80000.0, 'change': 0, 'change_percent': 0}
+                    'SENSEX': {'current_price': 80000.0, 'change': 0, 'change_percent': 0},
+                    'VIX': {'current_price': 15.0, 'change': 0, 'change_percent': 0}
                 },
                 'timestamp': datetime.now().isoformat(),
                 'source': 'fallback',
@@ -95,7 +98,8 @@ def market_data_api(request):
             'market_data': {
                 'NIFTY': {'current_price': 0, 'change': 0, 'change_percent': 0},
                 'BANKNIFTY': {'current_price': 0, 'change': 0, 'change_percent': 0},
-                'SENSEX': {'current_price': 0, 'change': 0, 'change_percent': 0}
+                'SENSEX': {'current_price': 0, 'change': 0, 'change_percent': 0},
+                'VIX': {'current_price': 0, 'change': 0, 'change_percent': 0}
             }
         }, status=500)
         
@@ -138,11 +142,17 @@ def historical_data_api(request):
         period = request.GET.get('period', '1mo')  # 1d, 5d, 1mo, 3mo, etc.
         
         if YFINANCE_AVAILABLE:
+            # Start market service only when historical data is actually requested
+            from django_market_service import start_market_service
+            start_market_service()  # This will only start if not already running
+            
             # Get historical data from yfinance service
             historical_data = get_django_historical_data(symbol, period)
+            print(f"📊 Historical data fetched for {symbol} ({period}) - on-demand")
         else:
             # Fallback to empty data for now
             historical_data = []
+            print("⚠️ Using fallback data - yfinance unavailable")
         
         response_data = {
             'success': True,
@@ -324,4 +334,138 @@ def manual_refresh_api(request):
             'success': False,
             'error': str(e),
             'message': 'Manual refresh failed'
+        }, status=500)
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def refresh_trades_data_api(request):
+    """
+    API endpoint to manually refresh option chain data for active trades only
+    Optimized to fetch only the strikes needed for current active trades
+    """
+    try:
+        from . import utils
+        from collections import defaultdict
+        
+        print("🔄 Manual trades data refresh requested...")
+        
+        # Load active trades
+        trades = utils.load_trades()
+        active_trades = [t for t in trades if t.get('status') == 'Running']
+        
+        if not active_trades:
+            return JsonResponse({
+                'success': True,
+                'message': 'No active trades found',
+                'data': {'nifty_strikes': [], 'banknifty_strikes': [], 'trades_updated': 0},
+                'timestamp': datetime.now().isoformat()
+            })
+        
+        # Check cache first for faster response
+        cached_trades = utils.load_trades_data_cache(max_age_minutes=1)
+        if cached_trades:
+            print("💾 Using cached trades data for refresh")
+            
+        # Collect required strikes by instrument (only for visible/active trades)
+        required_strikes = defaultdict(set)
+        for trade in active_trades:
+            instrument = trade.get('instrument', '')
+            if instrument in ['NIFTY', 'BANKNIFTY']:
+                ce_strike = trade.get('ce_strike')
+                pe_strike = trade.get('pe_strike')
+                if ce_strike:
+                    required_strikes[instrument].add(float(ce_strike))
+                if pe_strike:
+                    required_strikes[instrument].add(float(pe_strike))
+        
+        # Fetch optimized option chain data
+        option_chains = {}
+        total_strikes_fetched = 0
+        
+        for instrument, strikes in required_strikes.items():
+            if strikes:
+                strikes_list = list(strikes)
+                print(f"📡 Fetching {len(strikes_list)} strikes for {instrument}: {strikes_list}")
+                chain_data = utils.get_option_chain_data_for_trades(instrument, strikes_list)
+                if chain_data:
+                    option_chains[instrument] = chain_data
+                    total_strikes_fetched += len(strikes_list)
+                    print(f"✅ Retrieved {len(strikes_list)} strikes for {instrument}")
+        
+        # Update trade P&L with fresh data
+        trades_updated = 0
+        total_pnl = 0
+        
+        for trade in active_trades:
+            instrument = trade.get('instrument', '')
+            chain_data = option_chains.get(instrument)
+            
+            if chain_data:
+                current_ce, current_pe = 0.0, 0.0
+                
+                # Handle DhanHQ data structure
+                if 'data' in chain_data and 'oc' in chain_data['data']:
+                    oc_data = chain_data['data']['oc']
+                    for strike_str, strike_data in oc_data.items():
+                        try:
+                            strike_price = float(strike_str)
+                            
+                            # Match CE (Call) data
+                            if strike_price == trade.get('ce_strike') and 'ce' in strike_data:
+                                current_ce = strike_data['ce'].get('last_price', 0.0)
+                            
+                            # Match PE (Put) data
+                            if strike_price == trade.get('pe_strike') and 'pe' in strike_data:
+                                current_pe = strike_data['pe'].get('last_price', 0.0)
+                                
+                        except (ValueError, KeyError):
+                            continue
+                
+                # Calculate P&L
+                if current_ce > 0 or current_pe > 0:
+                    lot_size = utils.get_lot_size(trade['instrument'])
+                    initial_premium = trade.get('initial_premium', 0)
+                    current_premium = current_ce + current_pe
+                    pnl = round((initial_premium - current_premium) * lot_size, 2)
+                    
+                    # Update trade data
+                    trade['pnl'] = pnl
+                    trade['current_premium'] = current_premium
+                    total_pnl += pnl
+                    trades_updated += 1
+        
+        # Save updated trades
+        utils.save_trades(trades)
+        
+        # Cache the updated trades data for faster subsequent access
+        utils.save_trades_data_cache(trades)
+        
+        # Prepare response
+        nifty_strikes = list(required_strikes.get('NIFTY', []))
+        banknifty_strikes = list(required_strikes.get('BANKNIFTY', []))
+        
+        response_data = {
+            'nifty_strikes': nifty_strikes,
+            'banknifty_strikes': banknifty_strikes,
+            'total_strikes_fetched': total_strikes_fetched,
+            'trades_updated': trades_updated,
+            'total_pnl': total_pnl,
+            'cache_status': 'updated'
+        }
+        
+        print(f"✅ Trades data refresh complete: {trades_updated} trades updated, {total_strikes_fetched} strikes fetched")
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Trades data refreshed successfully - {trades_updated} trades updated',
+            'data': response_data,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        print(f"❌ Error refreshing trades data: {e}")
+        return JsonResponse({
+            'success': False,
+            'error': str(e),
+            'message': 'Trades data refresh failed'
         }, status=500)

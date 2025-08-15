@@ -274,3 +274,510 @@
 [2025-08-15 18:00:53] UTILS: Generated files: summary_abfc26293e154b9787fa4ae7fc3dac05.png, static/payoff_24e55d1bb4554fdfbdcb28a0e9f27bf2.png
 [2025-08-15 18:00:53] Analysis result: <class 'dict'>, Status: ✅ Weekly analysis completed with supply/demand zones (Supply: ₹24608, Demand: ₹24135)
 [2025-08-15 18:00:53] ✅ Analysis successful - data saved to session
+[2025-08-15 19:49:01] === Generate Analysis View Called ===
+[2025-08-15 19:49:01] Request method: POST
+[2025-08-15 19:49:01] Form data received:
+[2025-08-15 19:49:01]   Instrument: NIFTY
+[2025-08-15 19:49:01]   Calculation Type: Weekly
+[2025-08-15 19:49:01]   Expiry: 21-Aug-2025
+[2025-08-15 19:49:01] Calling utils.generate_analysis()...
+[2025-08-15 19:49:01] UTILS: === generate_analysis() called ===
+[2025-08-15 19:49:01] UTILS: Parameters: instrument=NIFTY, calc_type=Weekly, expiry=21-Aug-2025
+[2025-08-15 19:49:01] UTILS: Using ticker symbol: ^NSEI
+[2025-08-15 19:49:01] UTILS: 📊 Calculating Weekly supply/demand zones...
+[2025-08-15 19:49:02] UTILS: ✅ Zones calculated - Supply: ₹24607.53, Demand: ₹24135.47
+[2025-08-15 19:49:02] UTILS: ✅ Option chain fetch successful
+[2025-08-15 19:49:02] UTILS: ⚠️ Could not find underlying value in option chain data, using fallback: 24631.3
+[2025-08-15 19:49:02] UTILS: 📊 Using zone-based strike selection
+[2025-08-15 19:49:02] UTILS: 📊 Zone-based strikes:
+[2025-08-15 19:49:02] UTILS:    CE strikes (from supply ₹24607.53): [24650, 24700, 24750]
+[2025-08-15 19:49:02] UTILS:    PE strikes (from demand ₹24135.47): [24100, 24050, 24000]
+[2025-08-15 19:49:02] UTILS: 📊 DataFrame created with shape: (3, 8)
+[2025-08-15 19:49:02] UTILS: 📊 Display DataFrame: 
+         Entry  CE Strike  CE Price  PE Strike  PE Price Target/SL (1:1)
+0  High Reward      24650       0.0      24100       0.0              ₹0
+1   Mid Reward      24700       0.0      24050       0.0              ₹0
+2   Low Reward      24750       0.0      24000       0.0              ₹0
+[2025-08-15 19:49:02] UTILS: 📊 CE Prices found: 0 items
+[2025-08-15 19:49:02] UTILS: 📊 PE Prices found: 0 items
+[2025-08-15 19:49:03] UTILS: ✅ Analysis completed successfully for NIFTY
+[2025-08-15 19:49:03] UTILS: Generated files: summary_97ae62e43c454c5da70c978bc56ed036.png, static/payoff_fc7f8511d8d645caa414b1d2b36265a9.png
+[2025-08-15 19:49:03] Analysis result: <class 'dict'>, Status: ✅ Weekly analysis completed with supply/demand zones (Supply: ₹24608, Demand: ₹24135)
+[2025-08-15 19:49:03] ✅ Analysis successful - data saved to session
+[2025-08-15 08:06:55 PM] === Generate Analysis View Called ===
+[2025-08-15 08:06:55 PM] Request method: POST
+[2025-08-15 08:06:55 PM] Form data received:
+[2025-08-15 08:06:55 PM]   Instrument: NIFTY
+[2025-08-15 08:06:55 PM]   Calculation Type: Weekly
+[2025-08-15 08:06:55 PM]   Expiry: 21-Aug-2025
+[2025-08-15 08:06:55 PM] Calling utils.generate_analysis()...
+[2025-08-15 08:06:55 PM] UTILS: === generate_analysis() called ===
+[2025-08-15 08:06:55 PM] UTILS: Parameters: instrument=NIFTY, calc_type=Weekly, expiry=21-Aug-2025
+[2025-08-15 08:06:55 PM] UTILS: Using ticker symbol: ^NSEI
+[2025-08-15 08:06:55 PM] UTILS: 📊 Calculating Weekly supply/demand zones...
+[2025-08-15 08:06:55 PM] UTILS: ✅ Zones calculated - Supply: ₹24607.53, Demand: ₹24135.47
+[2025-08-15 08:06:55 PM] UTILS: ✅ Option chain fetch successful
+[2025-08-15 08:06:56 PM] UTILS: ⚠️ Could not find underlying value in option chain data, using fallback: 24631.3
+[2025-08-15 08:06:56 PM] UTILS: 📊 Using zone-based strike selection
+[2025-08-15 08:06:56 PM] UTILS: 📊 Zone-based strikes:
+[2025-08-15 08:06:56 PM] UTILS:    CE strikes (from supply ₹24607.53): [24650, 24700, 24750]
+[2025-08-15 08:06:56 PM] UTILS:    PE strikes (from demand ₹24135.47): [24100, 24050, 24000]
+[2025-08-15 08:06:56 PM] UTILS: 📊 DataFrame created with shape: (3, 8)
+[2025-08-15 08:06:56 PM] UTILS: 📊 Display DataFrame: 
+         Entry  CE Strike  CE Price  PE Strike  PE Price Target/SL (1:1)
+0  High Reward      24650       0.0      24100       0.0              ₹0
+1   Mid Reward      24700       0.0      24050       0.0              ₹0
+2   Low Reward      24750       0.0      24000       0.0              ₹0
+[2025-08-15 08:06:56 PM] UTILS: 📊 CE Prices found: 0 items
+[2025-08-15 08:06:56 PM] UTILS: 📊 PE Prices found: 0 items
+[2025-08-15 08:06:56 PM] UTILS: ✅ Analysis completed successfully for NIFTY
+[2025-08-15 08:06:56 PM] UTILS: Generated files: summary_b2ef730e70714787ad1b733f5152adac.png, static/payoff_5c995f2ed4694042b99e7e170afee3df.png
+[2025-08-15 08:06:56 PM] Analysis result: <class 'dict'>, Status: ✅ Weekly analysis completed with supply/demand zones (Supply: ₹24608, Demand: ₹24135)
+[2025-08-15 08:06:56 PM] ✅ Analysis successful - data saved to session
+[2025-08-15 08:18:13 PM] === Generate Analysis View Called ===
+[2025-08-15 08:18:13 PM] Request method: POST
+[2025-08-15 08:18:13 PM] Form data received:
+[2025-08-15 08:18:13 PM]   Instrument: NIFTY
+[2025-08-15 08:18:13 PM]   Calculation Type: Weekly
+[2025-08-15 08:18:13 PM]   Expiry: 21-Aug-2025
+[2025-08-15 08:18:13 PM] Calling utils.generate_analysis()...
+[2025-08-15 08:18:13 PM] UTILS: === generate_analysis() called ===
+[2025-08-15 08:18:13 PM] UTILS: Parameters: instrument=NIFTY, calc_type=Weekly, expiry=21-Aug-2025
+[2025-08-15 08:18:13 PM] UTILS: Using ticker symbol: ^NSEI
+[2025-08-15 08:18:13 PM] UTILS: 📊 Calculating Weekly supply/demand zones...
+[2025-08-15 08:18:14 PM] UTILS: ✅ Zones calculated - Supply: ₹24607.53, Demand: ₹24135.47
+[2025-08-15 08:18:14 PM] OPTION_CHAIN: 📡 get_option_chain_data called for NIFTY - fetching fresh data
+[2025-08-15 08:18:14 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 08:18:14 PM] UTILS: ✅ Option chain fetch successful
+[2025-08-15 08:18:14 PM] UTILS: 📊 Updated current price from option chain: 24631.30078125
+[2025-08-15 08:18:14 PM] UTILS: 📊 Option chain data keys: ['data', 'status', 'expiryDates', 'symbol', 'underlying']
+[2025-08-15 08:18:14 PM] UTILS: 📊 Option chain data['data'] keys: ['last_price', 'oc']
+[2025-08-15 08:18:14 PM] UTILS: 📊 Found DhanHQ structure with 228 strikes
+[2025-08-15 08:18:14 PM] UTILS: 📊 DhanHQ API data - CE: 228, PE: 228 strikes
+[2025-08-15 08:18:14 PM] UTILS: 📊 Using zone-based strike selection
+[2025-08-15 08:18:14 PM] UTILS: 📊 Zone-based strikes:
+[2025-08-15 08:18:14 PM] UTILS:    CE strikes (from supply ₹24607.53): [24650, 24700, 24750]
+[2025-08-15 08:18:14 PM] UTILS:    PE strikes (from demand ₹24135.47): [24100, 24050.0, 24000.0]
+[2025-08-15 08:18:14 PM] UTILS: 📊 DataFrame created with shape: (3, 8)
+[2025-08-15 08:18:14 PM] UTILS: 📊 Display DataFrame: 
+         Entry  CE Strike  CE Price  PE Strike  PE Price Target/SL (1:1)
+0  High Reward      24650    141.30    24100.0     20.50           ₹9700
+1   Mid Reward      24700    119.35    24050.0     18.15           ₹8250
+2   Low Reward      24750     96.45    24000.0     15.85           ₹6750
+[2025-08-15 08:18:14 PM] UTILS: 📊 CE Prices found: 228 items
+[2025-08-15 08:18:14 PM] UTILS: 📊 PE Prices found: 228 items
+[2025-08-15 08:18:15 PM] UTILS: ✅ Analysis completed successfully for NIFTY
+[2025-08-15 08:18:15 PM] UTILS: Generated files: summary_e748c0a85eb742b5ab532e0d461679e9.png, static/payoff_75293cf3f6b14bf5b836208b55ddf3b9.png
+[2025-08-15 08:18:15 PM] Analysis result: <class 'dict'>, Status: ✅ Weekly analysis completed with supply/demand zones (Supply: ₹24608, Demand: ₹24135)
+[2025-08-15 08:18:15 PM] ✅ Analysis successful - data saved to session
+[2025-08-15 08:58:41 PM] OPTION_CHAIN: 📡 get_option_chain_data called for NIFTY - fetching fresh data
+[2025-08-15 08:58:42 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 08:58:42 PM] OPTION_CHAIN: 📡 get_option_chain_data called for BANKNIFTY - fetching fresh data
+[2025-08-15 08:58:45 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 08:58:45 PM] OPTION_CHAIN: 📡 get_option_chain_data called for NIFTY - fetching fresh data
+[2025-08-15 08:58:45 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 08:58:45 PM] OPTION_CHAIN: 📡 get_option_chain_data called for BANKNIFTY - fetching fresh data
+[2025-08-15 08:58:45 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 08:58:51 PM] OPTION_CHAIN: 📡 get_option_chain_data called for NIFTY - fetching fresh data
+[2025-08-15 08:58:51 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 08:58:51 PM] OPTION_CHAIN: 📡 get_option_chain_data called for BANKNIFTY - fetching fresh data
+[2025-08-15 08:58:51 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 08:58:51 PM] OPTION_CHAIN: 📡 get_option_chain_data called for NIFTY - fetching fresh data
+[2025-08-15 08:58:51 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 08:58:51 PM] OPTION_CHAIN: 📡 get_option_chain_data called for BANKNIFTY - fetching fresh data
+[2025-08-15 08:58:51 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 08:59:21 PM] OPTION_CHAIN: 📡 get_option_chain_data called for NIFTY - fetching fresh data
+[2025-08-15 08:59:21 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 08:59:21 PM] OPTION_CHAIN: 📡 get_option_chain_data called for BANKNIFTY - fetching fresh data
+[2025-08-15 08:59:25 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 08:59:25 PM] OPTION_CHAIN: 📡 get_option_chain_data called for NIFTY - fetching fresh data
+[2025-08-15 08:59:25 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 08:59:25 PM] OPTION_CHAIN: 📡 get_option_chain_data called for BANKNIFTY - fetching fresh data
+[2025-08-15 08:59:25 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 08:59:55 PM] OPTION_CHAIN: 📡 get_option_chain_data called for NIFTY - fetching fresh data
+[2025-08-15 08:59:55 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 08:59:55 PM] OPTION_CHAIN: 📡 get_option_chain_data called for BANKNIFTY - fetching fresh data
+[2025-08-15 08:59:58 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 08:59:58 PM] OPTION_CHAIN: 📡 get_option_chain_data called for NIFTY - fetching fresh data
+[2025-08-15 08:59:58 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 08:59:58 PM] OPTION_CHAIN: 📡 get_option_chain_data called for BANKNIFTY - fetching fresh data
+[2025-08-15 08:59:58 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 09:00:28 PM] OPTION_CHAIN: 📡 get_option_chain_data called for NIFTY - fetching fresh data
+[2025-08-15 09:00:29 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 09:00:29 PM] OPTION_CHAIN: 📡 get_option_chain_data called for BANKNIFTY - fetching fresh data
+[2025-08-15 09:00:33 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 09:00:33 PM] OPTION_CHAIN: 📡 get_option_chain_data called for NIFTY - fetching fresh data
+[2025-08-15 09:00:33 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 09:00:33 PM] OPTION_CHAIN: 📡 get_option_chain_data called for BANKNIFTY - fetching fresh data
+[2025-08-15 09:00:35 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 09:01:05 PM] OPTION_CHAIN: 📡 get_option_chain_data called for NIFTY - fetching fresh data
+[2025-08-15 09:01:05 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 09:01:05 PM] OPTION_CHAIN: 📡 get_option_chain_data called for BANKNIFTY - fetching fresh data
+[2025-08-15 09:01:08 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 09:01:08 PM] OPTION_CHAIN: 📡 get_option_chain_data called for NIFTY - fetching fresh data
+[2025-08-15 09:01:08 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 09:01:08 PM] OPTION_CHAIN: 📡 get_option_chain_data called for BANKNIFTY - fetching fresh data
+[2025-08-15 09:01:08 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 09:03:24 PM] === Generate Analysis View Called ===
+[2025-08-15 09:03:24 PM] Request method: POST
+[2025-08-15 09:03:24 PM] Form data received:
+[2025-08-15 09:03:24 PM]   Instrument: NIFTY
+[2025-08-15 09:03:24 PM]   Calculation Type: Weekly
+[2025-08-15 09:03:24 PM]   Expiry: 21-Aug-2025
+[2025-08-15 09:03:24 PM] Calling utils.generate_analysis()...
+[2025-08-15 09:03:24 PM] UTILS: === generate_analysis() called ===
+[2025-08-15 09:03:24 PM] UTILS: Parameters: instrument=NIFTY, calc_type=Weekly, expiry=21-Aug-2025
+[2025-08-15 09:03:24 PM] UTILS: Using ticker symbol: ^NSEI
+[2025-08-15 09:03:24 PM] UTILS: 📊 Calculating Weekly supply/demand zones...
+[2025-08-15 09:03:24 PM] UTILS: ✅ Zones calculated - Supply: ₹24607.53, Demand: ₹24135.47
+[2025-08-15 09:03:24 PM] OPTION_CHAIN: 📡 get_option_chain_data called for NIFTY - fetching fresh data
+[2025-08-15 09:03:25 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 09:03:25 PM] UTILS: ✅ Option chain fetch successful
+[2025-08-15 09:03:25 PM] UTILS: 📊 Updated current price from option chain: 24631.30078125
+[2025-08-15 09:03:25 PM] UTILS: 📊 Option chain data keys: ['data', 'status', 'expiryDates', 'symbol', 'underlying']
+[2025-08-15 09:03:25 PM] UTILS: 📊 Option chain data['data'] keys: ['last_price', 'oc']
+[2025-08-15 09:03:25 PM] UTILS: 📊 Found DhanHQ structure with 228 strikes
+[2025-08-15 09:03:25 PM] UTILS: 📊 DhanHQ API data - CE: 228, PE: 228 strikes
+[2025-08-15 09:03:25 PM] UTILS: 📊 Using zone-based strike selection
+[2025-08-15 09:03:25 PM] UTILS: 📊 Zone-based strikes:
+[2025-08-15 09:03:25 PM] UTILS:    CE strikes (from supply ₹24607.53): [24650, 24700, 24750]
+[2025-08-15 09:03:25 PM] UTILS:    PE strikes (from demand ₹24135.47): [24100, 24050.0, 24000.0]
+[2025-08-15 09:03:25 PM] UTILS: 📊 DataFrame created with shape: (3, 8)
+[2025-08-15 09:03:25 PM] UTILS: 📊 Display DataFrame: 
+         Entry  CE Strike  CE Price  PE Strike  PE Price Target/SL (1:1)
+0  High Reward      24650    141.30    24100.0     20.50           ₹9700
+1   Mid Reward      24700    119.35    24050.0     18.15           ₹8250
+2   Low Reward      24750     96.45    24000.0     15.85           ₹6750
+[2025-08-15 09:03:25 PM] UTILS: 📊 CE Prices found: 228 items
+[2025-08-15 09:03:25 PM] UTILS: 📊 PE Prices found: 228 items
+[2025-08-15 09:03:26 PM] UTILS: ✅ Analysis completed successfully for NIFTY
+[2025-08-15 09:03:26 PM] UTILS: Generated files: summary_fcb8a2258cda4fd08157fa1d5e5c908b.png, static/payoff_897d35a2f68845208310d37e75c5935a.png
+[2025-08-15 09:03:26 PM] Analysis result: <class 'dict'>, Status: ✅ Weekly analysis completed with supply/demand zones (Supply: ₹24608, Demand: ₹24135)
+[2025-08-15 09:03:26 PM] ✅ Analysis successful - data saved to session
+[2025-08-15 09:26:41 PM] === Generate Analysis View Called ===
+[2025-08-15 09:26:41 PM] Request method: POST
+[2025-08-15 09:26:41 PM] Form data received:
+[2025-08-15 09:26:41 PM]   Instrument: NIFTY
+[2025-08-15 09:26:41 PM]   Calculation Type: Weekly
+[2025-08-15 09:26:41 PM]   Expiry: 21-Aug-2025
+[2025-08-15 09:26:41 PM] Calling utils.generate_analysis()...
+[2025-08-15 09:26:41 PM] UTILS: === generate_analysis() called ===
+[2025-08-15 09:26:41 PM] UTILS: Parameters: instrument=NIFTY, calc_type=Weekly, expiry=21-Aug-2025
+[2025-08-15 09:26:41 PM] UTILS: Using ticker symbol: ^NSEI
+[2025-08-15 09:26:41 PM] UTILS: 📊 Calculating Weekly supply/demand zones...
+[2025-08-15 09:26:42 PM] UTILS: ✅ Zones calculated - Supply: ₹24607.53, Demand: ₹24135.47
+[2025-08-15 09:26:42 PM] OPTION_CHAIN: 📡 get_option_chain_data called for NIFTY - fetching fresh data
+[2025-08-15 09:26:42 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 09:26:42 PM] UTILS: ✅ Option chain fetch successful
+[2025-08-15 09:26:42 PM] UTILS: 📊 Updated current price from option chain: 24631.30078125
+[2025-08-15 09:26:42 PM] UTILS: 📊 Option chain data keys: ['data', 'status', 'expiryDates', 'symbol', 'underlying']
+[2025-08-15 09:26:42 PM] UTILS: 📊 Option chain data['data'] keys: ['last_price', 'oc']
+[2025-08-15 09:26:42 PM] UTILS: 📊 Found DhanHQ structure with 228 strikes
+[2025-08-15 09:26:42 PM] UTILS: 📊 DhanHQ API data - CE: 228, PE: 228 strikes
+[2025-08-15 09:26:42 PM] UTILS: 📊 Using zone-based strike selection
+[2025-08-15 09:26:42 PM] UTILS: 📊 Zone-based strikes:
+[2025-08-15 09:26:42 PM] UTILS:    CE strikes (from supply ₹24607.53): [24650, 24700, 24750]
+[2025-08-15 09:26:42 PM] UTILS:    PE strikes (from demand ₹24135.47): [24100, 24050.0, 24000.0]
+[2025-08-15 09:26:42 PM] UTILS: 📊 DataFrame created with shape: (3, 8)
+[2025-08-15 09:26:42 PM] UTILS: 📊 Display DataFrame: 
+         Entry  CE Strike  CE Price  PE Strike  PE Price Target/SL (1:1)
+0  High Reward      24650    141.30    24100.0     20.50           ₹9700
+1   Mid Reward      24700    119.35    24050.0     18.15           ₹8250
+2   Low Reward      24750     96.45    24000.0     15.85           ₹6750
+[2025-08-15 09:26:42 PM] UTILS: 📊 CE Prices found: 228 items
+[2025-08-15 09:26:42 PM] UTILS: 📊 PE Prices found: 228 items
+[2025-08-15 09:26:43 PM] UTILS: ✅ Analysis completed successfully for NIFTY
+[2025-08-15 09:26:43 PM] UTILS: Generated files: summary_d32d9bade1914eba888a0449a8aae95a.png, static/payoff_385ddcedaedc4dbeb4e8b6bce9489d41.png
+[2025-08-15 09:26:43 PM] Analysis result: <class 'dict'>, Status: ✅ Weekly analysis completed with supply/demand zones (Supply: ₹24608, Demand: ₹24135)
+[2025-08-15 09:26:43 PM] ✅ Analysis successful - data saved to session
+[2025-08-15 09:42:08 PM] OPTION_CHAIN: 📡 get_option_chain_data called for NIFTY - fetching fresh data
+[2025-08-15 09:42:09 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 09:42:09 PM] OPTION_CHAIN: 📡 get_option_chain_data called for BANKNIFTY - fetching fresh data
+[2025-08-15 09:42:13 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 09:42:13 PM] OPTION_CHAIN: 📡 get_option_chain_data called for NIFTY - fetching fresh data
+[2025-08-15 09:42:13 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 09:42:13 PM] OPTION_CHAIN: 📡 get_option_chain_data called for BANKNIFTY - fetching fresh data
+[2025-08-15 09:42:15 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 09:42:19 PM] OPTION_CHAIN: 📡 get_option_chain_data called for NIFTY - fetching fresh data
+[2025-08-15 09:42:19 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 09:42:19 PM] OPTION_CHAIN: 📡 get_option_chain_data called for BANKNIFTY - fetching fresh data
+[2025-08-15 09:42:19 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 09:42:19 PM] OPTION_CHAIN: 📡 get_option_chain_data called for NIFTY - fetching fresh data
+[2025-08-15 09:42:19 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 09:42:19 PM] OPTION_CHAIN: 📡 get_option_chain_data called for BANKNIFTY - fetching fresh data
+[2025-08-15 09:42:19 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 09:43:05 PM] === Generate Analysis View Called ===
+[2025-08-15 09:43:05 PM] Request method: POST
+[2025-08-15 09:43:05 PM] Form data received:
+[2025-08-15 09:43:05 PM]   Instrument: NIFTY
+[2025-08-15 09:43:05 PM]   Calculation Type: Weekly
+[2025-08-15 09:43:05 PM]   Expiry: 21-Aug-2025
+[2025-08-15 09:43:05 PM] Calling utils.generate_analysis()...
+[2025-08-15 09:43:05 PM] UTILS: === generate_analysis() called ===
+[2025-08-15 09:43:05 PM] UTILS: Parameters: instrument=NIFTY, calc_type=Weekly, expiry=21-Aug-2025
+[2025-08-15 09:43:05 PM] UTILS: Using ticker symbol: ^NSEI
+[2025-08-15 09:43:05 PM] UTILS: 📊 Calculating Weekly supply/demand zones...
+[2025-08-15 09:43:06 PM] UTILS: ✅ Zones calculated - Supply: ₹24607.53, Demand: ₹24135.47
+[2025-08-15 09:43:06 PM] OPTION_CHAIN: 📡 get_option_chain_data called for NIFTY - fetching fresh data
+[2025-08-15 09:43:07 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 09:43:07 PM] UTILS: ✅ Option chain fetch successful
+[2025-08-15 09:43:07 PM] UTILS: 📊 Updated current price from option chain: 24631.30078125
+[2025-08-15 09:43:07 PM] UTILS: 📊 Option chain data keys: ['data', 'status', 'expiryDates', 'symbol', 'underlying']
+[2025-08-15 09:43:07 PM] UTILS: 📊 Option chain data['data'] keys: ['last_price', 'oc']
+[2025-08-15 09:43:07 PM] UTILS: 📊 Found DhanHQ structure with 228 strikes
+[2025-08-15 09:43:07 PM] UTILS: 📊 DhanHQ API data - CE: 228, PE: 228 strikes
+[2025-08-15 09:43:07 PM] UTILS: 📊 Using zone-based strike selection
+[2025-08-15 09:43:07 PM] UTILS: 📊 Zone-based strikes:
+[2025-08-15 09:43:07 PM] UTILS:    CE strikes (from supply ₹24607.53): [24650, 24700, 24750]
+[2025-08-15 09:43:07 PM] UTILS:    PE strikes (from demand ₹24135.47): [24100, 24050.0, 24000.0]
+[2025-08-15 09:43:07 PM] UTILS: 📊 DataFrame created with shape: (3, 8)
+[2025-08-15 09:43:07 PM] UTILS: 📊 Display DataFrame: 
+         Entry  CE Strike  CE Price  PE Strike  PE Price Target/SL (1:1)
+0  High Reward      24650    141.30    24100.0     20.50           ₹9700
+1   Mid Reward      24700    119.35    24050.0     18.15           ₹8250
+2   Low Reward      24750     96.45    24000.0     15.85           ₹6750
+[2025-08-15 09:43:07 PM] UTILS: 📊 CE Prices found: 228 items
+[2025-08-15 09:43:07 PM] UTILS: 📊 PE Prices found: 228 items
+[2025-08-15 09:43:07 PM] UTILS: ✅ Analysis completed successfully for NIFTY
+[2025-08-15 09:43:07 PM] UTILS: Generated files: summary_91e543cfc8bd4af28c494c29cd5a0a20.png, static/payoff_e57ed22d1271413ebfaec6eedba3a0f0.png
+[2025-08-15 09:43:07 PM] Analysis result: <class 'dict'>, Status: ✅ Weekly analysis completed with supply/demand zones (Supply: ₹24608, Demand: ₹24135)
+[2025-08-15 09:43:07 PM] ✅ Analysis successful - data saved to session
+[2025-08-15 09:43:18 PM] OPTION_CHAIN: 📡 get_option_chain_data called for NIFTY - fetching fresh data
+[2025-08-15 09:43:18 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 09:43:18 PM] OPTION_CHAIN: 📡 get_option_chain_data called for BANKNIFTY - fetching fresh data
+[2025-08-15 09:43:19 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 09:43:19 PM] OPTION_CHAIN: 📡 get_option_chain_data called for NIFTY - fetching fresh data
+[2025-08-15 09:43:19 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 09:43:19 PM] OPTION_CHAIN: 📡 get_option_chain_data called for BANKNIFTY - fetching fresh data
+[2025-08-15 09:43:19 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 09:55:03 PM] === Generate Analysis View Called ===
+[2025-08-15 09:55:03 PM] Request method: POST
+[2025-08-15 09:55:03 PM] Form data received:
+[2025-08-15 09:55:03 PM]   Instrument: NIFTY
+[2025-08-15 09:55:03 PM]   Calculation Type: Weekly
+[2025-08-15 09:55:03 PM]   Expiry: 21-Aug-2025
+[2025-08-15 09:55:03 PM] Calling utils.generate_analysis()...
+[2025-08-15 09:55:03 PM] UTILS: === generate_analysis() called ===
+[2025-08-15 09:55:03 PM] UTILS: Parameters: instrument=NIFTY, calc_type=Weekly, expiry=21-Aug-2025
+[2025-08-15 09:55:03 PM] UTILS: Using ticker symbol: ^NSEI
+[2025-08-15 09:55:03 PM] UTILS: 📊 Calculating Weekly supply/demand zones...
+[2025-08-15 09:55:04 PM] UTILS: ✅ Zones calculated - Supply: ₹24607.53, Demand: ₹24135.47
+[2025-08-15 09:55:04 PM] OPTION_CHAIN: 📡 get_option_chain_data called for NIFTY - fetching fresh data
+[2025-08-15 09:55:04 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 09:55:04 PM] UTILS: ✅ Option chain fetch successful
+[2025-08-15 09:55:04 PM] UTILS: 📊 Updated current price from option chain: 24631.30078125
+[2025-08-15 09:55:04 PM] UTILS: 📊 Option chain data keys: ['data', 'status', 'expiryDates', 'symbol', 'underlying']
+[2025-08-15 09:55:04 PM] UTILS: 📊 Option chain data['data'] keys: ['last_price', 'oc']
+[2025-08-15 09:55:04 PM] UTILS: 📊 Found DhanHQ structure with 228 strikes
+[2025-08-15 09:55:04 PM] UTILS: 📊 DhanHQ API data - CE: 228, PE: 228 strikes
+[2025-08-15 09:55:04 PM] UTILS: 📊 Using zone-based strike selection
+[2025-08-15 09:55:04 PM] UTILS: 📊 Zone-based strikes:
+[2025-08-15 09:55:04 PM] UTILS:    CE strikes (from supply ₹24607.53): [24650, 24700, 24750]
+[2025-08-15 09:55:04 PM] UTILS:    PE strikes (from demand ₹24135.47): [24100, 24050.0, 24000.0]
+[2025-08-15 09:55:04 PM] UTILS: 📊 DataFrame created with shape: (3, 8)
+[2025-08-15 09:55:04 PM] UTILS: 📊 Display DataFrame: 
+         Entry  CE Strike  CE Price  PE Strike  PE Price Target/SL (1:1)
+0  High Reward      24650    141.30    24100.0     20.50          ₹10300
+1   Mid Reward      24700    119.35    24050.0     18.15           ₹8750
+2   Low Reward      24750     96.45    24000.0     15.85           ₹7150
+[2025-08-15 09:55:04 PM] UTILS: 📊 CE Prices found: 228 items
+[2025-08-15 09:55:04 PM] UTILS: 📊 PE Prices found: 228 items
+[2025-08-15 09:55:05 PM] UTILS: ✅ Analysis completed successfully for NIFTY
+[2025-08-15 09:55:05 PM] UTILS: Generated files: summary_a80419518d0845b382c5a5c7d1b41165.png, static/payoff_d99d66b1e25a4b909fe4e241e8f08785.png
+[2025-08-15 09:55:05 PM] Analysis result: <class 'dict'>, Status: ✅ Weekly analysis completed with supply/demand zones (Supply: ₹24608, Demand: ₹24135)
+[2025-08-15 09:55:05 PM] ✅ Analysis successful - data saved to session
+[2025-08-15 09:55:14 PM] OPTION_CHAIN: 📡 get_option_chain_data called for NIFTY - fetching fresh data
+[2025-08-15 09:55:14 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 09:55:14 PM] OPTION_CHAIN: 📡 get_option_chain_data called for BANKNIFTY - fetching fresh data
+[2025-08-15 09:55:14 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 09:55:14 PM] OPTION_CHAIN: 📡 get_option_chain_data called for NIFTY - fetching fresh data
+[2025-08-15 09:55:14 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 09:55:14 PM] OPTION_CHAIN: 📡 get_option_chain_data called for BANKNIFTY - fetching fresh data
+[2025-08-15 09:55:14 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 09:55:44 PM] OPTION_CHAIN: 📡 get_option_chain_data called for NIFTY - fetching fresh data
+[2025-08-15 09:55:45 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 09:55:45 PM] OPTION_CHAIN: 📡 get_option_chain_data called for BANKNIFTY - fetching fresh data
+[2025-08-15 09:55:48 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 09:55:48 PM] OPTION_CHAIN: 📡 get_option_chain_data called for NIFTY - fetching fresh data
+[2025-08-15 09:55:48 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 09:55:48 PM] OPTION_CHAIN: 📡 get_option_chain_data called for BANKNIFTY - fetching fresh data
+[2025-08-15 09:55:48 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 09:56:18 PM] OPTION_CHAIN: 📡 get_option_chain_data called for NIFTY - fetching fresh data
+[2025-08-15 09:56:19 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 09:56:19 PM] OPTION_CHAIN: 📡 get_option_chain_data called for BANKNIFTY - fetching fresh data
+[2025-08-15 09:56:22 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 09:56:22 PM] OPTION_CHAIN: 📡 get_option_chain_data called for NIFTY - fetching fresh data
+[2025-08-15 09:56:22 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 09:56:22 PM] OPTION_CHAIN: 📡 get_option_chain_data called for BANKNIFTY - fetching fresh data
+[2025-08-15 09:56:22 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 09:56:52 PM] OPTION_CHAIN: 📡 get_option_chain_data called for NIFTY - fetching fresh data
+[2025-08-15 09:56:52 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 09:56:52 PM] OPTION_CHAIN: 📡 get_option_chain_data called for BANKNIFTY - fetching fresh data
+[2025-08-15 09:56:55 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 09:56:55 PM] OPTION_CHAIN: 📡 get_option_chain_data called for NIFTY - fetching fresh data
+[2025-08-15 09:56:55 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 09:56:55 PM] OPTION_CHAIN: 📡 get_option_chain_data called for BANKNIFTY - fetching fresh data
+[2025-08-15 09:56:55 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 09:57:25 PM] OPTION_CHAIN: 📡 get_option_chain_data called for NIFTY - fetching fresh data
+[2025-08-15 09:57:26 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 09:57:26 PM] OPTION_CHAIN: 📡 get_option_chain_data called for BANKNIFTY - fetching fresh data
+[2025-08-15 09:57:32 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 09:57:32 PM] OPTION_CHAIN: 📡 get_option_chain_data called for NIFTY - fetching fresh data
+[2025-08-15 09:57:32 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 09:57:32 PM] OPTION_CHAIN: 📡 get_option_chain_data called for BANKNIFTY - fetching fresh data
+[2025-08-15 09:57:32 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 09:58:03 PM] OPTION_CHAIN: 📡 get_option_chain_data called for NIFTY - fetching fresh data
+[2025-08-15 09:58:04 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 09:58:04 PM] OPTION_CHAIN: 📡 get_option_chain_data called for BANKNIFTY - fetching fresh data
+[2025-08-15 09:58:07 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 09:58:07 PM] OPTION_CHAIN: 📡 get_option_chain_data called for NIFTY - fetching fresh data
+[2025-08-15 09:58:07 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 09:58:07 PM] OPTION_CHAIN: 📡 get_option_chain_data called for BANKNIFTY - fetching fresh data
+[2025-08-15 09:58:07 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 09:58:37 PM] OPTION_CHAIN: 📡 get_option_chain_data called for NIFTY - fetching fresh data
+[2025-08-15 09:58:38 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 09:58:38 PM] OPTION_CHAIN: 📡 get_option_chain_data called for BANKNIFTY - fetching fresh data
+[2025-08-15 09:58:41 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 09:58:41 PM] OPTION_CHAIN: 📡 get_option_chain_data called for NIFTY - fetching fresh data
+[2025-08-15 09:58:41 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 09:58:41 PM] OPTION_CHAIN: 📡 get_option_chain_data called for BANKNIFTY - fetching fresh data
+[2025-08-15 09:58:41 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 09:59:13 PM] OPTION_CHAIN: 📡 get_option_chain_data called for NIFTY - fetching fresh data
+[2025-08-15 09:59:13 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 09:59:13 PM] OPTION_CHAIN: 📡 get_option_chain_data called for BANKNIFTY - fetching fresh data
+[2025-08-15 09:59:14 PM] OPTION_CHAIN: 📡 get_option_chain_data called for NIFTY - fetching fresh data
+[2025-08-15 09:59:14 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 09:59:14 PM] OPTION_CHAIN: 📡 get_option_chain_data called for BANKNIFTY - fetching fresh data
+[2025-08-15 09:59:16 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 09:59:16 PM] OPTION_CHAIN: 📡 get_option_chain_data called for NIFTY - fetching fresh data
+[2025-08-15 09:59:16 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 09:59:16 PM] OPTION_CHAIN: 📡 get_option_chain_data called for BANKNIFTY - fetching fresh data
+[2025-08-15 09:59:16 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 09:59:18 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 09:59:18 PM] OPTION_CHAIN: 📡 get_option_chain_data called for NIFTY - fetching fresh data
+[2025-08-15 09:59:18 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 09:59:18 PM] OPTION_CHAIN: 📡 get_option_chain_data called for BANKNIFTY - fetching fresh data
+[2025-08-15 09:59:18 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 09:59:28 PM] OPTION_CHAIN: 📡 get_option_chain_data called for NIFTY - fetching fresh data
+[2025-08-15 09:59:28 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 09:59:28 PM] OPTION_CHAIN: 📡 get_option_chain_data called for BANKNIFTY - fetching fresh data
+[2025-08-15 09:59:28 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 09:59:28 PM] OPTION_CHAIN: 📡 get_option_chain_data called for NIFTY - fetching fresh data
+[2025-08-15 09:59:28 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 09:59:28 PM] OPTION_CHAIN: 📡 get_option_chain_data called for BANKNIFTY - fetching fresh data
+[2025-08-15 09:59:28 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 09:59:46 PM] OPTION_CHAIN: 📡 get_option_chain_data called for NIFTY - fetching fresh data
+[2025-08-15 09:59:47 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 09:59:47 PM] OPTION_CHAIN: 📡 get_option_chain_data called for BANKNIFTY - fetching fresh data
+[2025-08-15 09:59:53 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 09:59:53 PM] OPTION_CHAIN: 📡 get_option_chain_data called for NIFTY - fetching fresh data
+[2025-08-15 09:59:53 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 09:59:53 PM] OPTION_CHAIN: 📡 get_option_chain_data called for BANKNIFTY - fetching fresh data
+[2025-08-15 09:59:54 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 10:00:24 PM] OPTION_CHAIN: 📡 get_option_chain_data called for NIFTY - fetching fresh data
+[2025-08-15 10:00:24 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 10:00:24 PM] OPTION_CHAIN: 📡 get_option_chain_data called for BANKNIFTY - fetching fresh data
+[2025-08-15 10:00:29 PM] OPTION_CHAIN: 📡 get_option_chain_data called for NIFTY - fetching fresh data
+[2025-08-15 10:00:30 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 10:00:30 PM] OPTION_CHAIN: 📡 get_option_chain_data called for BANKNIFTY - fetching fresh data
+[2025-08-15 10:00:33 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 10:00:33 PM] OPTION_CHAIN: 📡 get_option_chain_data called for NIFTY - fetching fresh data
+[2025-08-15 10:00:33 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 10:00:33 PM] OPTION_CHAIN: 📡 get_option_chain_data called for BANKNIFTY - fetching fresh data
+[2025-08-15 10:00:33 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 10:00:36 PM] OPTION_CHAIN: 📡 get_option_chain_data called for NIFTY - fetching fresh data
+[2025-08-15 10:00:36 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 10:00:36 PM] OPTION_CHAIN: 📡 get_option_chain_data called for BANKNIFTY - fetching fresh data
+[2025-08-15 10:00:36 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 10:00:36 PM] OPTION_CHAIN: 📡 get_option_chain_data called for NIFTY - fetching fresh data
+[2025-08-15 10:00:36 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 10:00:36 PM] OPTION_CHAIN: 📡 get_option_chain_data called for BANKNIFTY - fetching fresh data
+[2025-08-15 10:00:36 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 10:11:20 PM] OPTION_CHAIN: 📡 get_option_chain_data called for NIFTY - fetching fresh data
+[2025-08-15 10:11:22 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 10:11:22 PM] OPTION_CHAIN: 📡 get_option_chain_data called for BANKNIFTY - fetching fresh data
+[2025-08-15 10:11:25 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 10:11:25 PM] OPTION_CHAIN: 📡 get_option_chain_data called for NIFTY - fetching fresh data
+[2025-08-15 10:11:25 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 10:11:25 PM] OPTION_CHAIN: 📡 get_option_chain_data called for BANKNIFTY - fetching fresh data
+[2025-08-15 10:11:27 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 10:11:57 PM] OPTION_CHAIN: 📡 get_option_chain_data called for NIFTY - fetching fresh data
+[2025-08-15 10:11:58 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 10:11:58 PM] OPTION_CHAIN: 📡 get_option_chain_data called for BANKNIFTY - fetching fresh data
+[2025-08-15 10:12:02 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 10:12:02 PM] OPTION_CHAIN: 📡 get_option_chain_data called for NIFTY - fetching fresh data
+[2025-08-15 10:12:02 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 10:12:02 PM] OPTION_CHAIN: 📡 get_option_chain_data called for BANKNIFTY - fetching fresh data
+[2025-08-15 10:12:03 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 10:12:39 PM] === Generate Analysis View Called ===
+[2025-08-15 10:12:39 PM] Request method: POST
+[2025-08-15 10:12:39 PM] Form data received:
+[2025-08-15 10:12:39 PM]   Instrument: NIFTY
+[2025-08-15 10:12:39 PM]   Calculation Type: Weekly
+[2025-08-15 10:12:39 PM]   Expiry: 21-Aug-2025
+[2025-08-15 10:12:39 PM] Calling utils.generate_analysis()...
+[2025-08-15 10:12:39 PM] UTILS: === generate_analysis() called ===
+[2025-08-15 10:12:39 PM] UTILS: Parameters: instrument=NIFTY, calc_type=Weekly, expiry=21-Aug-2025
+[2025-08-15 10:12:39 PM] UTILS: Using ticker symbol: ^NSEI
+[2025-08-15 10:12:39 PM] UTILS: 📊 Calculating Weekly supply/demand zones...
+[2025-08-15 10:12:40 PM] UTILS: ✅ Zones calculated - Supply: ₹24607.53, Demand: ₹24135.47
+[2025-08-15 10:12:40 PM] OPTION_CHAIN: 📡 get_option_chain_data called for NIFTY - fetching fresh data
+[2025-08-15 10:12:41 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 10:12:41 PM] UTILS: ✅ Option chain fetch successful
+[2025-08-15 10:12:41 PM] UTILS: 📊 Updated current price from option chain: 24631.30078125
+[2025-08-15 10:12:41 PM] UTILS: 📊 Option chain data keys: ['data', 'status', 'expiryDates', 'symbol', 'underlying']
+[2025-08-15 10:12:41 PM] UTILS: 📊 Option chain data['data'] keys: ['last_price', 'oc']
+[2025-08-15 10:12:41 PM] UTILS: 📊 Found DhanHQ structure with 228 strikes
+[2025-08-15 10:12:41 PM] UTILS: 📊 DhanHQ API data - CE: 228, PE: 228 strikes
+[2025-08-15 10:12:41 PM] UTILS: 📊 Using zone-based strike selection
+[2025-08-15 10:12:41 PM] UTILS: 📊 Zone-based strikes:
+[2025-08-15 10:12:41 PM] UTILS:    CE strikes (from supply ₹24607.53): [24650, 24700, 24750]
+[2025-08-15 10:12:41 PM] UTILS:    PE strikes (from demand ₹24135.47): [24100, 24050.0, 24000.0]
+[2025-08-15 10:12:41 PM] UTILS: 📊 DataFrame created with shape: (3, 8)
+[2025-08-15 10:12:41 PM] UTILS: 📊 Display DataFrame: 
+         Entry  CE Strike  CE Price  PE Strike  PE Price Target/SL (1:1)
+0  High Reward      24650    141.30    24100.0     20.50          ₹10300
+1   Mid Reward      24700    119.35    24050.0     18.15           ₹8750
+2   Low Reward      24750     96.45    24000.0     15.85           ₹7150
+[2025-08-15 10:12:41 PM] UTILS: 📊 CE Prices found: 228 items
+[2025-08-15 10:12:41 PM] UTILS: 📊 PE Prices found: 228 items
+[2025-08-15 10:12:41 PM] UTILS: ✅ Analysis completed successfully for NIFTY
+[2025-08-15 10:12:41 PM] UTILS: Generated files: summary_8496b50c1213472ca6505d647e678429.png, static/payoff_54fc40400a1046aa8d404907ff10b1ab.png
+[2025-08-15 10:12:41 PM] Analysis result: <class 'dict'>, Status: ✅ Weekly analysis completed with supply/demand zones (Supply: ₹24608, Demand: ₹24135)
+[2025-08-15 10:12:41 PM] ✅ Analysis successful - data saved to session
+[2025-08-15 10:16:19 PM] === Generate Analysis View Called ===
+[2025-08-15 10:16:19 PM] Request method: POST
+[2025-08-15 10:16:19 PM] Form data received:
+[2025-08-15 10:16:19 PM]   Instrument: NIFTY
+[2025-08-15 10:16:19 PM]   Calculation Type: Weekly
+[2025-08-15 10:16:19 PM]   Expiry: 21-Aug-2025
+[2025-08-15 10:16:19 PM] Calling utils.generate_analysis()...
+[2025-08-15 10:16:19 PM] UTILS: === generate_analysis() called ===
+[2025-08-15 10:16:19 PM] UTILS: Parameters: instrument=NIFTY, calc_type=Weekly, expiry=21-Aug-2025
+[2025-08-15 10:16:19 PM] UTILS: Using ticker symbol: ^NSEI
+[2025-08-15 10:16:19 PM] UTILS: 📊 Calculating Weekly supply/demand zones...
+[2025-08-15 10:16:20 PM] UTILS: ✅ Zones calculated - Supply: ₹24607.53, Demand: ₹24135.47
+[2025-08-15 10:16:20 PM] OPTION_CHAIN: 📡 get_option_chain_data called for NIFTY - fetching fresh data
+[2025-08-15 10:16:20 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 10:16:20 PM] UTILS: ✅ Option chain fetch successful
+[2025-08-15 10:16:20 PM] UTILS: 📊 Updated current price from option chain: 24631.30078125
+[2025-08-15 10:16:20 PM] UTILS: 📊 Option chain data keys: ['data', 'status', 'expiryDates', 'symbol', 'underlying']
+[2025-08-15 10:16:20 PM] UTILS: 📊 Option chain data['data'] keys: ['last_price', 'oc']
+[2025-08-15 10:16:20 PM] UTILS: 📊 Found DhanHQ structure with 228 strikes
+[2025-08-15 10:16:20 PM] UTILS: 📊 DhanHQ API data - CE: 228, PE: 228 strikes
+[2025-08-15 10:16:20 PM] UTILS: 📊 Using zone-based strike selection
+[2025-08-15 10:16:20 PM] UTILS: 📊 Zone-based strikes:
+[2025-08-15 10:16:20 PM] UTILS:    CE strikes (from supply ₹24607.53): [24650, 24700, 24750]
+[2025-08-15 10:16:20 PM] UTILS:    PE strikes (from demand ₹24135.47): [24100, 24050.0, 24000.0]
+[2025-08-15 10:16:20 PM] UTILS: 📊 DataFrame created with shape: (3, 8)
+[2025-08-15 10:16:20 PM] UTILS: 📊 Display DataFrame: 
+         Entry  CE Strike  CE Price  PE Strike  PE Price Target/SL (1:1)
+0  High Reward      24650    141.30    24100.0     20.50          ₹10300
+1   Mid Reward      24700    119.35    24050.0     18.15           ₹8750
+2   Low Reward      24750     96.45    24000.0     15.85           ₹7150
+[2025-08-15 10:16:20 PM] UTILS: 📊 CE Prices found: 228 items
+[2025-08-15 10:16:20 PM] UTILS: 📊 PE Prices found: 228 items
+[2025-08-15 10:16:21 PM] UTILS: ✅ Analysis completed successfully for NIFTY
+[2025-08-15 10:16:21 PM] UTILS: Generated files: summary_fe5370390f6e4457a8e1b9905c3d8ae5.png, static/payoff_93c6a84c831d4eb1a668a47d4a28ddd3.png
+[2025-08-15 10:16:21 PM] Analysis result: <class 'dict'>, Status: ✅ Weekly analysis completed with supply/demand zones (Supply: ₹24608, Demand: ₹24135)
+[2025-08-15 10:16:21 PM] ✅ Analysis successful - data saved to session

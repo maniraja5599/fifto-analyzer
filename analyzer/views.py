@@ -6,6 +6,7 @@ from django.contrib import messages
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.urls import reverse
+from django.conf import settings
 import json
 import pandas as pd
 import os
@@ -14,6 +15,19 @@ from collections import defaultdict
 from . import utils
 from .utils import generate_analysis, load_settings, save_settings
 from .pnl_updater import pnl_updater, PnLUpdater
+
+def parse_start_time(start_time_str):
+    """Parse start_time in either old (24-hour) or new (12-hour) format."""
+    try:
+        # Try new format first (12-hour with AM/PM)
+        return datetime.strptime(start_time_str, "%Y-%m-%d %I:%M %p")
+    except ValueError:
+        try:
+            # Fall back to old format (24-hour)
+            return datetime.strptime(start_time_str, "%Y-%m-%d %H:%M")
+        except ValueError:
+            # If neither works, return current time as fallback
+            return datetime.now()
 
 def index(request):
     # Handle session clearing
@@ -25,12 +39,12 @@ def index(request):
     instrument = request.GET.get('instrument', 'NIFTY')
     
     # Get option chain data with improved error handling
-    chain = utils.get_option_chain_data(instrument)
+    chain_expiries = utils.get_option_chain_expiry_dates_only(instrument)
     expiries = []
     
     try:
-        if chain and 'expiryDates' in chain:
-            all_expiries = chain['expiryDates']
+        if chain_expiries:
+            all_expiries = chain_expiries
             # Filter future dates only
             from datetime import datetime as dt, timedelta
             current_date = dt.now().date()
@@ -86,7 +100,7 @@ def generate_and_show_analysis(request):
     def debug_log(message):
         with open(debug_file, 'a', encoding='utf-8') as f:
             from datetime import datetime
-            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            timestamp = datetime.now().strftime("%Y-%m-%d %I:%M:%S %p")
             f.write(f"[{timestamp}] {message}\n")
         print(message)  # Also print to console
     
@@ -217,12 +231,33 @@ def check_and_auto_close_trades(trades):
     """
     Check all running trades for target/stoploss conditions and auto-close them
     Returns list of auto-closed trade IDs
+    Note: Only works when fresh market data is available (after manual refresh)
     """
     auto_closed = []
     
-    # Get current market data for P&L calculations
-    nifty_chain = utils.get_option_chain_data("NIFTY")
-    banknifty_chain = utils.get_option_chain_data("BANKNIFTY")
+    # Skip auto-close monitoring if no market data is available
+    # This prevents unnecessary API calls - auto-close only works after manual refresh
+    try:
+        # Check if we have cached market data from recent manual refresh
+        cache_file = os.path.join(settings.BASE_DIR, 'market_data_cache.json')
+        if not os.path.exists(cache_file):
+            print("📝 Auto-close skipped: No market data cache available (manual refresh required)")
+            return auto_closed
+            
+        # Only fetch market data if we have a recent cache (within last 5 minutes)
+        import time
+        cache_age = time.time() - os.path.getctime(cache_file)
+        if cache_age > 300:  # 5 minutes
+            print("📝 Auto-close skipped: Market data cache too old (manual refresh required)")
+            return auto_closed
+            
+        # Get current market data only if cache is fresh
+        nifty_chain = utils.get_option_chain_data("NIFTY")
+        banknifty_chain = utils.get_option_chain_data("BANKNIFTY")
+        
+    except Exception as e:
+        print(f"📝 Auto-close skipped: Error accessing market data - {e}")
+        return auto_closed
     
     for trade in trades:
         if trade.get('status') != 'Running':
@@ -241,15 +276,35 @@ def check_and_auto_close_trades(trades):
             # Use appropriate chain data based on instrument
             chain_data = nifty_chain if trade.get('instrument') == 'NIFTY' else banknifty_chain
             
-            if chain_data and chain_data.get('records', {}).get('data'):
+            if chain_data:
                 current_ce, current_pe = 0.0, 0.0
                 
-                for item in chain_data['records']['data']:
-                    if item.get("expiryDate") == trade.get('expiry'):
-                        if item.get("strikePrice") == trade.get('ce_strike') and item.get("CE"):
-                            current_ce = item["CE"]["lastPrice"]
-                        if item.get("strikePrice") == trade.get('pe_strike') and item.get("PE"):
-                            current_pe = item["PE"]["lastPrice"]
+                # Handle DhanHQ data structure
+                if 'data' in chain_data and 'oc' in chain_data['data']:
+                    oc_data = chain_data['data']['oc']
+                    for strike_str, strike_data in oc_data.items():
+                        try:
+                            strike_price = float(strike_str)
+                            
+                            # Match CE (Call) data
+                            if strike_price == trade.get('ce_strike') and 'ce' in strike_data:
+                                current_ce = strike_data['ce'].get('last_price', 0.0)
+                            
+                            # Match PE (Put) data
+                            if strike_price == trade.get('pe_strike') and 'pe' in strike_data:
+                                current_pe = strike_data['pe'].get('last_price', 0.0)
+                                
+                        except (ValueError, KeyError):
+                            continue
+                
+                # Fallback: Try old NSE structure if DhanHQ structure not found
+                elif chain_data.get('records', {}).get('data'):
+                    for item in chain_data['records']['data']:
+                        if item.get("expiryDate") == trade.get('expiry'):
+                            if item.get("strikePrice") == trade.get('ce_strike') and item.get("CE"):
+                                current_ce = item["CE"]["lastPrice"]
+                            if item.get("strikePrice") == trade.get('pe_strike') and item.get("PE"):
+                                current_pe = item["PE"]["lastPrice"]
                 
                 # Calculate P&L using current market prices
                 lot_size = utils.get_lot_size(trade['instrument'])
@@ -342,45 +397,33 @@ def trades_list(request):
         elif action == 'close_trade':
             trade_id = request.POST.get('trade_id')
             
-            # Get market data for P&L calculation
-            nifty_chain = utils.get_option_chain_data("NIFTY")
-            banknifty_chain = utils.get_option_chain_data("BANKNIFTY")
-            
+            # Use last known P&L instead of fetching fresh data (optimization)
             closed_count = 0
+            current_pnl = 0
             for trade in trades:
                 if trade['id'] == trade_id:
-                    # Calculate actual current P&L before closing
-                    chain_data = nifty_chain if trade['instrument'] == 'NIFTY' else banknifty_chain
-                    current_ce, current_pe = 0.0, 0.0
+                    # Use the last calculated P&L (from last manual refresh)
+                    current_pnl = trade.get('pnl', 0)
+                    if current_pnl == "Refresh Required":
+                        current_pnl = 0  # Default to 0 if no fresh data
+                    elif isinstance(current_pnl, str):
+                        try:
+                            current_pnl = float(current_pnl)
+                        except (ValueError, TypeError):
+                            current_pnl = 0
                     
-                    if chain_data and chain_data.get('records', {}).get('data'):
-                        for item in chain_data['records']['data']:
-                            if item.get("expiryDate") == trade.get('expiry'):
-                                if item.get("strikePrice") == trade.get('ce_strike') and item.get("CE"):
-                                    current_ce = item["CE"]["lastPrice"]
-                                if item.get("strikePrice") == trade.get('pe_strike') and item.get("PE"):
-                                    current_pe = item["PE"]["lastPrice"]
-                    
-                    # Calculate P&L using current market prices
-                    lot_size = utils.get_lot_size(trade['instrument'])
-                    initial_premium = trade.get('initial_premium', 0)
-                    current_premium = current_ce + current_pe
-                    
-                    if current_premium > 0:
-                        current_pnl = round((initial_premium - current_premium) * lot_size, 2)
-                    else:
-                        # Fallback if market data unavailable
-                        current_pnl = trade.get('pnl', 0)
-                    
-                    # Close the trade with actual P&L
+                    # Close the trade with last known P&L
                     trade['status'] = 'Manually Closed'
                     trade['final_pnl'] = current_pnl
                     trade['closed_date'] = datetime.now().isoformat()
                     closed_count += 1
                     break
+                    
             utils.save_trades(trades)
             # Send Telegram notification
             utils.send_telegram_message(f"📝 Manual Close: Trade {trade_id} closed with P&L ₹{current_pnl:.2f}")
+            messages.success(request, f'Trade {trade_id} closed with P&L ₹{current_pnl:.2f}.')
+            return redirect('trades_list')
             messages.success(request, f'Trade {trade_id} closed successfully with P&L ₹{current_pnl:.2f}.')
             return redirect('trades_list')
             
@@ -465,7 +508,7 @@ def trades_list(request):
                 day_group = request.POST.get('day_group')
                 for trade in trades:
                     try:
-                        start_dt = datetime.strptime(trade['start_time'], "%Y-%m-%d %H:%M")
+                        start_dt = parse_start_time(trade['start_time'])
                         trade_day = start_dt.strftime('%d-%b-%Y')
                         if trade_day == day_group and trade.get('status') == 'Running':
                             current_pnl = trade.get('pnl', 0)
@@ -512,7 +555,7 @@ def trades_list(request):
                 filtered_trades = []
                 for trade in trades:
                     try:
-                        start_dt = datetime.strptime(trade['start_time'], "%Y-%m-%d %H:%M")
+                        start_dt = parse_start_time(trade['start_time'])
                         trade_day = start_dt.strftime('%d-%b-%Y')
                         if trade_day != day_group:
                             filtered_trades.append(trade)
@@ -551,42 +594,66 @@ def trades_list(request):
     grouped_trades = defaultdict(list)
     total_pnl = 0
     
-    # Get market data
-    nifty_chain = utils.get_option_chain_data("NIFTY")
-    banknifty_chain = utils.get_option_chain_data("BANKNIFTY")
+    # Initialize market data as None - will be fetched only on manual refresh
+    nifty_chain = None
+    banknifty_chain = None
+    
+    # Note: Option chain data is now fetched only on manual refresh to optimize performance
+    # Current premium and P&L will show "Refresh Required" until manual refresh is triggered
 
     for trade in active_trades:
         try:
             # Parse and format the date tag
-            start_dt = datetime.strptime(trade['start_time'], "%Y-%m-%d %H:%M")
+            start_dt = parse_start_time(trade['start_time'])
             display_tag = f"{start_dt.strftime('%d-%b')} {trade.get('entry_tag', '')}"
             trade['display_tag'] = display_tag
         except (ValueError, KeyError):
             trade['display_tag'] = trade.get('entry_tag', 'General Trades')
 
-        # Calculate current P&L
+        # Calculate current P&L - only if market data is available
         chain_data = nifty_chain if trade['instrument'] == 'NIFTY' else banknifty_chain
         current_ce, current_pe = 0.0, 0.0
         
-        if chain_data and chain_data.get('records', {}).get('data'):
-            for item in chain_data['records']['data']:
-                if item.get("expiryDate") == trade.get('expiry'):
-                    if item.get("strikePrice") == trade.get('ce_strike') and item.get("CE"):
-                        current_ce = item["CE"]["lastPrice"]
-                    if item.get("strikePrice") == trade.get('pe_strike') and item.get("PE"):
-                        current_pe = item["PE"]["lastPrice"]
+        if chain_data is not None:
+            # Handle DhanHQ data structure
+            if 'data' in chain_data and 'oc' in chain_data['data']:
+                oc_data = chain_data['data']['oc']
+                for strike_str, strike_data in oc_data.items():
+                    try:
+                        strike_price = float(strike_str)
+                        
+                        # Match CE (Call) data
+                        if strike_price == trade.get('ce_strike') and 'ce' in strike_data:
+                            current_ce = strike_data['ce'].get('last_price', 0.0)
+                        
+                        # Match PE (Put) data
+                        if strike_price == trade.get('pe_strike') and 'pe' in strike_data:
+                            current_pe = strike_data['pe'].get('last_price', 0.0)
+                            
+                    except (ValueError, KeyError):
+                        continue
+            
+            # Fallback: Try old NSE structure if DhanHQ structure not found
+            elif chain_data.get('records', {}).get('data'):
+                for item in chain_data['records']['data']:
+                    if item.get("expiryDate") == trade.get('expiry'):
+                        if item.get("strikePrice") == trade.get('ce_strike') and item.get("CE"):
+                            current_ce = item["CE"]["lastPrice"]
+                        if item.get("strikePrice") == trade.get('pe_strike') and item.get("PE"):
+                            current_pe = item["PE"]["lastPrice"]
         
         lot_size = utils.get_lot_size(trade['instrument'])
         initial_premium = trade.get('initial_premium', 0)
         current_premium = current_ce + current_pe
         
-        if current_premium > 0:
+        if current_premium > 0 and chain_data is not None:
+            # We have fresh market data, calculate actual P&L
             pnl = round((initial_premium - current_premium) * lot_size, 2)
             trade['pnl'] = pnl
             trade['current_premium'] = current_premium
             total_pnl += pnl
             
-            # Check for target/stoploss and send alerts
+            # Check for target/stoploss and send alerts (only when we have fresh data)
             target_amount = trade.get('target_amount', 0)
             stoploss_amount = trade.get('stoploss_amount', 0)
             
@@ -603,8 +670,9 @@ def trades_list(request):
                 utils.send_telegram_message(f"🛑 STOPLOSS HIT!\nTrade: {trade['id']}\nP&L: ₹{pnl:,.2f}")
                 messages.error(request, f"Stoploss hit for {trade['id']}! P&L: ₹{pnl:,.2f}")
         else:
-            trade['pnl'] = "N/A"
-            trade['current_premium'] = "N/A"
+            # No fresh market data available, show placeholder
+            trade['pnl'] = "Refresh Required"
+            trade['current_premium'] = "Refresh Required"
         
         # Group by automation_batch, day, or expiry
         if group_by == 'automation_batch':
@@ -613,7 +681,7 @@ def trades_list(request):
         elif group_by == 'day':
             # Group by day
             try:
-                start_dt = datetime.strptime(trade['start_time'], "%Y-%m-%d %H:%M")
+                start_dt = parse_start_time(trade['start_time'])
                 group_key = start_dt.strftime('%d-%b-%Y')
             except (ValueError, KeyError):
                 group_key = 'Unknown Date'
@@ -793,7 +861,7 @@ def test_telegram(request):
             })
         
         # Send test message using the provided credentials
-        test_message = f"🧪 **FiFTO Test Message**\n\n✅ Telegram integration is working correctly!\n\n📅 Test sent at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n🤖 Your bot is ready to send trading notifications."
+        test_message = f"🧪 **FiFTO Test Message**\n\n✅ Telegram integration is working correctly!\n\n📅 Test sent at: {datetime.now().strftime('%Y-%m-%d %I:%M:%S %p')}\n\n🤖 Your bot is ready to send trading notifications."
         
         # Use utils function to send the message with provided credentials
         success = utils.send_telegram_message_with_credentials(test_message, bot_token, chat_id)
@@ -993,6 +1061,15 @@ def automation_view(request):
                 activities = utils.get_recent_automation_activities(limit=10)
                 return JsonResponse({'success': True, 'activities': activities})
                 
+            elif action == 'create_test_activity':
+                # Create a test activity for debugging
+                utils.add_automation_activity(
+                    'Test Activity', 
+                    f'Test activity created at {datetime.now().strftime("%I:%M:%S %p")}', 
+                    'success'
+                )
+                return JsonResponse({'success': True, 'message': 'Test activity created successfully!'})
+                
             elif action == 'toggle_auto_portfolio':
                 # Toggle auto portfolio feature
                 enabled = request.POST.get('enabled') == 'true'
@@ -1021,6 +1098,7 @@ def automation_view(request):
         'multiple_schedules': multiple_schedules,
         'weekdays': weekdays,
         'settings': current_settings,
+        'recent_activities': utils.get_recent_automation_activities(10),
     }
     return render(request, 'analyzer/automation.html', context)
 
@@ -1372,9 +1450,25 @@ def option_chain_view(request):
     expiry = request.GET.get('expiry', None)
     
     try:
-        # Get DhanHQ option chain data
-        from .dhan_api import get_dhan_option_chain
-        option_chain_data = get_dhan_option_chain(instrument)
+        # Set current expiry if not provided
+        if not expiry:
+            expiry_dates = utils.get_option_chain_expiry_dates_only(instrument)
+            if expiry_dates:
+                expiry = expiry_dates[0]  # Use first (nearest) expiry only
+        
+        # Try to load from cache first for faster loading
+        cached_data = utils.load_option_chain_cache(instrument, expiry, max_age_minutes=3)
+        if cached_data:
+            print(f"💾 Using cached option chain data for {instrument} {expiry}")
+            option_chain_data = cached_data
+        else:
+            # Get fresh DhanHQ option chain data
+            from .dhan_api import get_dhan_option_chain
+            option_chain_data = get_dhan_option_chain(instrument)
+            
+            # Save to cache for future use
+            if option_chain_data:
+                utils.save_option_chain_cache(instrument, expiry, option_chain_data)
         
         # Initialize context with defaults
         context = {
@@ -1461,13 +1555,13 @@ def option_chain_view(request):
             
             context.update({
                 'option_chain': option_chain_data,
-                'expiry_dates': expiry_dates[:10],  # First 10 expiries
+                'expiry_dates': [expiry] if expiry else expiry_dates[:1],  # Only current expiry
                 'underlying_price': underlying_price,
                 'strikes': strikes_data[:50],  # First 50 relevant strikes for more data
                 'symbol': instrument,  # Add symbol for JavaScript
             })
             
-            print(f"✅ Context updated successfully with {len(strikes_data[:50])} strikes")
+            print(f"✅ Context updated successfully with {len(strikes_data[:50])} strikes - CURRENT EXPIRY ONLY: {expiry}")
             
             # Debug logging
             print(f"🔍 Option Chain Debug - Symbol: {instrument}, Strikes Count: {len(strikes_data[:50])}")
@@ -1541,7 +1635,7 @@ def create_basket_order(request):
         data = json.loads(request.body)
         
         selected_options = data.get('selected_options', [])
-        basket_name = data.get('basket_name', f"Basket_{datetime.now().strftime('%Y%m%d_%H%M')}")
+        basket_name = data.get('basket_name', f"Basket_{datetime.now().strftime('%Y%m%d_%I%M%p')}")
         
         if not selected_options:
             return JsonResponse({'success': False, 'message': 'No options selected'})

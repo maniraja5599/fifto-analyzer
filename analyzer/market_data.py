@@ -23,7 +23,8 @@ logger = logging.getLogger(__name__)
 MARKET_SYMBOLS = {
     'NIFTY': {'security_id': '13', 'exchange': 'IDX_I'},
     'BANKNIFTY': {'security_id': '25', 'exchange': 'IDX_I'},
-    'SENSEX': {'security_id': '1', 'exchange': 'IDX_I'}
+    'SENSEX': {'security_id': '1', 'exchange': 'IDX_I'},
+    'VIX': {'security_id': '12', 'exchange': 'IDX_I'}
 }
 
 def get_market_data():
@@ -75,7 +76,7 @@ def get_market_data():
                                 'change_percent': round(change_percent, 2),
                                 'previous_close': round(prev_close, 2),
                                 'status': 'positive' if change >= 0 else 'negative',
-                                'last_updated': datetime.now().strftime('%H:%M:%S'),
+                                'last_updated': datetime.now().strftime('%I:%M:%S %p'),
                                 'source': 'DhanHQ'
                             }
                             
@@ -107,7 +108,8 @@ def get_fallback_data(name):
     fallback_data = {
         'NIFTY': {'price': 24500.00, 'change': 125.50, 'change_percent': 0.51},
         'BANKNIFTY': {'price': 51200.00, 'change': -80.25, 'change_percent': -0.16},
-        'SENSEX': {'price': 80500.00, 'change': 200.75, 'change_percent': 0.25}
+        'SENSEX': {'price': 80500.00, 'change': 200.75, 'change_percent': 0.25},
+        'VIX': {'price': 13.45, 'change': 0.25, 'change_percent': 1.89}
     }
     
     data = fallback_data.get(name, {'price': 0, 'change': 0, 'change_percent': 0})
@@ -118,7 +120,7 @@ def get_fallback_data(name):
         'change_percent': data['change_percent'],
         'previous_close': data['price'] - data['change'],
         'status': 'positive' if data['change'] >= 0 else 'negative',
-        'last_updated': datetime.now().strftime('%H:%M:%S'),
+        'last_updated': datetime.now().strftime('%I:%M:%S %p'),
         'is_fallback': True,
         'source': 'Fallback'
     }
@@ -153,7 +155,7 @@ def get_intraday_data(symbol_name, period="1d", interval="5m"):
                         price = base_price * (1 + variation)
                         
                         chart_data.append({
-                            'timestamp': timestamp.strftime('%H:%M'),
+                            'timestamp': timestamp.strftime('%I:%M %p'),
                             'price': round(price, 2),
                             'volume': random.randint(100000, 500000)
                         })

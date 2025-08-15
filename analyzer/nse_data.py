@@ -121,7 +121,7 @@ class NSEDataProvider:
                 'change_percent': round(change_percent, 2),
                 'previous_close': round(previous_close, 2),
                 'status': 'positive' if change >= 0 else 'negative',
-                'last_updated': datetime.now().strftime('%H:%M:%S'),
+                'last_updated': datetime.now().strftime('%I:%M:%S %p'),
                 'source': 'NSE',
                 'open': float(index_info.get('open', current_price)),
                 'high': float(index_info.get('dayHigh', current_price)),
