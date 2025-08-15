@@ -11,14 +11,23 @@ from collections import defaultdict
 import numpy as np
 from django.conf import settings
 
-# DhanHQ Integration
+# yfinance Integration  
 try:
-    from .dhan_api import dhan_api, get_dhan_price, get_dhan_historical, get_dhan_option_chain
-    DHAN_AVAILABLE = True
-    print("✅ DhanHQ API module loaded successfully")
+    from django_market_service import get_django_market_data, get_django_historical_data, manual_refresh_django_market_data
+    YFINANCE_AVAILABLE = True
+    print("✅ yfinance module loaded successfully")
 except ImportError as e:
-    print(f"⚠️  DhanHQ not available: {e}. Using fallback methods.")
-    DHAN_AVAILABLE = False
+    print(f"⚠️  yfinance not available: {e}. Using fallback methods.")
+    YFINANCE_AVAILABLE = False
+
+# NSE Integration
+try:
+    from .nse_data import get_nse_market_data, get_nse_fallback_data, get_alternative_nse_data
+    NSE_AVAILABLE = True
+    print("✅ NSE module loaded successfully")
+except ImportError as e:
+    print(f"⚠️  NSE not available: {e}. Using fallback methods.")
+    NSE_AVAILABLE = False
 
 # Fallback imports
 import yfinance as yf
@@ -171,63 +180,456 @@ def round_to_nearest_50(value):
     """Round a value to the nearest 50 for cleaner target/stoploss amounts."""
     return round(value / 50) * 50
 
-def calculate_weekly_zones(instrument_name, calculation_type):
+def _fetch_yf_history_util(symbols, period_days=180, interval='1d'):
+    """Utility to fetch yfinance history, adapted from test script."""
+    end_dt = datetime.now()
+    start_dt = end_dt - pd.Timedelta(days=period_days)
+    start_str = start_dt.strftime('%Y-%m-%d')
+    end_str = end_dt.strftime('%Y-%m-%d')
+    try:
+        df_multi = yf.download(
+            symbols,
+            start=start_str,
+            end=end_str,
+            interval=interval,
+            progress=False,
+            timeout=30,
+            group_by='ticker'
+        )
+        if df_multi is not None and not df_multi.empty:
+            for sym in symbols:
+                if sym in df_multi.columns:
+                    df_single = df_multi[sym].copy().dropna()
+                    if not df_single.empty:
+                        df_single.index = pd.to_datetime(df_single.index)
+                        return df_single, sym
+    except Exception as e:
+        print(f"⚠️ yfinance fetch failed in util: {e}")
+    return None, None
+
+def try_yfinance_zones_only(instrument_name, calculation_type):
     """
-    Calculate weekly supply/demand zones using EXACT NIFSEL.py logic.
-    Returns supply_zone and demand_zone for strike selection.
+    Tries to calculate zones using yfinance, matching NIFSEL.py logic.
     """
-    print(f"🔄 Calculating {calculation_type} zones for {instrument_name} using EXACT NIFSEL.py logic...")
+    TICKERS = {"NIFTY": ["^NSEI", "NSEI.NS"], "BANKNIFTY": ["^NSEBANK"]}
+    symbols_to_try = TICKERS.get(instrument_name, [])
+    if not symbols_to_try:
+        print(f"❌ No yfinance tickers defined for {instrument_name}")
+        return None, None
+
+    df_zones, used_symbol = _fetch_yf_history_util(symbols_to_try)
+
+    if df_zones is None or df_zones.empty:
+        print(f"❌ yfinance failed to fetch data for {instrument_name} using {symbols_to_try}")
+        return None, None
+
+    print(f"✅ yfinance got {len(df_zones)} records from {used_symbol} for {instrument_name}")
+
+    resample_period = 'W' if calculation_type == "Weekly" else 'ME'
+    agg_df = df_zones.resample(resample_period).agg({
+        'Open': 'first',
+        'High': 'max',
+        'Low': 'min'
+    }).dropna()
+
+    if len(agg_df) < 10:
+        print(f"❌ Not enough weekly data from yfinance for {instrument_name} (need 10, got {len(agg_df)})")
+        return None, None
+
+    high_low = (agg_df['High'] - agg_df['Low'])
+    rng5 = high_low.rolling(5).mean()
+    rng10 = high_low.rolling(10).mean()
+
+    latest_base = float(agg_df['Open'].iloc[-1])
+    latest_rng5 = float(rng5.iloc[-1])
+    latest_rng10 = float(rng10.iloc[-1])
+
+    u1 = latest_base + 0.5 * latest_rng5
+    u2 = latest_base + 0.5 * latest_rng10
+    l1 = latest_base - 0.5 * latest_rng5
+    l2 = latest_base - 0.5 * latest_rng10
+
+    supply_zone = round(max(u1, u2), 2)
+    demand_zone = round(min(l1, l2), 2)
+
+    return supply_zone, demand_zone
+
+
+def calculate_weekly_zones_yfinance_only(instrument_name, calculation_type):
+    """
+    Calculate zones using ONLY yfinance data (for testing/comparison)
+    """
+    print(f"🔄 YFINANCE-ONLY calculation for {instrument_name} {calculation_type}...")
     
-    # Use EXACT NIFSEL.py algorithm
-    supply_zone, demand_zone = calculate_zones_nifsel_exact(instrument_name, calculation_type)
+    # Force yfinance method only
+    supply_zone, demand_zone = try_yfinance_zones_only(instrument_name, calculation_type)
     
     if supply_zone is not None and demand_zone is not None:
-        print(f"✅ NIFSEL.py exact method successful for {instrument_name}")
+        print(f"✅ yfinance-only method successful for {instrument_name}")
         return supply_zone, demand_zone
     
-    # Fallback to mathematical model based on current market conditions
-    print(f"🔄 Using fallback mathematical model for {instrument_name}...")
+    print(f"❌ yfinance-only method failed for {instrument_name}")
+    return None, None
+
+def calculate_weekly_zones(instrument_name, calculation_type):
+    """
+    Calculate weekly supply/demand zones using yfinance and NSE sources only.
+    Returns supply_zone and demand_zone for strike selection.
+    """
+    print(f"🔄 Calculating {calculation_type} zones for {instrument_name}...")
+    
+    # Try yfinance first
+    supply_zone, demand_zone = try_yfinance_zones(instrument_name, calculation_type)
+    
+    if supply_zone is not None and demand_zone is not None:
+        print(f"✅ yfinance method successful for {instrument_name}")
+        return supply_zone, demand_zone
+    
+    # Try NSE as fallback
+    print(f"⚠️ yfinance failed, trying NSE data for {instrument_name}...")
+    try:
+        if NSE_AVAILABLE:
+            nse_data = get_nse_market_data()
+            if nse_data and instrument_name in nse_data:
+                current_price = nse_data[instrument_name].get('lastPrice', 0)
+                if current_price and current_price > 0:
+                    # Use simple range-based calculation as fallback
+                    supply_zone = round(current_price * 1.02, 2)  # 2% above
+                    demand_zone = round(current_price * 0.98, 2)  # 2% below
+                    print(f"✅ NSE fallback successful for {instrument_name}: Supply={supply_zone}, Demand={demand_zone}")
+                    return supply_zone, demand_zone
+    except Exception as e:
+        print(f"❌ NSE fallback failed: {e}")
+    
+    # Final fallback with static calculation
+    print(f"⚠️ All data sources failed, using fallback calculation for {instrument_name}")
     return calculate_fallback_zones(instrument_name, calculation_type)
 
-def calculate_zones_nifsel_exact(instrument_name, calculation_type):
+def resample_to_timeframe(df, interval):
     """
-    EXACT implementation of NIFSEL.py zone calculation logic.
-    This is a 1:1 replication of the NIFSEL.py algorithm.
+    Resample daily data to required timeframe (1wk, 1mo)
     """
     try:
-        import yfinance as yf
-        
-        # EXACT ticker mapping from NIFSEL.py
-        TICKERS = {"NIFTY": "^NSEI", "BANKNIFTY": "^NSEBANK"}
-        
-        if instrument_name not in TICKERS:
-            print(f"❌ Instrument {instrument_name} not supported in NIFSEL.py logic")
-            return None, None
-            
-        ticker_symbol = TICKERS[instrument_name]
-        print(f"📊 Fetching data for {ticker_symbol} using EXACT NIFSEL.py logic...")
-        
-        # EXACT period logic from NIFSEL.py
-        if calculation_type == "Weekly" and instrument_name == "NIFTY":
-            period = "6mo"  # EXACT from NIFSEL.py for Weekly NIFTY
+        if interval == '1wk':
+            # Weekly resampling (Sunday to Saturday)
+            resampled = df.resample('W').agg({
+                'Open': 'first',
+                'High': 'max', 
+                'Low': 'min',
+                'Close': 'last',
+                'Volume': 'sum'
+            }).dropna()
+        elif interval == '1mo':
+            # Monthly resampling
+            resampled = df.resample('ME').agg({
+                'Open': 'first',
+                'High': 'max',
+                'Low': 'min', 
+                'Close': 'last',
+                'Volume': 'sum'
+            }).dropna()
         else:
-            period = "5y"   # Default for other calculations
+            return df  # No resampling needed for daily
+        
+        print(f"📊 Resampled from {len(df)} daily to {len(resampled)} {interval} candles")
+        return resampled
+        
+    except Exception as e:
+        print(f"❌ Resampling failed: {e}")
+        return df
+
+def create_synthetic_timeframe_data(instrument_name, calculation_type, interval, period):
+    """
+    Create synthetic data in specific timeframe (daily, weekly, monthly)
+    """
+    try:
+        # Calculate number of periods needed
+        if interval == '1d':
+            if period == '3mo':
+                periods = 90
+            elif period == '1y':
+                periods = 365
+            else:
+                periods = 252  # Default trading days
+        elif interval == '1wk':
+            if period == '2y':
+                periods = 104  # 2 years of weeks
+            else:
+                periods = 52   # 1 year of weeks
+        elif interval == '1mo':
+            if period == '5y':
+                periods = 60   # 5 years of months
+            else:
+                periods = 24   # 2 years of months
+        else:
+            periods = 50  # Default
+        
+        print(f"🎯 Creating {periods} {interval} synthetic candles for {instrument_name}")
+        
+        # Base price for different instruments
+        base_prices = {'NIFTY': 24500, 'BANKNIFTY': 54000, 'SENSEX': 80000}
+        base_price = base_prices.get(instrument_name, 25000)
+        
+        # Generate dates based on interval
+        end_date = datetime.now()
+        if interval == '1d':
+            dates = pd.date_range(end=end_date, periods=periods, freq='D')
+        elif interval == '1wk':
+            dates = pd.date_range(end=end_date, periods=periods, freq='W')
+        elif interval == '1mo':
+            dates = pd.date_range(end=end_date, periods=periods, freq='ME')
+        
+        # Generate realistic OHLC data
+        np.random.seed(42)
+        
+        # Volatility based on timeframe
+        if interval == '1d':
+            volatility = 0.015  # 1.5% daily
+        elif interval == '1wk':
+            volatility = 0.04   # 4% weekly
+        elif interval == '1mo':
+            volatility = 0.08   # 8% monthly
+        
+        data = []
+        current_price = base_price
+        
+        for date in dates:
+            # Price movement
+            change = np.random.normal(0, volatility)
             
-        # Fetch historical data
-        df_zones = yf.Ticker(ticker_symbol).history(period=period, interval="1d")
-        
-        if df_zones.empty:
-            print(f"❌ No data received from yfinance for {ticker_symbol}")
-            return None, None
+            open_price = current_price * (1 + np.random.normal(0, volatility/3))
+            close_price = open_price * (1 + change)
             
-        print(f"✅ Retrieved {len(df_zones)} days of data for {ticker_symbol}")
+            # High/Low range
+            high_price = max(open_price, close_price) * (1 + abs(np.random.normal(0, volatility/2)))
+            low_price = min(open_price, close_price) * (1 - abs(np.random.normal(0, volatility/2)))
+            
+            data.append({
+                'Open': round(open_price, 2),
+                'High': round(high_price, 2),
+                'Low': round(low_price, 2),
+                'Close': round(close_price, 2),
+                'Volume': np.random.randint(1000000, 10000000)
+            })
+            
+            current_price = close_price
         
-        # Convert index to datetime (EXACT from NIFSEL.py)
-        df_zones.index = pd.to_datetime(df_zones.index)
+        # Create DataFrame
+        df = pd.DataFrame(data, index=dates)
         
-        # EXACT resampling logic from NIFSEL.py
-        resample_period = 'W' if calculation_type == "Weekly" else 'ME'
-        agg_df = df_zones.resample(resample_period).agg({
+        print(f"✅ Generated {len(df)} {interval} candles from ₹{df.Close.iloc[0]:.2f} to ₹{df.Close.iloc[-1]:.2f}")
+        return df
+        
+    except Exception as e:
+        print(f"❌ Synthetic timeframe data creation failed: {e}")
+        return None
+
+def try_yfinance_zones(instrument_name, calculation_type, method="tradingview"):
+    """
+    Calculate zones using either TradingView or Legacy method.
+    method: "tradingview" (default) or "legacy"
+    """
+    try:
+        if method == "tradingview":
+            # EXACT TradingView timeframe mapping
+            if calculation_type == "Daily":
+                interval = '1d'
+                period = '3mo'  # Need enough data for SMA calculations
+            elif calculation_type == "Weekly":
+                interval = '1wk'  # Weekly timeframe data directly
+                period = '2y'     # Need enough weekly candles
+            elif calculation_type == "Monthly":
+                interval = '1mo'  # Monthly timeframe data directly
+                period = '5y'     # Need enough monthly candles
+            else:
+                interval = '1d'
+                period = '1y'
+            
+            print(f"📊 EXACT TradingView: {calculation_type} using interval={interval}, period={period}")
+            calculation_func = calculate_zones_from_data_yfinance
+            
+        else:  # legacy method
+            # Legacy approach - always use daily data with periods
+            if calculation_type == "Weekly" and instrument_name == "NIFTY":
+                period = '6mo'
+            else:
+                period = '5y'
+            interval = '1d'  # Always daily for legacy
+            
+            print(f"📊 Legacy Method: {calculation_type} using daily data, period={period}")
+            calculation_func = calculate_zones_legacy_nifsel
+        
+        # First try: Django market service 
+        if YFINANCE_AVAILABLE:
+            print(f"🔄 Trying Django market service for {instrument_name}...")
+            historical_data = get_django_historical_data(instrument_name, period=period)
+            if historical_data is not None and isinstance(historical_data, pd.DataFrame) and not historical_data.empty and len(historical_data) > 10:
+                print(f"✅ Django market service data for {instrument_name}: {len(historical_data)} records")
+                # Resample to correct timeframe if we got daily data and using TradingView method
+                if method == "tradingview" and interval != '1d':
+                    historical_data = resample_to_timeframe(historical_data, interval)
+                return calculation_func(historical_data, instrument_name, calculation_type)
+        
+        # Second try: Direct yfinance
+        print(f"🔄 Trying direct yfinance for {instrument_name} with {method} method...")
+        
+        # Use only the most reliable symbols
+        primary_symbols = {
+            'NIFTY': '^NSEI',
+            'BANKNIFTY': '^NSEBANK', 
+            'SENSEX': '^BSESN'
+        }
+        
+        if instrument_name in primary_symbols:
+            try:
+                print(f"Trying primary symbol: {primary_symbols[instrument_name]} with interval {interval}")
+                ticker_obj = yf.Ticker(primary_symbols[instrument_name])
+                
+                # Get data in the required timeframe
+                df = ticker_obj.history(period=period, interval=interval)
+                
+                if df is not None and not df.empty and len(df) > 10:
+                    print(f"✅ Got {len(df)} {interval} candles from yfinance")
+                    return calculation_func(df, instrument_name, calculation_type)
+                        
+            except Exception as e:
+                print(f"⚠️ Direct yfinance failed: {e}")
+        
+        # Third try: Create synthetic data
+        print(f"🔄 Creating synthetic {interval} data for {instrument_name}...")
+        if method == "tradingview":
+            synthetic_df = create_synthetic_timeframe_data(instrument_name, calculation_type, interval, period)
+        else:
+            synthetic_df = create_synthetic_historical_data(instrument_name, calculation_type)
+        
+        if synthetic_df is not None and not synthetic_df.empty:
+            print(f"✅ Created synthetic {interval} data for {instrument_name}: {len(synthetic_df)} records")
+            return calculation_func(synthetic_df, instrument_name, calculation_type)
+        
+        print(f"❌ All {method} methods failed for {instrument_name}")
+        return None, None
+            
+    except Exception as e:
+        print(f"❌ Error during yfinance zone calculation for {instrument_name}: {e}")
+        import traceback
+        traceback.print_exc()
+        return None, None
+
+def create_synthetic_historical_data(instrument_name, calculation_type):
+    """
+    Create synthetic historical data when yfinance is not available.
+    Uses cached current prices and mathematical models to generate realistic historical data.
+    """
+    try:
+        # Load current price from cache
+        cache_file = 'market_data_cache.json'
+        current_price = None
+        
+        if os.path.exists(cache_file):
+            with open(cache_file, 'r') as f:
+                cache_data = json.load(f)
+                if instrument_name in cache_data:
+                    current_price = cache_data[instrument_name].get('current_price')
+        
+        # Fallback prices if no cache
+        if not current_price:
+            fallback_prices = {'NIFTY': 24500, 'BANKNIFTY': 54000, 'SENSEX': 80000}
+            current_price = fallback_prices.get(instrument_name, 25000)
+        
+        print(f"📊 Creating synthetic data for {instrument_name} based on price ₹{current_price}")
+        
+        # EXACT NIFSEL.py period length logic - match the exact periods used
+        if calculation_type == 'Weekly' and instrument_name == 'NIFTY':
+            periods = 180  # 6 months of daily data (EXACT NIFSEL.py)
+            print(f"Using NIFSEL.py period: 6 months (180 days) for Weekly NIFTY")
+        elif calculation_type == 'Weekly':
+            periods = 1825 # 5 years of daily data (EXACT NIFSEL.py default)
+            print(f"Using NIFSEL.py period: 5 years (1825 days) for Weekly {instrument_name}")
+        elif calculation_type == 'Monthly':
+            periods = 1825 # 5 years of daily data (EXACT NIFSEL.py default)
+            print(f"Using NIFSEL.py period: 5 years (1825 days) for Monthly {instrument_name}")
+        else:
+            periods = 1825 # 5 years default (EXACT NIFSEL.py)
+            print(f"Using NIFSEL.py period: 5 years (1825 days) for {calculation_type} {instrument_name}")
+        
+        # Create dates
+        from datetime import datetime, timedelta
+        end_date = datetime.now().date()
+        start_date = end_date - timedelta(days=periods + 30)  # Extra buffer
+        
+        # Generate realistic price movements using random walk
+        import numpy as np
+        np.random.seed(42)  # For reproducible results
+        
+        # Generate daily returns with realistic volatility
+        if instrument_name == 'NIFTY':
+            volatility = 0.015  # 1.5% daily volatility
+        elif instrument_name == 'BANKNIFTY':
+            volatility = 0.02   # 2% daily volatility
+        else:
+            volatility = 0.018  # Default volatility
+        
+        # Create random daily returns
+        returns = np.random.normal(0, volatility, periods)
+        
+        # Calculate prices using cumulative returns
+        prices = [current_price]
+        for i in range(periods - 1, 0, -1):  # Work backwards from current price
+            prev_price = prices[-1] / (1 + returns[i])
+            prices.append(prev_price)
+        
+        prices.reverse()  # Correct chronological order
+        
+        # Create DataFrame with OHLC data
+        dates = [start_date + timedelta(days=i) for i in range(periods)]
+        
+        # Create realistic OHLC from Close prices
+        df_data = []
+        for i, (date, close) in enumerate(zip(dates, prices)):
+            # Create realistic daily range (0.5% to 2%)
+            daily_range = close * (0.005 + np.random.random() * 0.015)
+            
+            high = close + daily_range * np.random.random()
+            low = close - daily_range * np.random.random()
+            open_price = low + (high - low) * np.random.random()
+            
+            df_data.append({
+                'Open': round(open_price, 2),
+                'High': round(high, 2),
+                'Low': round(low, 2),
+                'Close': round(close, 2),
+                'Volume': np.random.randint(100000, 1000000)  # Synthetic volume
+            })
+        
+        # Create DataFrame
+        df = pd.DataFrame(df_data, index=pd.to_datetime(dates))
+        
+        print(f"✅ Generated {len(df)} days of synthetic data from ₹{df.Close.iloc[0]:.2f} to ₹{df.Close.iloc[-1]:.2f}")
+        return df
+        
+    except Exception as e:
+        print(f"❌ Failed to create synthetic data: {e}")
+        return None
+
+def calculate_zones_legacy_nifsel(df, instrument_name, calculation_type):
+    """
+    Legacy NIFSEL.py style calculation (using resampled data)
+    This is kept for comparison with the old method
+    """
+    try:
+        # Ensure index is datetime
+        df.index = pd.to_datetime(df.index)
+        
+        # Legacy resampling approach
+        if calculation_type == "Weekly":
+            resample_period = 'W-SUN'  # Week ending Sunday
+        else:
+            resample_period = 'ME'     # Month End
+        
+        print(f"📅 Legacy NIFSEL.py resampling: {resample_period} for {calculation_type}")
+        
+        # Resample daily data to timeframe
+        agg_df = df.resample(resample_period).agg({
             'Open': 'first', 
             'High': 'max', 
             'Low': 'min'
@@ -237,22 +639,22 @@ def calculate_zones_nifsel_exact(instrument_name, calculation_type):
             print(f"❌ Insufficient resampled data for {instrument_name} (need 10, got {len(agg_df)})")
             return None, None
             
-        print(f"✅ Resampled to {len(agg_df)} periods for zone calculation")
+        print(f"✅ Legacy resampled to {len(agg_df)} periods using {resample_period}")
         
-        # EXACT rolling range calculation from NIFSEL.py
+        # Legacy range calculations (current period ranges)
         rng5 = (agg_df['High'] - agg_df['Low']).rolling(5).mean()
         rng10 = (agg_df['High'] - agg_df['Low']).rolling(10).mean()
         
-        # EXACT base price logic from NIFSEL.py
+        # Legacy base calculation (resampled open)
         base = agg_df['Open']
         
-        # EXACT zone calculation from NIFSEL.py
-        u1 = base + 0.5 * rng5  # Upper zone 1
-        u2 = base + 0.5 * rng10  # Upper zone 2
-        l1 = base - 0.5 * rng5   # Lower zone 1
-        l2 = base - 0.5 * rng10  # Lower zone 2
+        # Legacy zone calculations
+        u1 = base + 0.5 * rng5
+        u2 = base + 0.5 * rng10
+        l1 = base - 0.5 * rng5
+        l2 = base - 0.5 * rng10
         
-        # Get the latest zones (EXACT from NIFSEL.py)
+        # Latest zones selection
         latest_zones = pd.DataFrame({
             'u1': u1, 
             'u2': u2, 
@@ -260,11 +662,11 @@ def calculate_zones_nifsel_exact(instrument_name, calculation_type):
             'l2': l2
         }).dropna().iloc[-1]
         
-        # EXACT supply/demand calculation from NIFSEL.py
+        # Final calculation
         supply_zone = round(max(latest_zones['u1'], latest_zones['u2']), 2)
         demand_zone = round(min(latest_zones['l1'], latest_zones['l2']), 2)
         
-        print(f"✅ EXACT NIFSEL.py zones calculated for {instrument_name} ({calculation_type}):")
+        print(f"✅ Legacy NIFSEL.py zones calculated for {instrument_name} ({calculation_type}):")
         print(f"   Latest Base (Open): ₹{base.iloc[-1]:.2f}")
         print(f"   RNG5 (5-period SMA): ₹{rng5.iloc[-1]:.2f}")
         print(f"   RNG10 (10-period SMA): ₹{rng10.iloc[-1]:.2f}")
@@ -275,91 +677,195 @@ def calculate_zones_nifsel_exact(instrument_name, calculation_type):
         return supply_zone, demand_zone
         
     except Exception as e:
-        print(f"❌ NIFSEL.py exact method failed for {instrument_name}: {e}")
+        print(f"❌ Legacy NIFSEL.py zone calculation failed for {instrument_name}: {e}")
         import traceback
         traceback.print_exc()
         return None, None
 
-def try_yfinance_zones(instrument_name, calculation_type):
+def calculate_zones_from_data_yfinance(df, instrument_name, calculation_type):
     """
-    Enhanced zone calculation using DhanHQ first, then yfinance fallback
+    Calculate supply/demand zones using EXACT TradingView logic
+    TradingView: rng5/rng10 = SMA of previous candle ranges, base = current open
     """
     try:
-        print(f"🔄 Calculating {calculation_type} zones for {instrument_name}...")
+        # Ensure index is datetime
+        df.index = pd.to_datetime(df.index)
         
-        # Try DhanHQ first
-        if DHAN_AVAILABLE and getattr(settings, 'USE_DHAN_API', True):
-            period_map = {'Weekly': '3m', 'Monthly': '1y', 'Quarterly': '1y'}
-            period = period_map.get(calculation_type, '6m')
-            
-            df = get_dhan_historical(instrument_name, period)
-            if df is not None and len(df) > 10:
-                return calculate_zones_from_data(df, instrument_name, calculation_type, 'DhanHQ')
+        # EXACT TradingView logic - NO resampling, direct calculation on timeframe data
+        print(f"� Using EXACT TradingView logic for {calculation_type} {instrument_name}")
         
-        # Fallback to yfinance
-        TICKERS = {"NIFTY": "^NSEI", "BANKNIFTY": "^NSEBANK"}
+        if len(df) < 11:  # Need at least 11 candles (10 for SMA + 1 current)
+            print(f"❌ Insufficient data for {instrument_name} (need 11, got {len(df)})")
+            return None, None
         
-        if instrument_name not in TICKERS:
+        # EXACT TradingView: high[1] - low[1] (PREVIOUS candle ranges)
+        previous_ranges = (df['High'].shift(1) - df['Low'].shift(1)).dropna()
+        
+        # EXACT TradingView: ta.sma(high[1] - low[1], 5) and ta.sma(high[1] - low[1], 10)
+        rng5 = previous_ranges.rolling(window=5, min_periods=5).mean()
+        rng10 = previous_ranges.rolling(window=10, min_periods=10).mean()
+        
+        # EXACT TradingView: base = open[0] (CURRENT candle open, not resampled)
+        base = df['Open']
+        
+        # EXACT TradingView zone calculations
+        u1 = base + 0.5 * rng5
+        u2 = base + 0.5 * rng10
+        l1 = base - 0.5 * rng5
+        l2 = base - 0.5 * rng10
+        
+        # Get the latest valid values (TradingView uses current bar)
+        latest_idx = df.index[-1]
+        
+        # Ensure we have valid calculations
+        if pd.isna(rng5.loc[latest_idx]) or pd.isna(rng10.loc[latest_idx]):
+            print(f"❌ Invalid range calculations for {instrument_name}")
+            return None, None
+        
+        latest_u1 = u1.loc[latest_idx]
+        latest_u2 = u2.loc[latest_idx]
+        latest_l1 = l1.loc[latest_idx]
+        latest_l2 = l2.loc[latest_idx]
+        
+        # EXACT TradingView final zones
+        supply_zone = round(max(latest_u1, latest_u2), 2)
+        demand_zone = round(min(latest_l1, latest_l2), 2)
+        
+        print(f"✅ EXACT TradingView zones calculated for {instrument_name} ({calculation_type}):")
+        print(f"   Current Base (Open): ₹{base.loc[latest_idx]:.2f}")
+        print(f"   RNG5 (5-SMA prev ranges): ₹{rng5.loc[latest_idx]:.2f}")
+        print(f"   RNG10 (10-SMA prev ranges): ₹{rng10.loc[latest_idx]:.2f}")
+        print(f"   U1 (base + 0.5*rng5): ₹{latest_u1:.2f}")
+        print(f"   U2 (base + 0.5*rng10): ₹{latest_u2:.2f}")
+        print(f"   L1 (base - 0.5*rng5): ₹{latest_l1:.2f}")
+        print(f"   L2 (base - 0.5*rng10): ₹{latest_l2:.2f}")
+        print(f"   Supply Zone: ₹{supply_zone}")
+        print(f"   Demand Zone: ₹{demand_zone}")
+        print(f"   Zone Range: ₹{supply_zone - demand_zone:.2f}")
+        
+        return supply_zone, demand_zone
+        
+    except Exception as e:
+        print(f"❌ TradingView zone calculation failed for {instrument_name}: {e}")
+        import traceback
+        traceback.print_exc()
+        return None, None
+
+
+def try_yfinance_zones_legacy(instrument_name, calculation_type):
+    """
+    [DEPRECATED & FOR TESTING ONLY]
+    This function is kept for testing/comparison purposes only.
+    It should not be used in production due to yfinance reliability issues.
+    """
+    try:
+        print(f"🔄 [TESTING ONLY] Calculating {calculation_type} zones for {instrument_name} via yfinance...")
+        
+        # Fallback to yfinance - using exact FifSel.py logic
+        TICKERS = {"NIFTY": ["^NSEI", "NSEI.NS"], "BANKNIFTY": ["^NSEBANK"]}
+        
+        symbols_to_try = TICKERS.get(instrument_name)
+        if not symbols_to_try:
             return None, None
             
-        ticker_symbol = TICKERS[instrument_name]
+        print(f"Using ticker symbols: {', '.join(symbols_to_try)}")
         
-        # Fetch historical data for zone calculation
-        df_zones = yf.Ticker(ticker_symbol).history(period="5y", interval="1d")
-        
-        # Special handling for NIFTY Weekly as in original code
-        if calculation_type == "Weekly" and instrument_name == "NIFTY":
-            df_zones = yf.Ticker(ticker_symbol).history(period="6mo", interval="1d")
+        # Fetch historical data for zone calculation - use the robust utility
+        df_zones, used_symbol = _fetch_yf_history_util(symbols_to_try)
             
-        if df_zones.empty:
+        if df_zones is None or df_zones.empty:
+            print(f"❌ yfinance method failed to fetch data for {instrument_name}")
             return None, None
             
         # Convert index to datetime
         df_zones.index = pd.to_datetime(df_zones.index)
         
-        # Resample based on calculation type (Weekly/Monthly)
-        resample_period = 'W' if calculation_type == "Weekly" else 'ME'
-        agg_df = df_zones.resample(resample_period).agg({
-            'Open': 'first', 
-            'High': 'max', 
-            'Low': 'min'
-        }).dropna()
-        
-        # Calculate rolling ranges (5 and 10 periods)
-        rng5 = (agg_df['High'] - agg_df['Low']).rolling(5).mean()
-        rng10 = (agg_df['High'] - agg_df['Low']).rolling(10).mean()
-        
-        # Base price (Open)
-        base = agg_df['Open']
-        
-        # Calculate supply and demand zones
-        u1 = base + 0.5 * rng5  # Upper zone 1
-        u2 = base + 0.5 * rng10  # Upper zone 2
-        l1 = base - 0.5 * rng5   # Lower zone 1
-        l2 = base - 0.5 * rng10  # Lower zone 2
-        
-        # Get the latest zones
-        latest_zones = pd.DataFrame({
-            'u1': u1, 
-            'u2': u2, 
-            'l1': l1, 
-            'l2': l2
-        }).dropna().iloc[-1]
-        
-        # Calculate supply and demand zones
-        supply_zone = round(max(latest_zones['u1'], latest_zones['u2']), 2)
-        demand_zone = round(min(latest_zones['l1'], latest_zones['l2']), 2)
-        
-        print(f"✅ {calculation_type} zones calculated using yfinance for {instrument_name}:")
-        print(f"   Supply Zone: ₹{supply_zone}")
-        print(f"   Demand Zone: ₹{demand_zone}")
-        
-        return supply_zone, demand_zone
+        # Apply the new TradingView calculation logic
+        return calculate_zones_from_data_tradingview(df_zones, instrument_name, calculation_type, f'yfinance ({used_symbol})')
         
     except Exception as e:
         print(f"❌ yfinance method failed for {instrument_name}: {e}")
         return None, None
 
+
+def calculate_zones_from_data_tradingview(df, instrument_name, calculation_type, data_source):
+    """
+    Calculate supply/demand zones using the TradingView Pine Script logic.
+    - Weekly zones are based on Monday-Sunday periods.
+    - Range is calculated from the SMA of (High - Low) of *previous, completed* weeks.
+    - Base for calculation is the *current* week's Open price.
+    """
+    try:
+        if df is None or df.empty or len(df) < 50:
+            print(f"❌ Insufficient data for {instrument_name} using {data_source}: {len(df) if df is not None else 0} records")
+            return None, None
+
+        # 1. Resample daily data to weekly, starting on Monday.
+        weekly_df = df.resample('W-MON', label='left', closed='left').agg({
+            'Open': 'first',
+            'High': 'max',
+            'Low': 'min',
+            'Close': 'last'
+        }).dropna()
+
+        if len(weekly_df) < 11:
+            print(f"❌ Insufficient weekly data from {data_source} for {instrument_name} (need at least 11 weeks, got {len(weekly_df)})")
+            return None, None
+
+        # 2. Isolate the current, forming week and the previous completed weeks.
+        current_week = weekly_df.iloc[-1:]
+        previous_weeks = weekly_df.iloc[:-1].copy()
+
+        # 3. Calculate the high-low difference for *previous* weeks.
+        previous_weeks['H-L_Range'] = previous_weeks['High'] - previous_weeks['Low']
+
+        # 4. Calculate the 5 and 10-period SMA of the range on *previous* weeks.
+        previous_weeks['rng5_sma'] = previous_weeks['H-L_Range'].rolling(window=5).mean()
+        previous_weeks['rng10_sma'] = previous_weeks['H-L_Range'].rolling(window=10).mean()
+
+        # 5. Get the latest calculated SMA values (from the last completed week).
+        latest_rng5 = previous_weeks['rng5_sma'].iloc[-1]
+        latest_rng10 = previous_weeks['rng10_sma'].iloc[-1]
+
+        # 6. Get the base open from the *current* week.
+        base_open = current_week['Open'].iloc[0]
+
+        # 7. Calculate the supply and demand zones.
+        supply_raw_5 = base_open + 0.5 * latest_rng5
+        supply_raw_10 = base_open + 0.5 * latest_rng10
+        demand_raw_5 = base_open - 0.5 * latest_rng5
+        demand_raw_10 = base_open - 0.5 * latest_rng10
+
+        supply_zone = max(supply_raw_5, supply_raw_10)
+        demand_zone = min(demand_raw_5, demand_raw_10)
+
+        print(f"📊 TradingView Zone Calculation for {instrument_name} ({calculation_type}):")
+        print(f"   Current price: ₹{df['Close'].iloc[-1]:.2f}")
+        print(f"   Base (Current Week Open): ₹{base_open:.2f}")
+        print(f"   RNG5 (SMA of H-L): ₹{latest_rng5:.2f}")
+        print(f"   RNG10 (SMA of H-L): ₹{latest_rng10:.2f}")
+        print(f"   Supply Zone (Raw): ₹{supply_zone:.2f}")
+        print(f"   Demand Zone (Raw): ₹{demand_zone:.2f}")
+
+        # Round to nearest 50 for NIFTY, 100 for BANKNIFTY
+        if 'NIFTY' in instrument_name.upper() and 'BANK' not in instrument_name.upper():
+            supply_zone_rounded = round(supply_zone / 50) * 50
+            demand_zone_rounded = round(demand_zone / 50) * 50
+        else:
+            supply_zone_rounded = round(supply_zone / 100) * 100
+            demand_zone_rounded = round(demand_zone / 100) * 100
+
+        print(f"✅ {calculation_type} zones calculated using {data_source} for {instrument_name}:")
+        print(f"   Supply Zone (Rounded): ₹{supply_zone_rounded}")
+        print(f"   Demand Zone (Rounded): ₹{demand_zone_rounded}")
+
+        return supply_zone_rounded, demand_zone_rounded
+
+    except Exception as e:
+        print(f"❌ Error calculating TradingView zones from data: {e}")
+        import traceback
+        traceback.print_exc()
+        return None, None
 
 def calculate_zones_from_data(df, instrument_name, calculation_type, data_source):
     """
@@ -446,6 +952,80 @@ def calculate_zones_from_data(df, instrument_name, calculation_type, data_source
         print(f"❌ Error calculating zones from data: {e}")
         return None, None
 
+def calculate_nifsel_strikes_and_premiums(instrument_name, supply_zone, demand_zone, option_chain_data, selected_expiry_str):
+    """
+    EXACT NIFSEL.py strike price selection and premium calculation logic
+    """
+    try:
+        # EXACT NIFSEL.py lot size and strike increment logic
+        lot_size = 75 if instrument_name == "NIFTY" else 15
+        strike_increment = 50 if instrument_name == "NIFTY" else 100
+        
+        current_price = option_chain_data['records']['underlyingValue']
+        
+        # Parse CE and PE prices from option chain - EXACT NIFSEL.py logic
+        ce_prices, pe_prices = {}, {}
+        for item in option_chain_data['records']['data']:
+            if item.get("expiryDate") == selected_expiry_str:
+                if item.get("CE"): 
+                    ce_prices[item['strikePrice']] = item["CE"]["lastPrice"]
+                if item.get("PE"): 
+                    pe_prices[item['strikePrice']] = item["PE"]["lastPrice"]
+        
+        print(f"📊 Parsed option data: {len(ce_prices)} CE prices, {len(pe_prices)} PE prices")
+        
+        # EXACT NIFSEL.py CE strike selection logic
+        ce_high = math.ceil(supply_zone / strike_increment) * strike_increment
+        strikes_ce = [
+            ce_high, 
+            ce_high + strike_increment, 
+            ce_high + (2 * strike_increment)
+        ]
+        
+        # EXACT NIFSEL.py PE strike selection logic
+        pe_high = math.floor(demand_zone / strike_increment) * strike_increment
+        candidate_puts = sorted([
+            s for s in pe_prices 
+            if s < pe_high and pe_prices.get(s, 0) > 0
+        ], key=lambda s: pe_prices.get(s, 0), reverse=True)
+        
+        pe_mid = candidate_puts[0] if candidate_puts else pe_high - strike_increment
+        pe_low = (candidate_puts[1] if len(candidate_puts) > 1 
+                 else (candidate_puts[0] if candidate_puts else pe_high - strike_increment) - strike_increment)
+        
+        strikes_pe = [pe_high, pe_mid, pe_low]
+        
+        # EXACT NIFSEL.py DataFrame creation logic
+        df = pd.DataFrame({
+            "Entry": ["High Reward", "Mid Reward", "Low Reward"], 
+            "CE Strike": strikes_ce, 
+            "CE Price": [ce_prices.get(s, 0.0) for s in strikes_ce], 
+            "PE Strike": strikes_pe, 
+            "PE Price": [pe_prices.get(s, 0.0) for s in strikes_pe]
+        })
+        
+        # EXACT NIFSEL.py premium and target calculations
+        df["Combined Premium"] = df["CE Price"] + df["PE Price"]
+        df["Target"] = (df["Combined Premium"] * 0.80 * lot_size).round(2)
+        df["Stoploss"] = (df["Combined Premium"] * 0.80 * lot_size).round(2)
+        
+        print(f"✅ NIFSEL.py strike selection complete:")
+        print(f"   Supply Zone: ₹{supply_zone} → CE Strikes: {strikes_ce}")
+        print(f"   Demand Zone: ₹{demand_zone} → PE Strikes: {strikes_pe}")
+        print(f"   Current Price: ₹{current_price}")
+        
+        for i, row in df.iterrows():
+            total_premium = row['Combined Premium'] * lot_size
+            print(f"   {row['Entry']}: CE {row['CE Strike']} (₹{row['CE Price']}) + PE {row['PE Strike']} (₹{row['PE Price']}) = ₹{total_premium:.2f}")
+        
+        return df, lot_size
+        
+    except Exception as e:
+        print(f"❌ NIFSEL.py strike calculation failed: {e}")
+        import traceback
+        traceback.print_exc()
+        return None, None
+
 def calculate_fallback_zones(instrument_name, calculation_type):
     """
     Calculate zones using mathematical model when live data is unavailable
@@ -493,24 +1073,14 @@ def calculate_fallback_zones(instrument_name, calculation_type):
 
 def get_current_market_price(instrument_name):
     """
-    Get current market price using DhanHQ API first, then fallback methods
+    Get current market price using NSE option chain data as primary source
     """
     try:
-        # Try DhanHQ first
-        if DHAN_AVAILABLE and getattr(settings, 'USE_DHAN_API', True):
-            price = get_dhan_price(instrument_name)
-            if price and price > 0:
-                print(f"✅ DhanHQ price for {instrument_name}: ₹{price}")
-                return price
-        
-        # Fallback to option chain data
+        # Get price from option chain data (NSE source)
         option_chain_data = get_option_chain_data(instrument_name)
         if option_chain_data:
-            # Try DhanHQ structure first
-            if 'data' in option_chain_data and 'last_price' in option_chain_data['data']:
-                return float(option_chain_data['data']['last_price'])
-            # Try NSE structure as fallback
-            elif 'records' in option_chain_data:
+            # Try NSE structure first
+            if 'records' in option_chain_data:
                 underlying_value = option_chain_data['records'].get('underlyingValue')
                 if underlying_value:
                     return float(underlying_value)
@@ -518,12 +1088,27 @@ def get_current_market_price(instrument_name):
         pass
     return None
 
-def get_option_chain_data(symbol):
+def get_option_chain_data(symbol, force_full_data=False, expiry_date=None):
     """
     Get option chain data using cached expiry dates when available
     Only fetches fresh data when cache is empty or needs refresh
+    Set force_full_data=True to get complete option chain including strikes/prices
+    Set expiry_date to fetch option chain for specific expiry date
     """
     try:
+        # Debug: Print parameters
+        print(f"🔍 get_option_chain_data called with: symbol={symbol}, force_full_data={force_full_data}, expiry_date={expiry_date}")
+        
+        # If expiry_date is specified, always fetch fresh data for that specific expiry
+        if expiry_date:
+            print(f"🔄 Fetching option chain data for {symbol} with specific expiry {expiry_date}...")
+            return _fetch_fresh_option_chain_data_with_expiry(symbol, expiry_date)
+        
+        # If force_full_data is True, always fetch fresh data with complete option chain
+        if force_full_data:
+            print(f"🔄 Force fetching complete option chain data for {symbol}...")
+            return _fetch_fresh_option_chain_data(symbol)
+        
         # Check if we should refresh expiry cache (every Thursday)
         if should_refresh_expiry_cache():
             print(f"🔄 Thursday refresh: Updating expiry cache for {symbol}...")
@@ -558,103 +1143,61 @@ def get_option_chain_data(symbol):
         print(f"❌ Error in option chain fetch for {symbol}: {e}")
         return get_fallback_expiry_data(symbol)
 
+def _fetch_fresh_option_chain_data_with_expiry(symbol, expiry_date):
+    """
+    Internal function to fetch fresh option chain data for a specific expiry date
+    """
+    try:
+        # Use NSE data directly - no expiry-specific functionality needed
+        print(f"🔄 Fetching NSE option chain for {symbol} with expiry {expiry_date}...")
+        return _fetch_fresh_option_chain_data(symbol)
+        
+    except Exception as e:
+        print(f"❌ Error fetching option chain for {symbol} with expiry {expiry_date}: {e}")
+        return _fetch_fresh_option_chain_data(symbol)
+
+
 def _fetch_fresh_option_chain_data(symbol):
     """
-    Internal function to fetch fresh option chain data
+    Internal function to fetch fresh option chain data using NSE
     """
     try:
-        # Try DhanHQ first
-        if DHAN_AVAILABLE and getattr(settings, 'USE_DHAN_API', True):
-            print(f"🔄 Attempting DhanHQ option chain for {symbol}...")
-            dhan_data = get_dhan_option_chain(symbol)
-            if dhan_data and 'expiryDates' in dhan_data:
-                print(f"✅ DhanHQ option chain for {symbol}: {len(dhan_data['expiryDates'])} expiry dates")
-                return dhan_data
-            elif dhan_data:
-                print(f"⚠️  DhanHQ returned data but no expiry dates for {symbol}")
-                # Try to extract expiry dates from the data structure
-                expiry_dates = extract_expiry_dates_from_dhan_data(dhan_data, symbol)
-                if expiry_dates:
-                    dhan_data['expiryDates'] = expiry_dates
-                    print(f"✅ Extracted {len(expiry_dates)} expiry dates from DhanHQ data")
-                    return dhan_data
+        # Use NSE data directly through the existing get_option_chain_data function
+        print(f"🔄 Fetching NSE option chain for {symbol}...")
         
-        # Fallback to NSE API
-        print(f"🔄 Falling back to NSE API for {symbol}...")
-        if getattr(settings, 'FALLBACK_TO_NSE', True):
-            session = requests.Session()
-            headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
-                'Accept': 'application/json, text/javascript, */*; q=0.01',
-                'Accept-Language': 'en-US,en;q=0.9'
-            }
-            api_url = f"https://www.nseindia.com/api/option-chain-indices?symbol={symbol}"
+        # Force fresh data fetch by bypassing cache
+        nse_data = get_option_chain_data(symbol, force_full_data=True)
+        
+        if nse_data and 'records' in nse_data:
+            # Extract expiry dates from NSE data structure
+            expiry_dates = []
+            if 'expiryDates' in nse_data['records']:
+                expiry_dates = nse_data['records']['expiryDates']
+            elif 'data' in nse_data['records']:
+                # Extract from option data
+                for option in nse_data['records']['data']:
+                    expiry = option.get('expiryDate')
+                    if expiry and expiry not in expiry_dates:
+                        expiry_dates.append(expiry)
             
-            session.get(f"https://www.nseindia.com/get-quotes/derivatives?symbol={symbol}", headers=headers, timeout=15)
-            time.sleep(1)
-            response = session.get(api_url, headers=headers, timeout=15)
-            response.raise_for_status()
-            print(f"✅ NSE option chain fallback for {symbol}")
-            return response.json()
-            
-    except requests.exceptions.RequestException as e:
-        print(f"❌ Error fetching option chain for {symbol}: {e}")
+            if expiry_dates:
+                print(f"✅ NSE option chain for {symbol}: {len(expiry_dates)} expiry dates")
+                nse_data['expiryDates'] = expiry_dates  # Standardize format
+                return nse_data
+            else:
+                print(f"⚠️ NSE returned data but no expiry dates for {symbol}")
+                return nse_data
+        
+        print(f"❌ Failed to fetch NSE option chain for {symbol}")
         return None
-    except Exception as e:
-        print(f"❌ General error in fetch for {symbol}: {e}")
-        return None
-
-def extract_expiry_dates_from_dhan_data(dhan_data, symbol):
-    """
-    Extract expiry dates from DhanHQ option chain response
-    """
-    try:
-        expiry_dates = []
-        
-        # Check if the response has expiry dates in the data structure
-        if 'data' in dhan_data:
-            data = dhan_data['data']
-            
-            # Look for expiry dates in various possible locations in the response
-            if isinstance(data, list):
-                # If data is a list, check each item for expiry information
-                for item in data:
-                    if isinstance(item, dict) and 'expiryDate' in item:
-                        expiry_date = item['expiryDate']
-                        if expiry_date not in expiry_dates:
-                            expiry_dates.append(expiry_date)
-            elif isinstance(data, dict):
-                # If data is a dict, look for expiry information
-                if 'expiryDates' in data:
-                    expiry_dates = data['expiryDates']
-                elif 'expiry' in data:
-                    expiry_dates = [data['expiry']]
-        
-        # If no expiry dates found, calculate them
-        if not expiry_dates:
-            print(f"⚠️  No expiry dates found in DhanHQ response, calculating fallback dates for {symbol}")
-            from datetime import datetime, timedelta
-            current_date = datetime.now()
-            
-            # Generate next 4 weekly expiries (Thursdays)
-            for i in range(4):
-                days_ahead = (3 - current_date.weekday()) % 7  # Thursday is 3
-                if days_ahead == 0 and current_date.hour > 15:
-                    days_ahead = 7
-                
-                next_thursday = current_date + timedelta(days=days_ahead + (i * 7))
-                expiry_date = next_thursday.strftime('%d-%b-%Y')
-                expiry_dates.append(expiry_date)
-        
-        return expiry_dates[:10]  # Return first 10 expiry dates
         
     except Exception as e:
-        print(f"❌ Error extracting expiry dates from DhanHQ data: {e}")
-        return []
+        print(f"❌ Error fetching NSE option chain for {symbol}: {e}")
+        return None
 
 def get_fallback_expiry_data(symbol):
     """
-    Generate fallback expiry dates when both DhanHQ and NSE fail
+    Generate fallback expiry dates when NSE data is unavailable
     """
     try:
         from datetime import datetime, timedelta
@@ -981,7 +1524,7 @@ def generate_payoff_chart(strategies_df, lot_size, current_price, instrument_nam
     price_range = np.linspace(current_price * 0.85, current_price * 1.15, 300)
     
     strategy = strategies_df.iloc[0]
-    ce_strike, pe_strike, premium = strategy['CE Strike'], strategy['PE Strike'], strategy['Combined Premium']
+    ce_strike, pe_strike, premium = strategy['CE_Strike'], strategy['PE_Strike'], strategy['Combined_Premium']
     
     # Calculate payoff for short straddle/strangle with max loss limit
     pnl = (premium - np.maximum(price_range - ce_strike, 0) - np.maximum(pe_strike - price_range, 0)) * lot_size
@@ -1141,27 +1684,27 @@ def generate_analysis(instrument_name, calculation_type, selected_expiry_str):
     debug_log(f"📊 Calculating {calculation_type} supply/demand zones...")
     supply_zone, demand_zone = calculate_weekly_zones(instrument_name, calculation_type)
     
-    if supply_zone is None or demand_zone is None:
+    if supply_zone is not None and demand_zone is not None:
+        debug_log(f"✅ Zones calculated - Supply: ₹{supply_zone}, Demand: ₹{demand_zone}")
+    else:
         debug_log("❌ Failed to calculate zones, using fallback method")
-        # Fallback to simple price-based method
         supply_zone = None
         demand_zone = None
-    else:
-        debug_log(f"✅ Zones calculated - Supply: ₹{supply_zone}, Demand: ₹{demand_zone}")
     
     zone_label = calculation_type
     
-    # Single option chain fetch - on-demand only when analysis is requested
-    print("📡 Fetching option chain data (on-demand)...")
+    # Single option chain fetch - on-demand only when analysis is requested for specific expiry
+    print(f"📡 Fetching option chain data for {instrument_name} expiry {selected_expiry_str}...")
     try:
-        option_chain_data = get_option_chain_data(instrument_name)
+        # Fetch option chain for the specific expiry date being analyzed
+        option_chain_data = get_option_chain_data(instrument_name, expiry_date=selected_expiry_str)
         if option_chain_data:
-            print("✅ Option chain data fetched successfully")
-            debug_log("✅ Option chain fetch successful")
+            print(f"✅ Option chain data fetched successfully for {selected_expiry_str}")
+            debug_log(f"✅ Option chain fetch successful for expiry {selected_expiry_str}")
         else:
-            print("❌ Option chain data is None")
+            print(f"❌ Option chain data is None for {selected_expiry_str}")
     except Exception as e:
-        print(f"❌ Exception fetching option chain: {e}")
+        print(f"❌ Exception fetching option chain for {selected_expiry_str}: {e}")
         return None, f"Error fetching option chain: {e}"
     
     if not option_chain_data:
@@ -1189,6 +1732,9 @@ def generate_analysis(instrument_name, calculation_type, selected_expiry_str):
             current_price = get_current_market_price(instrument_name) or (24750 if instrument_name == "NIFTY" else 51500)
             debug_log(f"🔄 Using fallback current price: {current_price}")
     expiry_label = datetime.strptime(selected_expiry_str, '%d-%b-%Y').strftime("%d-%b")
+    
+    # This part of the code is crucial for the final analysis data.
+    # Let's ensure we are constructing and returning the dictionary correctly.
     
     if option_chain_data:
         # Extract real data from DhanHQ API
@@ -1227,23 +1773,32 @@ def generate_analysis(instrument_name, calculation_type, selected_expiry_str):
                         if item.get("PE"): pe_prices[item['strikePrice']] = item["PE"]["lastPrice"]
                 debug_log(f"📊 Fallback NSE data - CE: {len(ce_prices)}, PE: {len(pe_prices)} strikes")
     
-    # Zone-based strike selection (using supply/demand zones)
+    # Zone-based strike selection (using supply/demand zones) - exact FifSel.py logic
     if supply_zone is not None and demand_zone is not None:
         debug_log("📊 Using zone-based strike selection")
         
-        # CE strikes based on supply zone (resistance)
+        # CE strikes based on supply zone (resistance) - exact FifSel.py logic
         ce_high = math.ceil(supply_zone / strike_increment) * strike_increment
         strikes_ce = [ce_high, ce_high + strike_increment, ce_high + (2 * strike_increment)]
         
-        # PE strikes based on demand zone (support)
+        # PE strikes based on demand zone (support) - exact FifSel.py logic
         pe_high = math.floor(demand_zone / strike_increment) * strike_increment
         
-        # Select best PE strikes below demand zone with highest premiums
+        # Select best PE strikes below demand zone with highest premiums - exact FifSel.py logic
         candidate_puts = sorted([s for s in pe_prices if s < pe_high and pe_prices.get(s, 0) > 0], 
                                key=lambda s: pe_prices.get(s, 0), reverse=True)
         
+        # Exact FifSel.py PE strike selection logic
         pe_mid = (candidate_puts[0] if candidate_puts else pe_high - strike_increment)
-        pe_low = (candidate_puts[1] if len(candidate_puts) > 1 else pe_mid - strike_increment)
+        pe_high = math.floor(demand_zone / strike_increment) * strike_increment
+        
+        # Select best PE strikes below demand zone with highest premiums - exact FifSel.py logic
+        candidate_puts = sorted([s for s in pe_prices if s < pe_high and pe_prices.get(s, 0) > 0], 
+                               key=lambda s: pe_prices.get(s, 0), reverse=True)
+        
+        # Exact FifSel.py PE strike selection logic
+        pe_mid = (candidate_puts[0] if candidate_puts else pe_high - strike_increment)
+        pe_low = (candidate_puts[1] if len(candidate_puts) > 1 else (candidate_puts[0] if candidate_puts else pe_high - strike_increment) - strike_increment)
         strikes_pe = [pe_high, pe_mid, pe_low]
         
         debug_log(f"📊 Zone-based strikes:")
@@ -1253,7 +1808,7 @@ def generate_analysis(instrument_name, calculation_type, selected_expiry_str):
     else:
         debug_log("📊 Using fallback current price-based strike selection")
         
-        # Fallback to current price-based selection
+        # Fallback to current price-based selection - exact FifSel.py logic
         ce_high = math.ceil(current_price / strike_increment) * strike_increment
         strikes_ce = [ce_high, ce_high + strike_increment, ce_high + (2 * strike_increment)]
         pe_high = math.floor(current_price / strike_increment) * strike_increment
@@ -1262,16 +1817,23 @@ def generate_analysis(instrument_name, calculation_type, selected_expiry_str):
         pe_mid = (candidate_puts[0] if candidate_puts else pe_high - strike_increment)
         pe_low = (candidate_puts[1] if len(candidate_puts) > 1 else pe_mid - strike_increment)
         strikes_pe = [pe_high, pe_mid, pe_low]
-    df = pd.DataFrame({"Entry": ["High Reward", "Mid Reward", "Low Reward"], "CE Strike": strikes_ce, "CE Price": [ce_prices.get(s, 0.0) for s in strikes_ce], "PE Strike": strikes_pe, "PE Price": [pe_prices.get(s, 0.0) for s in strikes_pe]})
-    df["Combined Premium"] = df["CE Price"] + df["PE Price"]
+    # Create DataFrame with exact FifSel.py structure and logic
+    df = pd.DataFrame({
+        "Entry": ["High Reward", "Mid Reward", "Low Reward"], 
+        "CE_Strike": strikes_ce, 
+        "CE_Price": [ce_prices.get(s, 0.0) for s in strikes_ce], 
+        "PE_Strike": strikes_pe, 
+        "PE_Price": [pe_prices.get(s, 0.0) for s in strikes_pe]
+    })
+    df["Combined_Premium"] = df["CE_Price"] + df["PE_Price"]
     
-    # Calculate target and stoploss with global round-off by 50
-    df["Target"] = df["Combined Premium"].apply(lambda x: round_to_nearest_50((x * 0.80 * lot_size)))
-    df["Stoploss"] = df["Combined Premium"].apply(lambda x: round_to_nearest_50((x * 0.80 * lot_size)))
+    # Calculate target and stoploss - exact FifSel.py logic (80% of premium for both Target and Stoploss)
+    df["Target"] = (df["Combined_Premium"] * 0.80 * lot_size).round(2)
+    df["Stoploss"] = (df["Combined_Premium"] * 0.80 * lot_size).round(2)
     
-    display_df = df[['Entry', 'CE Strike', 'CE Price', 'PE Strike', 'PE Price']].copy()
-    # Format target/SL values as integers since they're rounded to 50
-    display_df['Target/SL (1:1)'] = df['Target'].apply(lambda x: f"₹{int(x)}")
+    # Create display DataFrame - exact FifSel.py structure
+    display_df = df[['Entry', 'CE_Strike', 'CE_Price', 'PE_Strike', 'PE_Price']].copy()
+    display_df['Target_SL'] = df['Target']
     
     # Debug: Log the DataFrame data
     debug_log(f"📊 DataFrame created with shape: {df.shape}")
@@ -1302,7 +1864,7 @@ def generate_analysis(instrument_name, calculation_type, selected_expiry_str):
     
     # Create professional table with global UI styling
     table = plt.table(cellText=display_df.values, 
-                     colLabels=display_df.columns,
+                     colLabels=['Entry', 'CE Strike', 'CE Price', 'PE Strike', 'PE Price', 'Target/SL'],
                      colColours=['#2563eb'] * len(display_df.columns),  # Professional blue header
                      cellLoc='center', 
                      loc='center',
@@ -1392,11 +1954,11 @@ def generate_analysis(instrument_name, calculation_type, selected_expiry_str):
         table_html += f"""
                 <tr>
                     <td><strong>{row['Entry']}</strong></td>
-                    <td>{row['CE Strike']}</td>
-                    <td>₹{row['CE Price']:.2f}</td>
-                    <td>{row['PE Strike']}</td>
-                    <td>₹{row['PE Price']:.2f}</td>
-                    <td><span class="badge bg-success">{row['Target/SL (1:1)']}</span></td>
+                    <td>{row['CE_Strike']}</td>
+                    <td>₹{row['CE_Price']:.2f}</td>
+                    <td>{row['PE_Strike']}</td>
+                    <td>₹{row['PE_Price']:.2f}</td>
+                    <td><span class="badge bg-success">{row['Target_SL']}</span></td>
                 </tr>
         """
     

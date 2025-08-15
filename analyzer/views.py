@@ -1372,9 +1372,9 @@ def option_chain_view(request):
     expiry = request.GET.get('expiry', None)
     
     try:
-        # Get DhanHQ option chain data
-        from .dhan_api import get_dhan_option_chain
-        option_chain_data = get_dhan_option_chain(instrument)
+        # Get NSE option chain data using existing utils function
+        from . import utils
+        option_chain_data = utils.get_option_chain_data(instrument)
         
         # Initialize context with defaults
         context = {
