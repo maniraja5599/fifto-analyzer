@@ -16,8 +16,7 @@ class LiveMarketService:
         self.base_prices = {
             'NIFTY': 24520.75,
             'BANKNIFTY': 51240.80,
-            'SENSEX': 80245.60,
-            'VIX': 14.25
+            'SENSEX': 80245.60
         }
     
     def generate_realistic_data(self):
