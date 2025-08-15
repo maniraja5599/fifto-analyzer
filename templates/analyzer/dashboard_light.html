@@ -282,7 +282,6 @@
         .nifty-card { --card-color: #3b82f6; }
         .banknifty-card { --card-color: #8b5cf6; }
         .sensex-card { --card-color: #f59e0b; }
-        .vix-card { --card-color: #ef4444; }
 
         /* Responsive design */
         @media (max-width: 768px) {
@@ -393,32 +392,6 @@
                     <div class="stat-item">
                         <div class="stat-label">Day Change</div>
                         <div class="stat-value" id="sensex-day-change">-</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- VIX Card -->
-            <div class="market-card vix-card">
-                <div class="card-header">
-                    <div class="card-title">INDIA VIX</div>
-                    <div class="card-icon">
-                        <i class="fas fa-exclamation-triangle"></i>
-                    </div>
-                </div>
-                <div class="price-section">
-                    <div class="current-price" id="vix-price">Loading...</div>
-                    <div class="price-change" id="vix-change">
-                        <span>Loading...</span>
-                    </div>
-                </div>
-                <div class="card-stats">
-                    <div class="stat-item">
-                        <div class="stat-label">Previous Close</div>
-                        <div class="stat-value" id="vix-prev">-</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-label">Volatility</div>
-                        <div class="stat-value" id="vix-volatility">-</div>
                     </div>
                 </div>
             </div>
@@ -572,7 +545,7 @@
 
         // Show loading error
         function showLoadingError() {
-            const markets = ['nifty', 'banknifty', 'sensex', 'vix'];
+            const markets = ['nifty', 'banknifty', 'sensex'];
             markets.forEach(market => {
                 const priceEl = document.getElementById(market + '-price');
                 const changeEl = document.getElementById(market + '-change');
