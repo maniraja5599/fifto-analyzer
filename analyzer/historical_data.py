@@ -1,6 +1,6 @@
 """
-Historical Market Data Module
-Fetches historical data for NIFTY, BANKNIFTY, SENSEX using yfinance and DhanHQ
+Historical Data Service
+Fetches historical data for NIFTY, BANKNIFTY using yfinance and DhanHQ
 """
 
 import yfinance as yf
@@ -24,9 +24,7 @@ class HistoricalDataFetcher:
         
         self.symbols = {
             'NIFTY': '^NSEI',
-            'BANKNIFTY': '^NSEBANK', 
-            'SENSEX': '^BSESN',
-            'VIX': '^VIX'
+            'BANKNIFTY': '^NSEBANK'
         }
         
     def get_historical_data(self, symbol, period='1d', interval='5m'):
@@ -34,7 +32,7 @@ class HistoricalDataFetcher:
         Get historical data for the given symbol
         
         Args:
-            symbol: NIFTY, BANKNIFTY, SENSEX, VIX
+            symbol: NIFTY, BANKNIFTY
             period: 1d, 5d, 1mo, 3mo, 6mo, 1y, 2y, 5y, 10y, ytd, max
             interval: 1m, 2m, 5m, 15m, 30m, 60m, 90m, 1h, 1d, 5d, 1wk, 1mo, 3mo
         
@@ -141,9 +139,7 @@ class HistoricalDataFetcher:
             # Base prices
             base_prices = {
                 'NIFTY': 24500,
-                'BANKNIFTY': 55000,
-                'SENSEX': 80000,
-                'VIX': 14.5
+                'BANKNIFTY': 55000
             }
             
             base_price = base_prices.get(symbol, 24500)
@@ -189,7 +185,7 @@ class HistoricalDataFetcher:
             print(f"❌ Fallback data generation error: {e}")
             return None
             
-    def get_multiple_historical(self, symbols=['NIFTY', 'BANKNIFTY', 'SENSEX'], period='1d', interval='5m'):
+    def get_multiple_historical(self, symbols=['NIFTY', 'BANKNIFTY'], period='1d', interval='5m'):
         """Get historical data for multiple symbols"""
         results = {}
         

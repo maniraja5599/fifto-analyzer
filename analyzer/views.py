@@ -9,11 +9,59 @@ from django.urls import reverse
 import json
 import pandas as pd
 import os
+import time
 from datetime import datetime
 from collections import defaultdict
 from . import utils
 from .utils import generate_analysis, load_settings, save_settings
 from .pnl_updater import pnl_updater, PnLUpdater
+
+# Global cache for option chain data with timestamps
+_option_data_cache = {}
+_cache_duration = 30  # Cache for 30 seconds
+
+def get_cached_option_data(instrument, sleep_time=0.0, force_fresh=False):
+    """
+    Get option chain data with caching and rate limiting
+    Only fetches fresh data if cache is expired or force_fresh=True
+    sleep_time=0.0 for immediate loading in active trades page
+    """
+    current_time = time.time()
+    cache_key = instrument
+    
+    # Check if we have valid cached data (skip cache if force_fresh=True)
+    if (not force_fresh and cache_key in _option_data_cache and 
+        current_time - _option_data_cache[cache_key]['timestamp'] < _cache_duration):
+        print(f"📋 Using cached data for {instrument} (immediate load)")
+        return _option_data_cache[cache_key]['data']
+    
+    # Add sleep only if explicitly requested (for manual refresh operations)
+    if sleep_time > 0:
+        print(f"⏳ Sleeping {sleep_time}s before fetching {instrument} data...")
+        time.sleep(sleep_time)
+    else:
+        print(f"🚀 Immediate fetch for {instrument} data (no delay)")
+    
+    # Fetch fresh data
+    print(f"🔄 Fetching fresh option data for {instrument}")
+    try:
+        # For option chain page, we need full data including strikes and prices
+        data = utils.get_option_chain_data(instrument, force_full_data=True)
+        
+        # Cache the data
+        _option_data_cache[cache_key] = {
+            'data': data,
+            'timestamp': current_time
+        }
+        
+        return data
+    except Exception as e:
+        print(f"❌ Error fetching option data for {instrument}: {e}")
+        # Return cached data if available, even if expired
+        if cache_key in _option_data_cache:
+            print(f"⚠️ Using expired cached data for {instrument}")
+            return _option_data_cache[cache_key]['data']
+        return None
 
 def index(request):
     # Handle session clearing
@@ -24,40 +72,58 @@ def index(request):
     analysis_data = request.session.get('analysis_data')
     instrument = request.GET.get('instrument', 'NIFTY')
     
-    # Get option chain data with improved error handling
-    chain = utils.get_option_chain_data(instrument)
+    # Check if this is an AJAX request for expiry dates
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.GET.get('ajax')
+    
+    print(f"🔄 Index view called - instrument: {instrument}, AJAX: {is_ajax}")
+    
+    # Always load option chain data for expiry dates (needed for both regular and AJAX requests)
     expiries = []
     
     try:
+        print(f"🔄 Loading option data for instrument: {instrument}")
+        chain = get_cached_option_data(instrument, sleep_time=0.1)
+        
         if chain and 'expiryDates' in chain:
             all_expiries = chain['expiryDates']
             # Filter future dates only
             from datetime import datetime as dt, timedelta
             current_date = dt.now().date()
-            expiries = []
+            
+            print(f"📅 Raw expiry dates from API: {len(all_expiries)} dates")
             
             for expiry_str in all_expiries:
                 try:
+                    # Try YYYY-MM-DD format first
                     expiry_date = dt.strptime(expiry_str, "%Y-%m-%d").date()
                     if expiry_date >= current_date:
                         expiries.append(expiry_date.strftime("%d-%b-%Y"))
                 except ValueError:
-                    # Try alternative format
                     try:
+                        # Try DD-MMM-YYYY format
                         expiry_date = dt.strptime(expiry_str, "%d-%b-%Y").date()
                         if expiry_date >= current_date:
                             expiries.append(expiry_str)
                     except ValueError:
+                        print(f"⚠️ Could not parse expiry date: {expiry_str}")
                         continue
-                    
+                        
             # Sort by date
             expiries.sort(key=lambda x: dt.strptime(x, "%d-%b-%Y"))
-            print(f"✅ Loaded {len(expiries)} expiry dates for {instrument}: {expiries[:3]}...")
+            print(f"✅ Processed {len(expiries)} valid future expiry dates for {instrument}")
+            
+            if len(expiries) > 0:
+                print(f"📊 First few expiries: {expiries[:3]}")
+            
         else:
-            print(f"⚠️ No expiry dates found for {instrument}, using fallback")
+            print(f"⚠️ No expiry dates found in option chain for {instrument}")
+            expiries = []
             
     except Exception as e:
-        print(f"❌ Error processing expiry dates: {e}")
+        print(f"❌ Error processing expiry dates for {instrument}: {e}")
+        import traceback
+        print(f"Traceback: {traceback.format_exc()}")
+        expiries = []
         
     # Ensure we have at least some expiries (fallback)
     if not expiries:
@@ -70,6 +136,7 @@ def index(request):
             days_to_add = (3 - fallback_date.weekday()) % 7
             thursday = fallback_date + timedelta(days=days_to_add)
             expiries.append(thursday.strftime("%d-%b-%Y"))
+        print(f"🔄 Generated {len(expiries)} fallback expiry dates")
             
     context = {
         'expiries': expiries,
@@ -77,6 +144,7 @@ def index(request):
         'analysis_data': analysis_data,
         'expiry_count': len(expiries)
     }
+    
     return render(request, 'analyzer/index.html', context)
 
 def generate_and_show_analysis(request):
@@ -112,6 +180,10 @@ def generate_and_show_analysis(request):
                 request.session['analysis_data'] = analysis_data
                 messages.success(request, status)
                 debug_log("✅ Analysis successful - data saved to session")
+
+                # If it's an AJAX request, render the results partial and return as HTML
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return render(request, 'analyzer/partials/analysis_results.html', {'analysis_data': analysis_data})
             else:
                 messages.error(request, status)
                 debug_log(f"❌ Analysis failed: {status}")
@@ -547,14 +619,15 @@ def trades_list(request):
     active_trades = [t for t in trades if t.get('status') == 'Running']
     closed_trades = [t for t in trades if t.get('status') in ['Target', 'Stoploss', 'Manually Closed']]
 
-    # Group active trades and calculate P&L
+    # Group active trades without P&L calculation for immediate page load
     grouped_trades = defaultdict(list)
     total_pnl = 0
     
-    # Get market data
-    nifty_chain = utils.get_option_chain_data("NIFTY")
-    banknifty_chain = utils.get_option_chain_data("BANKNIFTY")
-
+    # 🚀 IMMEDIATE LOADING: Skip market data fetching on initial page load
+    # Market data is only fetched when user clicks refresh button
+    print(f"🚀 Immediate load: Skipping market data fetch for faster page loading")
+    print(f"📊 Active trades loaded immediately without P&L calculation")
+    
     for trade in active_trades:
         try:
             # Parse and format the date tag
@@ -564,47 +637,16 @@ def trades_list(request):
         except (ValueError, KeyError):
             trade['display_tag'] = trade.get('entry_tag', 'General Trades')
 
-        # Calculate current P&L
-        chain_data = nifty_chain if trade['instrument'] == 'NIFTY' else banknifty_chain
-        current_ce, current_pe = 0.0, 0.0
+        # 💡 For immediate page load: Show cached P&L or placeholder
+        # P&L will be updated when user clicks refresh button
+        cached_pnl = trade.get('pnl', 'Click Refresh')
+        trade['pnl'] = cached_pnl
+        trade['current_premium'] = trade.get('current_premium', 'Click Refresh')
+        trade['data_source'] = 'Cached Data (Click Refresh for Live)'
         
-        if chain_data and chain_data.get('records', {}).get('data'):
-            for item in chain_data['records']['data']:
-                if item.get("expiryDate") == trade.get('expiry'):
-                    if item.get("strikePrice") == trade.get('ce_strike') and item.get("CE"):
-                        current_ce = item["CE"]["lastPrice"]
-                    if item.get("strikePrice") == trade.get('pe_strike') and item.get("PE"):
-                        current_pe = item["PE"]["lastPrice"]
-        
-        lot_size = utils.get_lot_size(trade['instrument'])
-        initial_premium = trade.get('initial_premium', 0)
-        current_premium = current_ce + current_pe
-        
-        if current_premium > 0:
-            pnl = round((initial_premium - current_premium) * lot_size, 2)
-            trade['pnl'] = pnl
-            trade['current_premium'] = current_premium
-            total_pnl += pnl
-            
-            # Check for target/stoploss and send alerts
-            target_amount = trade.get('target_amount', 0)
-            stoploss_amount = trade.get('stoploss_amount', 0)
-            
-            if pnl >= target_amount and target_amount > 0:
-                trade['status'] = 'Target'
-                utils.save_trades(trades)
-                # Send Telegram alert
-                utils.send_telegram_message(f"🎯 TARGET HIT!\nTrade: {trade['id']}\nP&L: ₹{pnl:,.2f}")
-                messages.success(request, f"Target hit for {trade['id']}! P&L: ₹{pnl:,.2f}")
-            elif pnl <= -stoploss_amount and stoploss_amount > 0:
-                trade['status'] = 'Stoploss'
-                utils.save_trades(trades)
-                # Send Telegram alert
-                utils.send_telegram_message(f"🛑 STOPLOSS HIT!\nTrade: {trade['id']}\nP&L: ₹{pnl:,.2f}")
-                messages.error(request, f"Stoploss hit for {trade['id']}! P&L: ₹{pnl:,.2f}")
-        else:
-            trade['pnl'] = "N/A"
-            trade['current_premium'] = "N/A"
+        # Add cached P&L to total if it's a number
+        if isinstance(cached_pnl, (int, float)):
+            total_pnl += cached_pnl
         
         # Group by automation_batch, day, or expiry
         if group_by == 'automation_batch':
@@ -1026,7 +1068,11 @@ def automation_view(request):
 
 
 def closed_trades_view(request):
-    """Display closed trades with filtering and statistics."""
+    """
+    Display closed trades with filtering and statistics.
+    Optimized to only load trade data, no external market data needed.
+    """
+    print("📊 Loading closed trades page - no external API calls needed")
     
     # Handle POST requests for delete operations
     if request.method == 'POST':
@@ -1367,14 +1413,16 @@ def automation_multiple_view(request):
 def option_chain_view(request):
     """
     Option Chain view for NIFTY and BANKNIFTY with basket order functionality
+    Optimized with caching and rate limiting for better performance
     """
     instrument = request.GET.get('instrument', 'NIFTY')
     expiry = request.GET.get('expiry', None)
     
+    print(f"📊 Loading option chain for {instrument} - using cached data where possible")
+    
     try:
-        # Get DhanHQ option chain data
-        from .dhan_api import get_dhan_option_chain
-        option_chain_data = get_dhan_option_chain(instrument)
+        # Use cached option chain data with rate limiting
+        option_chain_data = get_cached_option_data(instrument, sleep_time=0.5)
         
         # Initialize context with defaults
         context = {
@@ -1586,12 +1634,15 @@ def create_basket_order(request):
 
 def basket_orders_view(request):
     """
-    View all basket orders
+    View all basket orders - optimized for fast loading
+    Only loads basket data from session, no external API calls
     """
+    print("📋 Loading basket orders page - no external data needed")
     basket_orders = request.session.get('basket_orders', [])
     
     context = {
-        'basket_orders': basket_orders
+        'basket_orders': basket_orders,
+        'basket_count': len(basket_orders)
     }
     
     return render(request, 'analyzer/basket_orders.html', context)
@@ -1625,3 +1676,177 @@ def nse_test_view(request):
     }
     
     return render(request, 'analyzer/nse_test.html', context)
+
+
+@csrf_exempt
+def refresh_trades_api(request):
+    """
+    API endpoint for manual refresh of trades data with proper sleep delays
+    This is called only when user clicks the refresh button
+    """
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Only POST method allowed'}, status=405)
+    
+    try:
+        # Load active trades
+        trades = utils.load_trades()
+        active_trades = [t for t in trades if t.get('status') == 'Running']
+        
+        if not active_trades:
+            return JsonResponse({
+                'success': True,
+                'message': 'No active trades to refresh',
+                'trades_count': 0
+            })
+        
+        # Get unique instruments for strike data fetching
+        unique_instruments = set()
+        for trade in active_trades:
+            unique_instruments.add(trade.get('instrument', 'NIFTY'))
+        
+        print(f"🔄 Manual refresh: Loading market data for {len(unique_instruments)} instruments with sleep delays")
+        
+        # Load market data with sleep delays for manual refresh to prevent rate limiting
+        market_data = {}
+        for i, instrument in enumerate(unique_instruments):
+            sleep_time = 0.8 if i > 0 else 0.3  # Sleep for manual refresh
+            market_data[instrument] = get_cached_option_data(instrument, sleep_time=sleep_time, force_fresh=True)
+            print(f"✅ Manual refresh completed for {instrument} (with {sleep_time}s delay)")
+        
+        # Update trades with fresh P&L calculations
+        updated_trades = []
+        total_updated_pnl = 0
+        
+        for trade in active_trades:
+            # Enhanced P&L calculation using DhanHQ API + NSE fallback + PnLUpdater backup
+            current_ce, current_pe = 0.0, 0.0
+            pnl_calculated = False
+            data_source = 'No Data'
+            
+            try:
+                # Try DhanHQ API first for real-time option prices
+                from .dhan_api import DhanHQIntegration
+                dhan_api = DhanHQIntegration()
+                
+                # Get option chain from DhanHQ
+                option_data = dhan_api.get_option_chain(trade['instrument'])
+                
+                if option_data and 'data' in option_data and 'oc' in option_data['data']:
+                    oc_data = option_data['data']['oc']
+                    
+                    # Get CE price
+                    ce_strike_key = str(int(trade.get('ce_strike', 0)))
+                    if ce_strike_key in oc_data and 'ce' in oc_data[ce_strike_key]:
+                        current_ce = oc_data[ce_strike_key]['ce'].get('last_price', 0)
+                    
+                    # Get PE price
+                    pe_strike_key = str(int(trade.get('pe_strike', 0)))
+                    if pe_strike_key in oc_data and 'pe' in oc_data[pe_strike_key]:
+                        current_pe = oc_data[pe_strike_key]['pe'].get('last_price', 0)
+                    
+                    if current_ce > 0 and current_pe > 0:
+                        pnl_calculated = True
+                        data_source = 'DhanHQ'
+                        print(f"✅ DhanHQ P&L data for {trade['id']}: CE=₹{current_ce}, PE=₹{current_pe}")
+            
+            except Exception as e:
+                print(f"⚠️ DhanHQ P&L calculation failed for {trade['id']}: {e}")
+            
+            # Fallback to NSE option chain if DhanHQ failed
+            if not pnl_calculated:
+                chain_data = market_data.get(trade['instrument'])
+                
+                if chain_data and chain_data.get('records', {}).get('data'):
+                    for item in chain_data['records']['data']:
+                        if item.get("expiryDate") == trade.get('expiry'):
+                            if item.get("strikePrice") == trade.get('ce_strike') and item.get("CE"):
+                                current_ce = item["CE"]["lastPrice"]
+                            if item.get("strikePrice") == trade.get('pe_strike') and item.get("PE"):
+                                current_pe = item["PE"]["lastPrice"]
+                    
+                    if current_ce > 0 and current_pe > 0:
+                        pnl_calculated = True
+                        data_source = 'NSE'
+                        print(f"✅ NSE P&L data for {trade['id']}: CE=₹{current_ce}, PE=₹{current_pe}")
+            
+            # Final fallback: Use PnLUpdater's option price methods
+            if not pnl_calculated:
+                try:
+                    from .pnl_updater import PnLUpdater
+                    pnl_updater = PnLUpdater()
+                    
+                    current_ce = pnl_updater._get_option_price(
+                        trade['instrument'], 
+                        trade.get('ce_strike'), 
+                        trade.get('expiry'), 
+                        'CE'
+                    ) or 0
+                    
+                    current_pe = pnl_updater._get_option_price(
+                        trade['instrument'], 
+                        trade.get('pe_strike'), 
+                        trade.get('expiry'), 
+                        'PE'
+                    ) or 0
+                    
+                    if current_ce > 0 and current_pe > 0:
+                        pnl_calculated = True
+                        data_source = 'PnLUpdater'
+                        print(f"✅ PnLUpdater P&L data for {trade['id']}: CE=₹{current_ce}, PE=₹{current_pe}")
+                        
+                except Exception as e:
+                    print(f"⚠️ PnLUpdater fallback failed for {trade['id']}: {e}")
+            
+            # Calculate P&L if we have valid prices
+            lot_size = utils.get_lot_size(trade['instrument'])
+            initial_premium = trade.get('initial_premium', 0)
+            current_premium = current_ce + current_pe
+            
+            if pnl_calculated and current_premium > 0:
+                pnl = round((initial_premium - current_premium) * lot_size, 2)
+                trade['pnl'] = pnl
+                trade['current_premium'] = current_premium
+                trade['data_source'] = data_source
+                trade['last_refresh'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                total_updated_pnl += pnl
+                updated_trades.append(trade)
+                print(f"📊 Updated P&L for {trade['id']}: ₹{pnl} ({data_source})")
+                
+                # Check for target/stoploss hits during refresh
+                target_amount = trade.get('target_amount', 0)
+                stoploss_amount = trade.get('stoploss_amount', 0)
+                
+                if pnl >= target_amount and target_amount > 0:
+                    trade['status'] = 'Target'
+                    # Send Telegram alert
+                    utils.send_telegram_message(f"🎯 TARGET HIT!\nTrade: {trade['id']}\nP&L: ₹{pnl:,.2f}")
+                elif pnl <= -stoploss_amount and stoploss_amount > 0:
+                    trade['status'] = 'Stoploss'
+                    # Send Telegram alert
+                    utils.send_telegram_message(f"🛑 STOPLOSS HIT!\nTrade: {trade['id']}\nP&L: ₹{pnl:,.2f}")
+            else:
+                # No valid prices available from any source
+                trade['pnl'] = "N/A"
+                trade['current_premium'] = "N/A"
+                trade['data_source'] = 'No Data'
+                trade['last_refresh'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                updated_trades.append(trade)
+                print(f"⚠️ No option price data available for {trade['id']} - CE: {current_ce}, PE: {current_pe}")
+        
+        # Save updated trades
+        utils.save_trades(trades)
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Refreshed {len(updated_trades)} active trades successfully',
+            'trades_count': len(updated_trades),
+            'instruments': list(unique_instruments),
+            'total_pnl': total_updated_pnl
+        })
+        
+    except Exception as e:
+        print(f"❌ Error in refresh trades API: {e}")
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)

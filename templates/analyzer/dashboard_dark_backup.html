@@ -813,13 +813,14 @@ function updateTimeToClose() {
     }
 }
 
-// Start auto refresh
+// Start auto refresh - DISABLED for performance optimization
 function startAutoRefresh() {
-    // Update clock every second
+    // Update clock every second (keeping clock only)
     setInterval(updateClock, 1000);
     
-    // Refresh data every 2 minutes
-    refreshInterval = setInterval(refreshAll, 120000);
+    // Data refresh disabled to prevent unnecessary background data fetching:
+    // refreshInterval = setInterval(refreshAll, 120000);
+    console.log('🛑 Dashboard auto-refresh DISABLED - Use manual refresh button instead');
 }
 
 // Cleanup on page unload

@@ -457,8 +457,9 @@
             loadMarketData();
             initializeChart();
             
-            // Auto-refresh every 1 minute
-            setInterval(loadMarketData, 60000);
+            // Auto-refresh disabled for performance optimization:
+            // setInterval(loadMarketData, 60000);
+            console.log('🛑 Dashboard auto-refresh DISABLED - Use manual refresh button instead');
         });
 
         // Load market data

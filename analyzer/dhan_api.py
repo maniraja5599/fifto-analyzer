@@ -57,9 +57,7 @@ class DhanHQIntegration:
         # These are common index security IDs with instrument types
         self.symbol_map = {
             'NIFTY': {'security_id': 13, 'exchange': 'IDX_I', 'instrument': 'INDEX', 'name': 'NIFTY 50'},
-            'BANKNIFTY': {'security_id': 25, 'exchange': 'IDX_I', 'instrument': 'INDEX', 'name': 'BANK NIFTY'}, 
-            'SENSEX': {'security_id': 51, 'exchange': 'IDX_I', 'instrument': 'INDEX', 'name': 'BSE SENSEX'},
-            'VIX': {'security_id': 27, 'exchange': 'IDX_I', 'instrument': 'INDEX', 'name': 'INDIA VIX'}
+            'BANKNIFTY': {'security_id': 25, 'exchange': 'IDX_I', 'instrument': 'INDEX', 'name': 'BANK NIFTY'}
         }
         
         # Rate limiting - More conservative to avoid API limits
@@ -373,7 +371,7 @@ class DhanHQIntegration:
             }
             
             # Use correct v2 endpoint (not /v2/charts/historical but /charts/historical)
-            url = f"{self.base_url}/charts/historical"
+            url = "https://api.dhan.co/charts/historical"
             
             print(f"📊 Historical Request URL: {url}")
             print(f"📊 Historical Request Body: {request_body}")
@@ -436,6 +434,97 @@ class DhanHQIntegration:
         
         return None
     
+    def get_option_chain_with_expiry(self, instrument, expiry_date):
+        """
+        Get option chain data from DhanHQ for a specific expiry date
+        Endpoint: POST /v2/optionchain
+        
+        Args:
+            instrument: NIFTY or BANKNIFTY
+            expiry_date: Expiry date in DD-MMM-YYYY format (e.g., "21-Aug-2025")
+        """
+        if not self.client_id or not self.access_token:
+            print(f"⚠️  DhanHQ credentials not available for option chain")
+            return None
+        
+        try:
+            symbol_data = self.symbol_map.get(instrument.upper())
+            if not symbol_data:
+                print(f"⚠️  Symbol mapping not found for {instrument}")
+                return None
+            
+            # Convert expiry date from DD-MMM-YYYY to YYYY-MM-DD format required by DhanHQ
+            from datetime import datetime
+            try:
+                date_obj = datetime.strptime(expiry_date, '%d-%b-%Y')
+                formatted_expiry = date_obj.strftime('%Y-%m-%d')
+            except ValueError:
+                print(f"❌ Invalid expiry date format: {expiry_date}. Expected DD-MMM-YYYY")
+                return None
+            
+            print(f"🔄 Fetching DhanHQ option chain for {instrument} with expiry {expiry_date} ({formatted_expiry})...")
+            
+            # Apply special rate limiting for option chain (1 request per 3 seconds)
+            self._option_chain_rate_limit()
+            
+            # Prepare request according to DhanHQ API v2 documentation
+            request_body = {
+                "UnderlyingScrip": symbol_data['security_id'],  # Integer, not string
+                "UnderlyingSeg": symbol_data['exchange'],
+                "Expiry": formatted_expiry  # Format: YYYY-MM-DD
+            }
+            
+            url = f"{self.base_url}/optionchain"
+            
+            print(f"📊 Option Chain Request - Symbol: {instrument}, Expiry: {formatted_expiry}")
+            print(f"📊 Option Chain Request Body: {request_body}")
+            
+            response = requests.post(url, headers=self.headers, json=request_body, timeout=15)
+            
+            print(f"📊 Option Chain Response Status: {response.status_code}")
+            
+            if response.status_code == 200:
+                data = response.json()
+                print(f"📊 Option Chain Response Keys: {list(data.keys()) if isinstance(data, dict) else 'Not dict'}")
+                
+                # Process and enhance the response
+                if 'data' in data and data['data']:
+                    # Add metadata
+                    data['expiryDates'] = [expiry_date]  # Single expiry in original format
+                    data['symbol'] = instrument
+                    data['underlying'] = symbol_data['security_id']
+                    data['requested_expiry'] = expiry_date
+                    
+                    # Count strikes with valid option data
+                    strike_count = 0
+                    if 'oc' in data['data']:
+                        strike_count = len(data['data']['oc'])
+                    
+                    print(f"✅ DhanHQ option chain for {instrument} expiry {expiry_date}: {strike_count} strikes")
+                    return data
+                else:
+                    print(f"📊 Empty or invalid option chain response structure")
+                    print(f"📊 Response preview: {str(data)[:300]}")
+            
+            elif response.status_code == 400:
+                error_text = response.text
+                print(f"📊 Option Chain 400 Error: {error_text}")
+                print("💡 Check: UnderlyingScrip format (should be integer), UnderlyingSeg, Expiry date format")
+            elif response.status_code == 429:
+                print("⚠️ Option chain rate limit exceeded")
+            else:
+                print(f"❌ Option chain API error: {response.status_code}")
+                print(f"📊 Response: {response.text[:200]}")
+            
+            print(f"⚠️  No option chain data from DhanHQ for {instrument} expiry {expiry_date}")
+            return None
+                
+        except Exception as e:
+            print(f"❌ DhanHQ option chain error for {instrument} expiry {expiry_date}: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
+
     def get_option_chain(self, instrument):
         """
         Get option chain data from DhanHQ with all expiry dates
@@ -747,6 +836,11 @@ def get_dhan_price(instrument):
 def get_dhan_historical(instrument, period='1y'):
     """Helper function to get historical data from DhanHQ"""
     return dhan_api.get_historical_data(instrument, period)
+
+
+def get_dhan_option_chain_with_expiry(instrument, expiry_date):
+    """Helper function to get option chain from DhanHQ with specific expiry"""
+    return dhan_api.get_option_chain_with_expiry(instrument, expiry_date)
 
 
 def get_dhan_option_chain(instrument):

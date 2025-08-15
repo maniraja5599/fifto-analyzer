@@ -18,10 +18,11 @@ try:
 except ImportError:
     ENHANCED_DATA_AVAILABLE = False
 
-# Import yfinance market service
+# Import yfinance market service (conditional to reduce background data fetching)
 try:
     from django_market_service import get_django_market_data, get_django_historical_data
     YFINANCE_AVAILABLE = True
+    print("📊 YFinance service available - will use on-demand only")
 except ImportError:
     YFINANCE_AVAILABLE = False
     print("⚠️ YFinance service not available, falling back to DhanHQ")
@@ -43,9 +44,7 @@ def market_data_api(request):
             # Extract market data
             market_data = {
                 'NIFTY': cache_data.get('NIFTY', {}),
-                'BANKNIFTY': cache_data.get('BANKNIFTY', {}),
-                'SENSEX': cache_data.get('SENSEX', {}),
-                'VIX': cache_data.get('VIX', {})
+                'BANKNIFTY': cache_data.get('BANKNIFTY', {})
             }
             
             # Check market hours
@@ -72,9 +71,7 @@ def market_data_api(request):
                 'market_status': {'is_open': False, 'status': 'CLOSED'},
                 'market_data': {
                     'NIFTY': {'current_price': 24500.0, 'change': 0, 'change_percent': 0},
-                    'BANKNIFTY': {'current_price': 51000.0, 'change': 0, 'change_percent': 0},
-                    'SENSEX': {'current_price': 80000.0, 'change': 0, 'change_percent': 0},
-                    'VIX': {'current_price': 15.0, 'change': 0, 'change_percent': 0}
+                    'BANKNIFTY': {'current_price': 51000.0, 'change': 0, 'change_percent': 0}
                 },
                 'timestamp': datetime.now().isoformat(),
                 'source': 'fallback',
@@ -96,9 +93,7 @@ def market_data_api(request):
             'error': str(e),
             'market_data': {
                 'NIFTY': {'current_price': 0, 'change': 0, 'change_percent': 0},
-                'BANKNIFTY': {'current_price': 0, 'change': 0, 'change_percent': 0},
-                'SENSEX': {'current_price': 0, 'change': 0, 'change_percent': 0},
-                'VIX': {'current_price': 0, 'change': 0, 'change_percent': 0}
+                'BANKNIFTY': {'current_price': 0, 'change': 0, 'change_percent': 0}
             }
         }, status=500)
         
@@ -141,11 +136,17 @@ def historical_data_api(request):
         period = request.GET.get('period', '1mo')  # 1d, 5d, 1mo, 3mo, etc.
         
         if YFINANCE_AVAILABLE:
+            # Start market service only when historical data is actually requested
+            from django_market_service import start_market_service
+            start_market_service()  # This will only start if not already running
+            
             # Get historical data from yfinance service
             historical_data = get_django_historical_data(symbol, period)
+            print(f"📊 Historical data fetched for {symbol} ({period}) - on-demand")
         else:
             # Fallback to empty data for now
             historical_data = []
+            print("⚠️ Using fallback data - yfinance unavailable")
         
         response_data = {
             'success': True,
