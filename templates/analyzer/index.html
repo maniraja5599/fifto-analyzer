@@ -1,173 +1,307 @@
 {% extends "analyzer/layout.html" %}
 {% block content %}
-<!-- Uniform Page Header -->
-<div class="page-header">
-    <div class="row align-items-center">
-        <div class="col-lg-8">
-            <h1 class="page-title">
-                <i class="bi bi-graph-up-arrow text-primary"></i>
-                Trading Analysis Dashboard
-            </h1>
-            <p class="page-subtitle">Analyze options strategies, monitor portfolio performance, and optimize your trading decisions</p>
-            <div class="page-stats">
-                <span class="stat-badge primary">
-                    <i class="bi bi-calendar-check"></i>
-                    {{ expiries|length }} Available Expiries
-                </span>
-                <span class="stat-badge success" id="dataFetchMode" title="Data fetching mode">
-                    <i class="bi bi-lightning-charge"></i>
-                    <span id="fetchModeText">On-Demand</span>
-                </span>
-                <span class="stat-badge warning">
-                    <i class="bi bi-clock"></i>
-                    Real-time Analysis
-                </span>
-            </div>
-        </div>
-        <div class="col-lg-4">
-            <div class="page-actions">
-                <span class="stat-badge">
-                    <i class="bi bi-speedometer2 text-info"></i>
-                    System Online
-                </span>
-                <span class="stat-badge">
-                    <i class="bi bi-shield-check text-success"></i>
-                    Secure Connection
-                </span>
-            </div>
-        </div>
-    </div>
-</div>
 
 <div class="row">
     <div class="col-12">
-        <!-- Analysis Generator Card -->
-        <div class="card clean-card border-0 shadow-sm mb-4">
-            <div class="card-header bg-light border-bottom">
-                <div class="d-flex align-items-center">
-                    <i class="bi bi-plus-circle-fill text-primary me-3 fs-5"></i>
-                    <div>
-                        <h5 class="mb-0 fw-bold">Generate New Analysis</h5>
-                        <p class="text-muted mb-0 small">Create detailed options analysis with payoff diagrams</p>
-                    </div>
-                </div>
+        <!-- Simple Analysis Form -->
+        <div class="card border border-light bg-light mb-3">
+            <div class="card-header bg-white border-light">
+                <h5 class="mb-0">Generate Analysis</h5>
             </div>
             <div class="card-body">
                 <form method="POST" action="{% url 'generate_analysis' %}" class="analysis-form">
                     {% csrf_token %}
                     
-                    <!-- Analysis Configuration Section -->
-                    <div class="row g-4 mb-4">
-                        <div class="col-md-4">
-                            <label class="form-label fw-semibold">
-                                <i class="bi bi-graph-up me-2 text-primary"></i>Index
-                            </label>
-                            <select name="instrument" class="form-select" onchange="window.location.href = `{% url 'index' %}?instrument=${this.value}`">
+                    <!-- Simple Form Row -->
+                    <div class="row g-3 align-items-end mb-3">
+                        <div class="col-md-3">
+                            <label class="form-label">Index</label>
+                            <select name="instrument" class="form-select" onchange="loadExpiryDatesForInstrument(this.value)">
                                 <option value="NIFTY" {% if instrument == 'NIFTY' %}selected{% endif %}>NIFTY</option>
                                 <option value="BANKNIFTY" {% if instrument == 'BANKNIFTY' %}selected{% endif %}>BANKNIFTY</option>
                             </select>
-                            <small class="text-muted">Choose the underlying index</small>
                         </div>
-                        <div class="col-md-4">
-                            <label class="form-label fw-semibold">
-                                <i class="bi bi-calendar-range me-2 text-primary"></i>Calculation Type
-                            </label>
+                        <div class="col-md-3">
+                            <label class="form-label">Type</label>
                             <select name="calc_type" class="form-select">
                                 <option value="Weekly">Weekly</option>
                                 <option value="Monthly">Monthly</option>
                             </select>
-                            <small class="text-muted">Select the time frame</small>
                         </div>
-                        <div class="col-md-4">
-                            <label class="form-label fw-semibold">
-                                <i class="bi bi-calendar-event me-2 text-primary"></i>Expiry Date
-                            </label>
+                        <div class="col-md-3">
+                            <label class="form-label">Expiry</label>
                             <select name="expiry" class="form-select">
                                 {% for e in expiries %}<option value="{{ e }}">{{ e }}</option>{% endfor %}
                             </select>
-                            <small class="text-muted">Choose the expiry date</small>
+                        </div>
+                        <div class="col-md-3">
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="bi bi-play-fill me-1"></i>Generate
+                            </button>
                         </div>
                     </div>
 
-                    <!-- Generate Button Section with Cache Management -->
-                    <div class="row align-items-center">
-                        <div class="col-md-8 text-center text-md-start">
-                            <button type="submit" class="btn btn-primary btn-lg px-5">
-                                <i class="bi bi-lightning-charge me-2"></i>Generate Charts
-                            </button>
-                        </div>
-                        <div class="col-md-4 text-end">
-                            <div class="btn-group" role="group">
-                                <button type="button" class="btn btn-outline-warning btn-sm" onclick="checkExpiryFetchErrors()" title="Check expiry data status">
-                                    <i class="bi bi-search me-1"></i>Check Status
-                                </button>
-                                <button type="button" class="btn btn-outline-danger btn-sm" onclick="clearLocalStorage()" title="Clear browser cache">
-                                    <i class="bi bi-trash me-1"></i>Clear Cache
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                    <!-- Status Display -->
-                    <div id="statusDisplay" class="mt-3"></div>
+                    <div id="statusDisplay" class="mt-2"></div>
                 </form>
             </div>
         </div>
+        </div>
         
+        <div id="analysis-results-container">
         {% if analysis_data %}
-        <!-- Analysis Results Card -->
-        <div class="card clean-card border-0 shadow-sm mb-4">
-            <div class="card-header bg-light border-bottom">
-                <div class="d-flex align-items-center justify-content-between">
-                    <div class="d-flex align-items-center">
-                        <i class="bi bi-graph-up-arrow text-primary me-3 fs-5"></i>
-                        <div>
-                            <h5 class="mb-0 fw-bold">Analysis Results</h5>
-                            <p class="text-muted mb-0 small">{{ analysis_data.instrument }} {{ analysis_data.expiry }} - {{ analysis_data.df_data|length }} strategies generated</p>
+        <!-- Simple Results -->
+        <div class="card border border-light bg-light mb-3">
+            <div class="card-header bg-white border-light">
+                <div class="row align-items-center">
+                    <div class="col-md-3">
+                        <h5 class="mb-0 text-dark">Analysis Results - {{ analysis_data.instrument }} {{ analysis_data.expiry }}</h5>
+                    </div>
+                    {% if analysis_data.supply_zone and analysis_data.demand_zone %}
+                    <div class="col-md-3">
+                        <div class="card bg-primary-subtle border-primary border-2 rounded-3">
+                            <div class="card-body p-2">
+                                <div class="d-flex align-items-center justify-content-center">
+                                    <h6 class="mb-0 fw-bold">
+                                        <span class="badge bg-danger text-white me-2">Supply: ₹{{ analysis_data.supply_zone }}</span>
+                                        <span class="badge bg-success text-white">Demand: ₹{{ analysis_data.demand_zone }}</span>
+                                    </h6>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    <div class="col-md-6">
+                        <!-- All Buttons in One Row -->
+                        <div class="d-flex gap-1 justify-content-end flex-wrap">
+                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="checkExpiryFetchErrors()" 
+                                    title="Check expiry data status and errors" data-bs-toggle="tooltip">
+                                <i class="bi bi-info-circle"></i>
+                            </button>
+                            <button type="button" class="btn btn-outline-danger btn-sm" onclick="clearLocalStorage()" 
+                                    title="Clear browser cache and stored data" data-bs-toggle="tooltip">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                            <a href="{% url 'add_trades' %}" class="btn btn-success btn-sm" 
+                               title="Add analysis results to portfolio" data-bs-toggle="tooltip">
+                                <i class="bi bi-plus-circle"></i>
+                            </a>
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="clearAnalysis()" 
+                                    title="Clear current analysis and generate new" data-bs-toggle="tooltip">
+                                <i class="bi bi-arrow-clockwise"></i>
+                            </button>
+                            <a href="{% url 'send_charts' %}" class="btn btn-info btn-sm" 
+                               title="Send charts and analysis to Telegram" data-bs-toggle="tooltip">
+                                <i class="bi bi-telegram"></i>
+                            </a>
                         </div>
                     </div>
                 </div>
             </div>
-            <div class="card-body">
-                <!-- Supply/Demand Zones Display -->
-                {% if analysis_data.zone_based %}
-                <div class="alert alert-info border-0 shadow-sm mb-4">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="d-flex align-items-center">
-                                <i class="bi bi-arrow-up-circle text-danger me-2 fs-5"></i>
-                                <div>
-                                    <h6 class="mb-0 fw-bold text-danger">Supply Zone (Resistance)</h6>
-                                    <span class="fs-5 fw-bold">₹{{ analysis_data.supply_zone|floatformat:0 }}</span>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="d-flex align-items-center">
-                                <i class="bi bi-arrow-down-circle text-success me-2 fs-5"></i>
-                                <div>
-                                    <h6 class="mb-0 fw-bold text-success">Demand Zone (Support)</h6>
-                                    <span class="fs-5 fw-bold">₹{{ analysis_data.demand_zone|floatformat:0 }}</span>
-                                </div>
-                            </div>
-                        </div>
+            <div class="card-body bg-light">
+                <!-- Chart Tabs and Content in One Section -->
+                <div class="row align-items-center mb-3">
+                    <div class="col-md-6">
+                        <ul class="nav nav-tabs border-0" id="chartTabs" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active btn-sm" id="summary-tab" data-bs-toggle="tab" data-bs-target="#summary" type="button" role="tab">
+                                    <i class="bi bi-graph-up me-1"></i>Analysis
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link btn-sm" id="payoff-tab" data-bs-toggle="tab" data-bs-target="#payoff" type="button" role="tab">
+                                    <i class="bi bi-activity me-1"></i>Payoff
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link btn-sm" id="table-tab" data-bs-toggle="tab" data-bs-target="#table" type="button" role="tab">
+                                    <i class="bi bi-table me-1"></i>Data
+                                </button>
+                            </li>
+                        </ul>
                     </div>
-                </div>
-                {% endif %}
-                
-                <!-- Action Buttons - All in One Row -->
-                <div class="d-flex gap-2 justify-content-center mb-4 flex-wrap">
-                    <a href="{% url 'add_trades' %}" class="btn btn-success px-4">
-                        <i class="bi bi-plus-circle me-2"></i>Add to Portfolio
-                    </a>
-                    <button type="button" class="btn btn-outline-secondary px-4" onclick="clearAnalysis()">
-                        <i class="bi bi-arrow-clockwise me-2"></i>Generate New
-                    </button>
-                    <a href="{% url 'send_charts' %}" class="btn btn-outline-info px-4">
-                        <i class="bi bi-telegram me-1"></i>Send to Telegram
-                    </a>
                 </div>
                         
                         <script>
+                        // Enhanced Expiry Loading with Local Storage Optimization
+                        function loadExpiryDatesForInstrument(instrument) {
+                            console.log(`🔄 Loading expiry dates for ${instrument}...`);
+                            
+                            const expirySelect = document.querySelector('select[name="expiry"]');
+                            if (!expirySelect) {
+                                console.error('❌ Expiry select element not found');
+                                return;
+                            }
+                            
+                            // Check cache first
+                            const cacheKey = `expiry_dates_${instrument}_cache`;
+                            const cachedData = getCachedExpiries(cacheKey);
+                            
+                            if (cachedData && cachedData.length > 0) {
+                                console.log(`✅ Found cached expiry dates for ${instrument}:`, cachedData.length);
+                                updateExpirySelect(expirySelect, cachedData);
+                                return;
+                            }
+                            
+                            // Show loading indicator
+                            showExpiryLoadingIndicator(expirySelect);
+                            
+                            // Fetch fresh data with proper instrument parameter
+                            const url = `{% url 'index' %}?instrument=${encodeURIComponent(instrument)}&ajax=1`;
+                            
+                            fetch(url, {
+                                method: 'GET',
+                                headers: {
+                                    'X-Requested-With': 'XMLHttpRequest',
+                                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                                    'Cache-Control': 'no-cache',
+                                }
+                            })
+                            .then(response => {
+                                if (!response.ok) {
+                                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                                }
+                                return response.text();
+                            })
+                            .then(html => {
+                                // Parse the response to extract expiry options
+                                const parser = new DOMParser();
+                                const doc = parser.parseFromString(html, 'text/html');
+                                const newExpirySelect = doc.querySelector('select[name="expiry"]');
+                                
+                                if (newExpirySelect && newExpirySelect.options.length > 0) {
+                                    const expiries = Array.from(newExpirySelect.options)
+                                        .filter(option => option.value && option.value.trim() !== '')
+                                        .map(option => ({
+                                            value: option.value.trim(),
+                                            text: option.textContent.trim()
+                                        }));
+                                    
+                                    if (expiries.length > 0) {
+                                        // Cache the expiry dates
+                                        cacheExpiries(cacheKey, expiries);
+                                        
+                                        // Update the select
+                                        updateExpirySelect(expirySelect, expiries);
+                                        
+                                        console.log(`✅ Loaded and cached ${expiries.length} expiry dates for ${instrument}`);
+                                        
+                                        // Update URL without page reload
+                                        const url = new URL(window.location);
+                                        url.searchParams.set('instrument', instrument);
+                                        window.history.pushState({}, '', url);
+                                    } else {
+                                        throw new Error('No valid expiry dates found in response');
+                                    }
+                                } else {
+                                    throw new Error('Could not find expiry select in response or it has no options');
+                                }
+                            })
+                            .catch(error => {
+                                console.error('❌ Error loading expiry dates:', error);
+                                hideExpiryLoadingIndicator(expirySelect);
+                                
+                                // Try to show some fallback options
+                                const fallbackExpiries = generateFallbackExpiries();
+                                if (fallbackExpiries.length > 0) {
+                                    updateExpirySelect(expirySelect, fallbackExpiries);
+                                    console.log(`⚠️ Using fallback expiry dates for ${instrument}`);
+                                } else {
+                                    alert(`Error loading expiry dates for ${instrument}. Please try refreshing the page.`);
+                                }
+                            });
+                        }
+                        
+                        function generateFallbackExpiries() {
+                            const expiries = [];
+                            const now = new Date();
+                            
+                            // Generate next 4 Thursdays as fallback
+                            for (let i = 1; i <= 4; i++) {
+                                const futureDate = new Date(now);
+                                futureDate.setDate(now.getDate() + (i * 7));
+                                
+                                // Adjust to Thursday (4 = Thursday, 0 = Sunday)
+                                const dayOfWeek = futureDate.getDay();
+                                const daysToThursday = (4 - dayOfWeek + 7) % 7;
+                                if (daysToThursday > 0) {
+                                    futureDate.setDate(futureDate.getDate() + daysToThursday);
+                                }
+                                
+                                const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                                                  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+                                const day = String(futureDate.getDate()).padStart(2, '0');
+                                const month = monthNames[futureDate.getMonth()];
+                                const year = futureDate.getFullYear();
+                                const formattedDate = `${day}-${month}-${year}`;
+                                
+                                expiries.push({
+                                    value: formattedDate,
+                                    text: formattedDate
+                                });
+                            }
+                            
+                            return expiries;
+                        }
+                        
+                        function getCachedExpiries(cacheKey) {
+                            try {
+                                const cached = localStorage.getItem(cacheKey);
+                                if (cached) {
+                                    const data = JSON.parse(cached);
+                                    const now = Date.now();
+                                    
+                                    // Cache valid for 1 hour
+                                    if (data.timestamp && (now - data.timestamp < 3600000)) {
+                                        return data.expiries;
+                                    } else {
+                                        // Remove expired cache
+                                        localStorage.removeItem(cacheKey);
+                                    }
+                                }
+                            } catch (error) {
+                                console.error('❌ Error reading expiry cache:', error);
+                                localStorage.removeItem(cacheKey);
+                            }
+                            return null;
+                        }
+                        
+                        function cacheExpiries(cacheKey, expiries) {
+                            try {
+                                const data = {
+                                    expiries: expiries,
+                                    timestamp: Date.now()
+                                };
+                                localStorage.setItem(cacheKey, JSON.stringify(data));
+                                console.log(`💾 Cached ${expiries.length} expiry dates with key: ${cacheKey}`);
+                            } catch (error) {
+                                console.error('❌ Error caching expiry dates:', error);
+                            }
+                        }
+                        
+                        function updateExpirySelect(select, expiries) {
+                            // Clear existing options
+                            select.innerHTML = '';
+                            
+                            // Add new options
+                            expiries.forEach(expiry => {
+                                const option = document.createElement('option');
+                                option.value = expiry.value;
+                                option.textContent = expiry.text;
+                                select.appendChild(option);
+                            });
+                            
+                            hideExpiryLoadingIndicator(select);
+                        }
+                        
+                        function showExpiryLoadingIndicator(select) {
+                            select.innerHTML = '<option value="">🔄 Loading expiry dates...</option>';
+                            select.disabled = true;
+                        }
+                        
+                        function hideExpiryLoadingIndicator(select) {
+                            select.disabled = false;
+                        }
+
                         function clearAnalysis() {
                             if (confirm('This will clear the current analysis. Continue?')) {
                                 fetch('{% url "index" %}', {
@@ -186,15 +320,26 @@
                         function clearLocalStorage() {
                             if (confirm('This will clear all local storage data including expiry cache and settings. Continue?')) {
                                 try {
-                                    // Clear specific items
+                                    // Clear general cache items
                                     localStorage.removeItem('expiry_dates_cache');
                                     localStorage.removeItem('dashboard_refresh_rate');
                                     localStorage.removeItem('dashboard_refresh_interval');
                                     localStorage.removeItem('option_chain_cache');
                                     localStorage.removeItem('market_data_cache');
                                     
-                                    // Or clear everything
-                                    // localStorage.clear();
+                                    // Clear instrument-specific expiry caches
+                                    localStorage.removeItem('expiry_dates_NIFTY_cache');
+                                    localStorage.removeItem('expiry_dates_BANKNIFTY_cache');
+                                    
+                                    // Clear any other potential instrument caches
+                                    const keysToRemove = [];
+                                    for (let i = 0; i < localStorage.length; i++) {
+                                        const key = localStorage.key(i);
+                                        if (key && key.startsWith('expiry_dates_') && key.endsWith('_cache')) {
+                                            keysToRemove.push(key);
+                                        }
+                                    }
+                                    keysToRemove.forEach(key => localStorage.removeItem(key));
                                     
                                     console.log('✅ Local storage cleared successfully');
                                     alert('Local storage cleared! Page will reload.');
@@ -211,26 +356,31 @@
                             
                             // Check current expiry data
                             const expirySelect = document.querySelector('select[name="expiry"]');
+                            const instrumentSelect = document.querySelector('select[name="instrument"]');
+                            const currentInstrument = instrumentSelect ? instrumentSelect.value : 'Unknown';
+                            
                             if (expirySelect) {
                                 const optionCount = expirySelect.options.length;
-                                console.log(`📅 Current expiry options: ${optionCount}`);
+                                console.log(`📅 Current expiry options for ${currentInstrument}: ${optionCount}`);
                                 
                                 if (optionCount <= 1) {
-                                    console.warn('⚠️ Few or no expiry dates found');
-                                    alert(`⚠️ Warning: Only ${optionCount} expiry date(s) loaded. Try clearing cache and refreshing.`);
+                                    console.warn(`⚠️ Few or no expiry dates found for ${currentInstrument}`);
+                                    alert(`⚠️ Warning: Only ${optionCount} expiry date(s) loaded for ${currentInstrument}.\nTry clearing cache and refreshing.`);
                                 } else {
-                                    console.log('✅ Expiry dates loaded successfully');
-                                    alert(`✅ Status Check Complete\n${optionCount} expiry dates loaded successfully\nSystem operating normally`);
+                                    console.log(`✅ Expiry dates loaded successfully for ${currentInstrument}`);
+                                    alert(`✅ Status Check Complete\n${optionCount} expiry dates loaded for ${currentInstrument}\nSystem operating normally`);
                                 }
                             } else {
                                 console.error('❌ Expiry select element not found');
                                 alert('❌ Error: Could not find expiry selection element');
                             }
                             
-                            // Check cache status
+                            // Check cache status including instrument-specific caches
                             try {
                                 const cacheKeys = [
                                     'expiry_dates_cache',
+                                    'expiry_dates_NIFTY_cache',
+                                    'expiry_dates_BANKNIFTY_cache',
                                     'dashboard_refresh_rate', 
                                     'dashboard_refresh_interval',
                                     'option_chain_cache',
@@ -240,7 +390,17 @@
                                 let cacheStatus = 'Cache Status:\n';
                                 cacheKeys.forEach(key => {
                                     const value = localStorage.getItem(key);
-                                    cacheStatus += `• ${key}: ${value ? '✓ Present' : '✗ Not found'}\n`;
+                                    if (key.includes('expiry_dates_') && key.endsWith('_cache') && value) {
+                                        try {
+                                            const data = JSON.parse(value);
+                                            const age = data.timestamp ? Math.round((Date.now() - data.timestamp) / 60000) : 'Unknown';
+                                            cacheStatus += `• ${key}: ✓ Present (${data.expiries?.length || 0} items, ${age}min old)\n`;
+                                        } catch {
+                                            cacheStatus += `• ${key}: ✓ Present (invalid format)\n`;
+                                        }
+                                    } else {
+                                        cacheStatus += `• ${key}: ${value ? '✓ Present' : '✗ Not found'}\n`;
+                                    }
                                 });
                                 
                                 console.log('📋 Cache Status:', cacheStatus);
@@ -294,239 +454,146 @@
                                 indicator.remove();
                             }
                         }
-                        
-                        // Initialize on page load
-                        document.addEventListener('DOMContentLoaded', function() {
-                            updateDataFetchMode();
-                            
-                            // Update mode periodically
-                            setInterval(updateDataFetchMode, 30000); // Every 30 seconds
-                            
-                            // Show loading indicators for form submissions
-                            const forms = document.querySelectorAll('form');
-                            forms.forEach(form => {
-                                form.addEventListener('submit', function() {
-                                    showDataFetchIndicator('Generating analysis...');
-                                });
-                            });
-                        });
                         </script>
-                
-                <!-- Chart Selection Section -->
-                <div class="chart-selection mb-4">
-                    <ul class="nav nav-pills justify-content-center mb-4 custom-nav-pills" id="analysisTab" role="tablist">
-                        <li class="nav-item">
-                            <a class="nav-link active chart-btn" data-bs-toggle="pill" href="#summary" role="tab">
-                                <div class="btn-icon">
-                                    <i class="bi bi-graph-up-arrow"></i>
-                                </div>
-                                <div class="btn-content">
-                                    <span class="btn-title">Analysis Chart</span>
-                                    <small class="btn-subtitle">Market Overview</small>
-                                </div>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link chart-btn" data-bs-toggle="pill" href="#payoff" role="tab">
-                                <div class="btn-icon">
-                                    <i class="bi bi-activity"></i>
-                                </div>
-                                <div class="btn-content">
-                                    <span class="btn-title">Payoff Chart</span>
-                                    <small class="btn-subtitle">Profit Analysis</small>
-                                </div>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link chart-btn" data-bs-toggle="pill" href="#table" role="tab">
-                                <div class="btn-icon">
-                                    <i class="bi bi-table"></i>
-                                </div>
-                                <div class="btn-content">
-                                    <span class="btn-title">Data Table</span>
-                                    <small class="btn-subtitle">Detailed View</small>
-                                </div>
-                            </a>
-                        </li>
-                    </ul>
-                    <div class="tab-content">
-                        <div class="tab-pane fade show active" id="summary" role="tabpanel">
-                            <div class="chart-container text-center">
-                                <img src="/{{ analysis_data.summary_file }}" class="img-fluid rounded border chart-image">
-                            </div>
+                <div class="tab-content" id="chartTabsContent">
+                    <div class="tab-pane fade show active" id="summary" role="tabpanel">
+                        {% if analysis_data.df_data %}
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Entry</th>
+                                        <th>CE Strike</th>
+                                        <th>CE Price</th>
+                                        <th>PE Strike</th>
+                                        <th>PE Price</th>
+                                        <th>Target</th>
+                                        <th>Stoploss</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for entry in analysis_data.df_data %}
+                                    <tr>
+                                        <td>{{ entry.Entry }}</td>
+                                        <td>{{ entry.CE_Strike }}</td>
+                                        <td>₹{{ entry.CE_Price }}</td>
+                                        <td>{{ entry.PE_Strike }}</td>
+                                        <td>₹{{ entry.PE_Price }}</td>
+                                        <td>₹{{ entry.Target }}</td>
+                                        <td>₹{{ entry.Stoploss }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
                         </div>
-                        <div class="tab-pane fade" id="payoff" role="tabpanel">
-                            <div class="chart-container text-center">
-                                <img src="/{{ analysis_data.payoff_file }}" class="img-fluid rounded border chart-image">
-                            </div>
+                        {% else %}
+                        <div class="text-center">
+                            <p class="text-muted">No strategies found for the selected analysis.</p>
                         </div>
-                        <div class="tab-pane fade" id="table" role="tabpanel">
-                            <div class="table-container">
-                                {{ analysis_data.display_df_html|safe }}
-                            </div>
+                        {% endif %}
+                    </div>
+                    <div class="tab-pane fade" id="payoff" role="tabpanel">
+                        <div class="text-center">
+                            <img src="/{{ analysis_data.payoff_file }}" class="img-fluid rounded border">
+                        </div>
+                    </div>
+                    <div class="tab-pane fade" id="table" role="tabpanel">
+                        <div class="table-responsive">
+                            {{ analysis_data.display_df_html|safe }}
                         </div>
                     </div>
                 </div>
-            </div>
-        </div>
-        {% else %}
-        <!-- No Analysis Data State -->
-        <div class="card clean-card border-0 shadow-sm mb-4">
-            <div class="card-body text-center py-5">
-                <div class="d-flex align-items-center justify-content-center mb-3">
-                    <i class="bi bi-info-circle text-info me-3 fs-1"></i>
-                    <div>
-                        <h5 class="mb-1 fw-bold">No Analysis Generated</h5>
-                        <p class="text-muted mb-0">Generate an analysis first to view results and add trades</p>
-                    </div>
-                </div>
-                <button type="button" class="btn btn-outline-primary px-4" disabled>
-                    <i class="bi bi-plus-circle me-2"></i>Add to Portfolio
-                    <span class="badge bg-secondary ms-2">Generate First</span>
-                </button>
             </div>
         </div>
         {% endif %}
+        </div>
+        
+        </div>
+        
     </div>
 </div>
 
-<style>
-/* Custom Chart Button Styles */
-.custom-nav-pills {
-    gap: 0.75rem;
-}
+{% endblock %}
 
-.custom-nav-pills .nav-link.chart-btn {
-    background: #f8fafc;
-    border: 2px solid #e2e8f0;
-    border-radius: 12px;
-    padding: 1rem 1.25rem;
-    margin: 0;
-    display: flex;
-    align-items: center;
-    text-decoration: none;
-    transition: all 0.3s ease;
-    min-width: 140px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-    flex: 1;
-    max-width: 200px;
-    color: #475569;
-}
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.querySelector('.analysis-form');
+    const resultsContainer = document.getElementById('analysis-results-container');
+    const statusDisplay = document.getElementById('statusDisplay');
 
-.custom-nav-pills .nav-link.chart-btn:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-    border-color: #cbd5e1;
-    background: #f1f5f9;
-    color: #334155;
-}
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            if (statusDisplay) {
+                statusDisplay.innerHTML = '<div class="d-flex align-items-center gap-2"><div class="spinner-border spinner-border-sm" role="status"><span class="visually-hidden">Loading...</span></div><span>Generating Analysis... Please wait.</span></div>';
+            }
+            
+            const formData = new FormData(form);
+            
+            // Log form data for debugging
+            for (var pair of formData.entries()) {
+                console.log(pair[0]+ ', ' + pair[1]); 
+            }
 
-.custom-nav-pills .nav-link.chart-btn.active {
-    background: #ffffff;
-    border-color: #3b82f6;
-    color: #3b82f6;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
-}
-
-.btn-icon {
-    margin-right: 10px;
-    font-size: 1.25rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 32px;
-    height: 32px;
-    background: rgba(148, 163, 184, 0.1);
-    border-radius: 8px;
-    color: #64748b;
-    transition: all 0.3s ease;
-    flex-shrink: 0;
-}
-
-.custom-nav-pills .nav-link.chart-btn.active .btn-icon {
-    background: rgba(59, 130, 246, 0.1);
-    color: #3b82f6;
-}
-
-.btn-content {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    text-align: left;
-    flex: 1;
-}
-
-.btn-title {
-    font-weight: 600;
-    font-size: 0.875rem;
-    line-height: 1.2;
-    margin-bottom: 2px;
-}
-
-.btn-subtitle {
-    font-size: 0.75rem;
-    opacity: 0.7;
-    font-weight: 400;
-}
-
-.chart-wrapper {
-    background: white;
-    border-radius: 16px;
-    padding: 1.5rem;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-    border: 1px solid #e2e8f0;
-}
-
-.chart-image {
-    border-radius: 12px;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
-    max-width: 100%;
-    height: auto;
-}
-
-.table-container {
-    background: white;
-    border-radius: 16px;
-    padding: 1.5rem;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-    border: 1px solid #e2e8f0;
-}
-
-/* Mobile Responsive */
-@media (max-width: 768px) {
-    .custom-nav-pills {
-        flex-direction: column;
-        gap: 0.5rem;
+            fetch(form.action, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': formData.get('csrfmiddlewaretoken')
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.text();
+            })
+            .then(html => {
+                if (resultsContainer) {
+                    // The response is the entire page, we need to extract the results part
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(html, "text/html");
+                    const newResults = doc.getElementById('analysis-results-container');
+                    if (newResults) {
+                        resultsContainer.innerHTML = newResults.innerHTML;
+                    } else {
+                        // If the container is not found, maybe the response is just the partial
+                        resultsContainer.innerHTML = html;
+                    }
+                }
+                if (statusDisplay) {
+                    statusDisplay.innerHTML = '<span class="text-success">✓ Analysis loaded.</span>';
+                }
+                // Re-initialize tooltips for new content (guard if Bootstrap is available)
+                try {
+                    if (window.bootstrap && typeof bootstrap.Tooltip === 'function') {
+                        const tooltipTriggerList = Array.prototype.slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+                        tooltipTriggerList.forEach(el => new bootstrap.Tooltip(el));
+                    } else {
+                        console.warn('Bootstrap JS not available, skipping tooltip init.');
+                    }
+                } catch (e) {
+                    console.warn('Tooltip init failed:', e);
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching analysis:', error);
+                if (statusDisplay) {
+                    statusDisplay.innerHTML = `<span class="text-danger">✗ Error: ${error.message}. See console for details.</span>`;
+                }
+            });
+        });
     }
-    
-    .custom-nav-pills .nav-link.chart-btn {
-        margin: 0;
-        min-width: 100%;
-        max-width: none;
-        justify-content: flex-start;
-        padding: 0.875rem 1rem;
-    }
-    
-    .btn-icon {
-        width: 28px;
-        height: 28px;
-        font-size: 1.125rem;
-        margin-right: 8px;
-    }
-    
-    .btn-title {
-        font-size: 0.8125rem;
-    }
-    
-    .btn-subtitle {
-        font-size: 0.6875rem;
-    }
-    
-    .chart-wrapper, .table-container {
-        padding: 1rem;
-    }
-}
-</style>
 
+    // Moved here: initial setup that was previously in the mid-page script
+    updateDataFetchMode();
+    const instrumentSelect = document.querySelector('select[name="instrument"]');
+    if (instrumentSelect) {
+        loadExpiryDatesForInstrument(instrumentSelect.value);
+    }
+});
+</script>
 {% endblock %}

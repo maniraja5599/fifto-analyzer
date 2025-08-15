@@ -35,7 +35,7 @@
                 </a>
                 <button class="btn btn-light-success" onclick="refreshTradeData()">
                     <i class="bi bi-arrow-clockwise"></i>
-                    Refresh Data
+                    Refresh Live P&L Data
                 </button>
             </div>
         </div>
@@ -197,14 +197,21 @@
                                     </div>
                                 </td>
                                 <td>
-                                    <span class="badge {% if trade.pnl >= 0 %}bg-success{% else %}bg-danger{% endif %}">
-                                        ₹{{ trade.pnl|floatformat:2 }}
-                                        {% if trade.pnl >= 0 %}
-                                            <i class="bi bi-arrow-up ms-1"></i>
-                                        {% else %}
-                                            <i class="bi bi-arrow-down ms-1"></i>
+                                    <div class="pnl-info">
+                                        <span class="badge {% if trade.pnl >= 0 %}bg-success{% else %}bg-danger{% endif %} mb-1">
+                                            ₹{{ trade.pnl|floatformat:2 }}
+                                            {% if trade.pnl >= 0 %}
+                                                <i class="bi bi-arrow-up ms-1"></i>
+                                            {% else %}
+                                                <i class="bi bi-arrow-down ms-1"></i>
+                                            {% endif %}
+                                        </span>
+                                        {% if trade.data_source %}
+                                        <div class="small text-muted">
+                                            <i class="bi bi-database"></i> {{ trade.data_source }}
+                                        </div>
                                         {% endif %}
-                                    </span>
+                                    </div>
                                 </td>
                                 <td>
                                     <div class="target-info small">
@@ -578,37 +585,77 @@ function closeSelected(groupKey) {
     }
 }
 
-// Auto-refresh trades every 30 seconds
-setInterval(function() {
-    if (document.hidden === false) {
-        location.reload();
-    }
-}, 30000);
+// Auto-refresh trades disabled for performance optimization
+// Original auto-refresh code disabled to prevent unnecessary background data fetching:
+// setInterval(function() {
+//     if (document.hidden === false) {
+//         location.reload();
+//     }
+// }, 30000);
+console.log('🛑 Trades auto-refresh DISABLED - Use manual refresh button instead');
 
-// Refresh trade data function
+// Enhanced refresh trade data function using dedicated API
 async function refreshTradeData() {
     const refreshBtn = document.querySelector('button[onclick="refreshTradeData()"]');
     const originalText = refreshBtn.innerHTML;
     
     // Show loading state
-    refreshBtn.innerHTML = '<i class="bi bi-arrow-clockwise spin"></i> Refreshing...';
+    refreshBtn.innerHTML = '<i class="bi bi-arrow-clockwise spin"></i> Fetching Live P&L Data...';
     refreshBtn.disabled = true;
     
     try {
-        // Update current premiums
-        await updateCurrentPremiums();
+        console.log('🔄 Starting manual live P&L data refresh...');
         
-        // Show success feedback
-        refreshBtn.innerHTML = '<i class="bi bi-check-circle text-success"></i> Updated!';
+        // Call the dedicated refresh API endpoint
+        const response = await fetch('/api/refresh-trades/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            }
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            console.log(`✅ Successfully refreshed ${result.trades_count} trades for instruments: ${result.instruments?.join(', ')}`);
+            
+            // Show success feedback
+            refreshBtn.innerHTML = '<i class="bi bi-check-circle text-success"></i> Live P&L Data Updated!';
+            
+            // Reload the page to show updated data
+            setTimeout(() => {
+                window.location.reload();
+            }, 1500);
+        } else {
+            throw new Error(result.error || 'Unknown error occurred');
+        }
+        
+    } catch (error) {
+        console.error('❌ Error refreshing live P&L data:', error);
+        refreshBtn.innerHTML = '<i class="bi bi-exclamation-triangle text-danger"></i> Refresh Failed';
         setTimeout(() => {
             refreshBtn.innerHTML = originalText;
             refreshBtn.disabled = false;
-        }, 2000);
-    } catch (error) {
-        console.error('Error refreshing trade data:', error);
-        refreshBtn.innerHTML = '<i class="bi bi-exclamation-triangle text-danger"></i> Error';
-        setTimeout(() => {
-            refreshBtn.innerHTML = originalText;
+        }, 3000);
+    }
+}
+
+// Helper function to get CSRF token
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
             refreshBtn.disabled = false;
         }, 2000);
     }
@@ -645,6 +692,13 @@ async function updateCurrentPremiums() {
 // Original auto-update code disabled:
 // setInterval(updateCurrentPremiums, 15000);
 console.log('🛑 Auto-refresh disabled for trades - Use manual refresh button instead');
+
+// Immediate data load on page load (without sleep delays)
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('📊 Active trades page loaded - Data fetched immediately without delays');
+    console.log('🚀 Strike data ready for viewing');
+    console.log('💡 Use refresh button to update with latest market data');
+});
 
 // Add CSS for enhanced styling
 const style = document.createElement('style');

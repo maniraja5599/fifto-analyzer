@@ -755,10 +755,12 @@
             }
         }
 
-        // Update status on data load
-        setInterval(() => {
-            updateNavigationStatus();
-        }, 60000);
+        // Navigation status auto-update disabled for performance optimization
+        // Original auto-update code disabled to prevent unnecessary background data fetching:
+        // setInterval(() => {
+        //     updateNavigationStatus();
+        // }, 60000);
+        console.log('🛑 Navigation status auto-update DISABLED');
     </script>
 </body>
 </html>

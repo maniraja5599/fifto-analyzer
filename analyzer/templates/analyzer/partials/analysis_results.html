@@ -1,0 +1,125 @@
+{% if analysis_data %}
+<!-- Simple Results -->
+<div class="card border-0 shadow-sm mb-3">
+    <div class="card-header bg-light border-bottom">
+        <div class="row align-items-center">
+            <div class="col-md-3">
+                <h5 class="mb-0 text-dark">Analysis Results - {{ analysis_data.instrument }} {{ analysis_data.expiry }}</h5>
+            </div>
+            {% if analysis_data.supply_zone and analysis_data.demand_zone %}
+            <div class="col-md-3">
+                <div class="card-header bg-light border-bottom">
+                    <div class="d-flex align-items-center justify-content-center">
+                        <h5 class="mb-0">
+                            <span class="badge bg-danger-subtle text-danger">Supply: ₹{{ analysis_data.supply_zone }}</span>
+                            <span class="badge bg-success-subtle text-success">Demand: ₹{{ analysis_data.demand_zone }}</span>
+                        </h5>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            <div class="col-md-6">
+                <!-- All Buttons in One Row -->
+                <div class="d-flex gap-1 justify-content-end flex-wrap">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="checkExpiryFetchErrors()" 
+                            title="Check expiry data status and errors" data-bs-toggle="tooltip">
+                        <i class="bi bi-info-circle"></i>
+                    </button>
+                    <button type="button" class="btn btn-outline-danger btn-sm" onclick="clearLocalStorage()" 
+                            title="Clear browser cache and stored data" data-bs-toggle="tooltip">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                    <a href="{% url 'add_trades' %}" class="btn btn-success btn-sm" 
+                       title="Add analysis results to portfolio" data-bs-toggle="tooltip">
+                        <i class="bi bi-plus-circle"></i>
+                    </a>
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="clearAnalysis()" 
+                            title="Clear current analysis and generate new" data-bs-toggle="tooltip">
+                        <i class="bi bi-arrow-clockwise"></i>
+                    </button>
+                    <a href="{% url 'send_charts' %}" class="btn btn-info btn-sm" 
+                       title="Send charts and analysis to Telegram" data-bs-toggle="tooltip">
+                        <i class="bi bi-telegram"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="card-body bg-white">
+        <!-- Chart Tabs and Content in One Section -->
+        <div class="row align-items-center mb-3">
+            <div class="col-md-6">
+                <ul class="nav nav-tabs border-0" id="chartTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active btn-sm" id="summary-tab" data-bs-toggle="tab" data-bs-target="#summary" type="button" role="tab">
+                            <i class="bi bi-graph-up me-1"></i>Analysis
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link btn-sm" id="payoff-tab" data-bs-toggle="tab" data-bs-target="#payoff" type="button" role="tab">
+                            <i class="bi bi-activity me-1"></i>Payoff
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link btn-sm" id="table-tab" data-bs-toggle="tab" data-bs-target="#table" type="button" role="tab">
+                            <i class="bi bi-table me-1"></i>Data
+                        </button>
+                    </li>
+                </ul>
+            </div>
+        </div>
+                
+        <div class="tab-content" id="chartTabsContent">
+            <div class="tab-pane fade show active" id="summary" role="tabpanel">
+                {% if analysis_data.strategies_df and analysis_data.strategies_df|length > 0 %}
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover table-striped">
+                        <thead>
+                            <tr>
+                                <th>Strategy</th>
+                                <th>Details</th>
+                                <th>Max Profit</th>
+                                <th>Max Loss</th>
+                                <th>Risk/Reward</th>
+                                <th>Breakeven(s)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for strategy in analysis_data.strategies_df %}
+                            <tr>
+                                <td>{{ strategy.name }}</td>
+                                <td>{{ strategy.details }}</td>
+                                <td>{{ strategy.max_profit }}</td>
+                                <td>{{ strategy.max_loss }}</td>
+                                <td>{{ strategy.risk_reward }}</td>
+                                <td>{{ strategy.breakevens }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p>No strategies found for the selected analysis.</p>
+                {% endif %}
+            </div>
+            <div class="tab-pane fade" id="payoff" role="tabpanel">
+                {% if analysis_data.payoff_chart %}
+                <img src="data:image/png;base64,{{ analysis_data.payoff_chart }}" class="img-fluid" alt="Payoff Chart">
+                {% else %}
+                <p>Payoff chart not available.</p>
+                {% endif %}
+            </div>
+            <div class="tab-pane fade" id="table" role="tabpanel">
+                {% if analysis_data.df_html %}
+                <div class="table-responsive">
+                    {{ analysis_data.df_html|safe }}
+                </div>
+                {% else %}
+                <p>No data table available.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+

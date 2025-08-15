@@ -17,6 +17,7 @@ urlpatterns = [
     path('api/test-data-sources/', api_views.test_data_sources_api, name='test_data_sources_api'),
     path('api/market-status/', api_views.market_status_api, name='market_status_api'),
     path('api/historical-data/', api_views.historical_data_api, name='historical_data_api'),
+    path('api/refresh-trades/', views.refresh_trades_api, name='refresh_trades_api'),
 
     # Form submission actions
     path('generate/', views.generate_and_show_analysis, name='generate_analysis'),

@@ -55,7 +55,8 @@ body {
 .sidebar {
     width: 240px;
     min-height: 100vh;
-    background: #ffffff;
+    background: linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(248,250,252,0.95) 100%);
+    backdrop-filter: blur(10px);
     box-shadow: 0 0 20px rgba(0, 0, 0, 0.08);
     position: fixed;
     top: 0;
@@ -71,105 +72,273 @@ body {
     position: relative;
     padding: 1.5rem 1.5rem 1.25rem;
     border-bottom: 1px solid #f3f4f6;
-    background: #ffffff;
+    background: transparent;
     overflow: hidden;
 }
 
-/* Additional geometric shapes animation */
-.sidebar-header .geometric-shapes {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    pointer-events: none;
-    z-index: 0;
+/* Enhanced Candlestick shapes animation with jump effects - UPDATED */
+.sidebar-header .candlestick-group {
+    opacity: 1;
+    visibility: visible;
+    transition: all 0.3s ease;
 }
 
-.sidebar-header .shape {
-    position: absolute;
-    opacity: 0.15;
+.sidebar-header .candlestick {
+    opacity: 1;
+    visibility: visible;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
 }
 
-.sidebar-header .shape-1 {
-    width: 30px;
+/* Enhanced SVG Candlestick animations for better visual impact */
+.sidebar-header .candlestick-group rect {
+    transition: all 0.2s ease-out;
+}
+
+.sidebar-header .candlestick-group line {
+    transition: all 0.2s ease-out;
+}
+
+/* Glow effects for price movement indicators */
+.sidebar-header .candlestick-group polygon {
+    filter: drop-shadow(0 0 3px currentColor);
+    transition: all 0.3s ease;
+}
+
+/* Enhanced animation timing for smoother jumps */
+.sidebar-header .candlestick-group g {
+    transform-origin: center bottom;
+}
+
+/* Hover effects for interactive feel */
+.sidebar-header:hover .candlestick-group {
+    animation-duration: 2s; /* Speed up on hover */
+}
+
+/* Responsive scaling for different screen sizes */
+@media (max-width: 768px) {
+    .sidebar-header .candlestick-group {
+        transform: scale(0.8);
+        transform-origin: center;
+    }
+}
+
+@media (max-width: 480px) {
+    .sidebar-header .candlestick-group {
+        transform: scale(0.6);
+        transform-origin: center;
+    }
+}
+
+/* Candlestick animation styles */
+.sidebar-header .candlestick-1,
+.sidebar-header .candlestick-2,
+.sidebar-header .candlestick-3,
+.sidebar-header .candlestick-4,
+.sidebar-header .candlestick-5 {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* Bullish Candlestick 1 - Green */
+.sidebar-header .candlestick-1 {
+    width: 10px;
     height: 30px;
-    background: linear-gradient(135deg, #3b82f6, #60a5fa);
-    border-radius: 50%;
-    top: 10%;
+    background: linear-gradient(180deg, #22c55e, #16a34a);
+    border-radius: 2px;
+    box-shadow: 0 2px 4px rgba(34, 197, 94, 0.3);
+    top: 15%;
+    right: 20%;
+    position: relative;
+    animation: candlestickBullish1 4s ease-in-out infinite;
+}
+
+.sidebar-header .candlestick-1::before {
+    content: '';
+    position: absolute;
+    width: 2px;
+    height: 45px;
+    background: #16a34a;
+    left: 4px;
+    top: -7px;
+    border-radius: 1px;
+}
+
+/* Bearish Candlestick 2 - Red */
+.sidebar-header .candlestick-2 {
+    width: 8px;
+    height: 22px;
+    background: linear-gradient(180deg, #ef4444, #dc2626);
+    border-radius: 2px;
+    box-shadow: 0 2px 4px rgba(239, 68, 68, 0.3);
+    bottom: 25%;
+    left: 25%;
+    position: relative;
+    animation: candlestickBearish2 5s ease-in-out infinite reverse;
+}
+
+.sidebar-header .candlestick-2::before {
+    content: '';
+    position: absolute;
+    width: 2px;
+    height: 35px;
+    background: #dc2626;
+    left: 3px;
+    top: -6px;
+    border-radius: 1px;
+}
+
+/* Bullish Candlestick 3 - Green */
+.sidebar-header .candlestick-3 {
+    width: 12px;
+    height: 35px;
+    background: linear-gradient(180deg, #22c55e, #15803d);
+    border-radius: 2px;
+    box-shadow: 0 2px 6px rgba(34, 197, 94, 0.4);
+    top: 50%;
     right: 15%;
-    animation: floatShape1 6s ease-in-out infinite;
+    position: relative;
+    animation: candlestickBullish3 6s ease-in-out infinite;
 }
 
-.sidebar-header .shape-2 {
-    width: 20px;
+.sidebar-header .candlestick-3::before {
+    content: '';
+    position: absolute;
+    width: 2px;
+    height: 50px;
+    background: #15803d;
+    left: 5px;
+    top: -8px;
+    border-radius: 1px;
+}
+
+/* Bearish Candlestick 4 - Red */
+.sidebar-header .candlestick-4 {
+    width: 7px;
     height: 20px;
-    background: linear-gradient(135deg, #93c5fd, #dbeafe);
-    border-radius: 50%;
-    bottom: 20%;
-    left: 20%;
-    animation: floatShape2 8s ease-in-out infinite reverse;
-}
-
-.sidebar-header .shape-3 {
-    width: 25px;
-    height: 15px;
-    background: linear-gradient(135deg, #60a5fa, #93c5fd);
-    border-radius: 10px;
-    top: 60%;
-    right: 25%;
-    animation: floatShape3 7s ease-in-out infinite;
-}
-
-/* Additional polygon shapes for more SVG-like effect */
-.sidebar-header .shape-4 {
-    width: 0;
-    height: 0;
-    border-left: 10px solid transparent;
-    border-right: 10px solid transparent;
-    border-bottom: 15px solid rgba(59, 130, 246, 0.2);
-    top: 25%;
+    background: linear-gradient(180deg, #ef4444, #b91c1c);
+    border-radius: 2px;
+    top: 30%;
     left: 15%;
-    animation: floatShape4 9s ease-in-out infinite;
+    position: relative;
+    animation: candlestickBearish4 7s ease-in-out infinite;
 }
 
-.sidebar-header .shape-5 {
-    width: 18px;
-    height: 18px;
-    background: linear-gradient(45deg, #3b82f6, #1d4ed8);
-    transform: rotate(45deg);
-    top: 70%;
-    left: 60%;
-    animation: floatShape5 5s ease-in-out infinite;
+.sidebar-header .candlestick-4::before {
+    content: '';
+    position: absolute;
+    width: 1px;
+    height: 35px;
+    background: #b91c1c;
+    left: 3px;
+    top: -7px;
+    border-radius: 1px;
 }
 
-@keyframes floatShape1 {
-    0%, 100% { transform: translateY(0px) rotate(0deg) scale(1); }
-    25% { transform: translateY(-8px) rotate(90deg) scale(1.1); }
-    50% { transform: translateY(-10px) rotate(180deg) scale(0.9); }
-    75% { transform: translateY(-5px) rotate(270deg) scale(1.05); }
+/* Bullish Candlestick 5 - Green */
+.sidebar-header .candlestick-5 {
+    width: 9px;
+    height: 22px;
+    background: linear-gradient(180deg, #22c55e, #059669);
+    border-radius: 2px;
+    bottom: 15%;
+    right: 30%;
+    position: relative;
+    animation: candlestickBullish5 3.5s ease-in-out infinite;
 }
 
-@keyframes floatShape2 {
-    0%, 100% { transform: translateX(0px) scale(1); }
-    33% { transform: translateX(5px) scale(1.2); }
-    66% { transform: translateX(-3px) scale(0.8); }
+.sidebar-header .candlestick-5::before {
+    content: '';
+    position: absolute;
+    width: 2px;
+    height: 38px;
+    background: #059669;
+    left: 3.5px;
+    top: -8px;
+    border-radius: 1px;
 }
 
-@keyframes floatShape3 {
-    0%, 100% { transform: translateY(0px) translateX(0px) rotate(0deg); }
-    33% { transform: translateY(-5px) translateX(3px) rotate(15deg); }
-    66% { transform: translateY(2px) translateX(-2px) rotate(-10deg); }
+/* Candlestick Animations */
+@keyframes candlestickBullish1 {
+    0%, 100% { 
+        transform: translateY(0px) scaleY(1); 
+        opacity: 0.6; 
+    }
+    25% { 
+        transform: translateY(-3px) scaleY(1.1); 
+        opacity: 0.8; 
+    }
+    50% { 
+        transform: translateY(-5px) scaleY(1.2); 
+        opacity: 1; 
+    }
+    75% { 
+        transform: translateY(-2px) scaleY(1.05); 
+        opacity: 0.8; 
+    }
 }
 
-@keyframes floatShape4 {
-    0%, 100% { transform: translateY(0px) rotate(0deg); }
-    50% { transform: translateY(-8px) rotate(180deg); }
+@keyframes candlestickBearish2 {
+    0%, 100% { 
+        transform: translateY(0px) scaleY(1); 
+        opacity: 0.6; 
+    }
+    30% { 
+        transform: translateY(2px) scaleY(0.9); 
+        opacity: 0.8; 
+    }
+    60% { 
+        transform: translateY(4px) scaleY(0.8); 
+        opacity: 1; 
+    }
 }
 
-@keyframes floatShape5 {
-    0%, 100% { transform: translateY(0px) translateX(0px) rotate(45deg); }
-    50% { transform: translateY(-6px) translateX(4px) rotate(225deg); }
+@keyframes candlestickBullish3 {
+    0%, 100% { 
+        transform: translateY(0px) scaleY(1) scaleX(1); 
+        opacity: 0.6; 
+    }
+    33% { 
+        transform: translateY(-4px) scaleY(1.15) scaleX(1.1); 
+        opacity: 0.85; 
+    }
+    66% { 
+        transform: translateY(-6px) scaleY(1.25) scaleX(0.95); 
+        opacity: 1; 
+    }
+}
+
+@keyframes candlestickBearish4 {
+    0%, 100% { 
+        transform: translateY(0px) scaleY(1); 
+        opacity: 0.6; 
+    }
+    40% { 
+        transform: translateY(3px) scaleY(0.85); 
+        opacity: 0.8; 
+    }
+    80% { 
+        transform: translateY(5px) scaleY(0.7); 
+        opacity: 1; 
+    }
+}
+
+@keyframes candlestickBullish5 {
+    0%, 100% { 
+        transform: translateY(0px) scaleY(1) rotate(0deg); 
+        opacity: 0.6; 
+    }
+    25% { 
+        transform: translateY(-2px) scaleY(1.08) rotate(1deg); 
+        opacity: 0.8; 
+    }
+    50% { 
+        transform: translateY(-4px) scaleY(1.15) rotate(-1deg); 
+        opacity: 1; 
+    }
+    75% { 
+        transform: translateY(-1px) scaleY(1.05) rotate(0.5deg); 
+        opacity: 0.8; 
+    }
 }
 
 .sidebar-brand {
@@ -489,24 +658,6 @@ body {
     .content-body {
         padding: 0;
         padding-bottom: 2rem;
-    }
-}
-    
-    .sidebar-nav {
-        padding: 1rem 0.75rem;
-    }
-    
-    .nav-link {
-        padding: 0.75rem;
-        font-size: 0.875rem;
-    }
-    
-    .sidebar-brand {
-        font-size: 1.25rem;
-    }
-    
-    .sidebar-header {
-        padding: 1.25rem 1.25rem 0.75rem;
     }
 }
 
