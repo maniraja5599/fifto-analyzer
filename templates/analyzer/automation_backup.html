@@ -761,8 +761,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // Load recent activities on page load
     loadRecentActivities();
     
-    // Set up auto-update for recent activities every 30 seconds
-    setInterval(loadRecentActivities, 30000);
+    // Auto-update disabled for manual refresh only mode
+    // setInterval(loadRecentActivities, 30000);
+    console.log('🛑 Automation recent activities auto-update DISABLED - Use manual refresh button instead');
     
     // Update name when instruments or time change
     const instNifty = document.getElementById('instNifty');
