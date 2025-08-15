@@ -520,8 +520,45 @@ def get_current_market_price(instrument_name):
 
 def get_option_chain_data(symbol):
     """
-    Get option chain data using cached expiry dates when available
-    Only fetches fresh data when cache is empty or needs refresh
+    Get complete option chain data with prices for analysis
+    Always fetches fresh data when analysis requires actual option prices
+    """
+    try:
+        print(f"📡 Fetching fresh option chain data for analysis: {symbol}")
+        debug_file = r"C:\Users\manir\Desktop\debug_log.txt"
+        
+        def debug_log(message):
+            with open(debug_file, 'a', encoding='utf-8') as f:
+                from datetime import datetime
+                timestamp = datetime.now().strftime("%Y-%m-%d %I:%M:%S %p")
+                f.write(f"[{timestamp}] OPTION_CHAIN: {message}\n")
+        
+        debug_log(f"📡 get_option_chain_data called for {symbol} - fetching fresh data")
+        
+        # Always fetch fresh data for analysis to get current prices
+        fresh_data = _fetch_fresh_option_chain_data(symbol)
+        if fresh_data:
+            # Update cache if we get expiry dates
+            if 'expiryDates' in fresh_data:
+                update_expiry_cache(symbol, fresh_data['expiryDates'])
+            print(f"✅ Fresh option chain data fetched for {symbol}")
+            debug_log(f"✅ Fresh option chain data fetched successfully")
+            return fresh_data
+        
+        # If fresh data fails, try fallback
+        print(f"⚠️ Fresh data failed, trying fallback for {symbol}")
+        debug_log(f"⚠️ Fresh data failed, trying fallback")
+        return get_fallback_expiry_data(symbol)
+            
+    except Exception as e:
+        print(f"❌ Error in option chain fetch for {symbol}: {e}")
+        debug_log(f"❌ Error in option chain fetch: {e}")
+        return get_fallback_expiry_data(symbol)
+
+def get_option_chain_expiry_dates_only(symbol):
+    """
+    Get only expiry dates using cached data when available (for UI dropdowns)
+    This is the optimized version that uses cache for expiry dates only
     """
     try:
         # Check if we should refresh expiry cache (every Thursday)
@@ -530,33 +567,29 @@ def get_option_chain_data(symbol):
             fresh_data = _fetch_fresh_option_chain_data(symbol)
             if fresh_data and 'expiryDates' in fresh_data:
                 update_expiry_cache(symbol, fresh_data['expiryDates'])
-                return fresh_data
+                return fresh_data['expiryDates']
         
         # Try to get from cache first - this is the main optimization
         cached_expiry_dates = get_cached_expiry_dates(symbol)
         if cached_expiry_dates:
             print(f"✅ Using local cached expiry dates for {symbol}: {len(cached_expiry_dates)} dates (no API call needed)")
-            # Return cached data structure without fetching fresh option chain
-            return {
-                'expiryDates': cached_expiry_dates,
-                'symbol': symbol,
-                'source': 'cache',
-                'timestamp': datetime.now().isoformat()
-            }
+            return cached_expiry_dates
         
         # Only fetch fresh data if no cache exists
         print(f"🔄 No cache available, fetching fresh data for {symbol} (first time)...")
         fresh_data = _fetch_fresh_option_chain_data(symbol)
         if fresh_data and 'expiryDates' in fresh_data:
             update_expiry_cache(symbol, fresh_data['expiryDates'])
-            return fresh_data
+            return fresh_data['expiryDates']
         
         # If all else fails, use fallback
-        return get_fallback_expiry_data(symbol)
+        fallback_data = get_fallback_expiry_data(symbol)
+        return fallback_data.get('expiryDates', []) if fallback_data else []
             
     except Exception as e:
-        print(f"❌ Error in option chain fetch for {symbol}: {e}")
-        return get_fallback_expiry_data(symbol)
+        print(f"❌ Error in expiry dates fetch for {symbol}: {e}")
+        fallback_data = get_fallback_expiry_data(symbol)
+        return fallback_data.get('expiryDates', []) if fallback_data else []
 
 def _fetch_fresh_option_chain_data(symbol):
     """
@@ -1119,7 +1152,7 @@ def generate_analysis(instrument_name, calculation_type, selected_expiry_str):
     def debug_log(message):
         with open(debug_file, 'a', encoding='utf-8') as f:
             from datetime import datetime
-            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            timestamp = datetime.now().strftime("%Y-%m-%d %I:%M:%S %p")
             f.write(f"[{timestamp}] UTILS: {message}\n")
         print(f"UTILS: {message}")  # Also print to console
     
@@ -1199,9 +1232,15 @@ def generate_analysis(instrument_name, calculation_type, selected_expiry_str):
             current_price = option_chain_data['data']['last_price']
             debug_log(f"📊 Updated current price from option chain: {current_price}")
         
+        # Debug: Log the actual option chain data structure
+        debug_log(f"📊 Option chain data keys: {list(option_chain_data.keys()) if isinstance(option_chain_data, dict) else 'Not a dict'}")
+        if isinstance(option_chain_data, dict) and 'data' in option_chain_data:
+            debug_log(f"📊 Option chain data['data'] keys: {list(option_chain_data['data'].keys()) if isinstance(option_chain_data['data'], dict) else 'Not a dict'}")
+        
         # Extract option data from DhanHQ structure
         if 'data' in option_chain_data and 'oc' in option_chain_data['data']:
             oc_data = option_chain_data['data']['oc']
+            debug_log(f"📊 Found DhanHQ structure with {len(oc_data)} strikes")
             for strike_str, strike_data in oc_data.items():
                 try:
                     strike_price = float(strike_str)
@@ -1219,6 +1258,7 @@ def generate_analysis(instrument_name, calculation_type, selected_expiry_str):
                     
             debug_log(f"📊 DhanHQ API data - CE: {len(ce_prices)}, PE: {len(pe_prices)} strikes")
         else:
+            debug_log("📊 DhanHQ structure not found, trying NSE structure...")
             # Fallback: try old NSE structure if DhanHQ structure not found
             if 'records' in option_chain_data and 'data' in option_chain_data['records']:
                 for item in option_chain_data['records']['data']:
@@ -1226,6 +1266,9 @@ def generate_analysis(instrument_name, calculation_type, selected_expiry_str):
                         if item.get("CE"): ce_prices[item['strikePrice']] = item["CE"]["lastPrice"]
                         if item.get("PE"): pe_prices[item['strikePrice']] = item["PE"]["lastPrice"]
                 debug_log(f"📊 Fallback NSE data - CE: {len(ce_prices)}, PE: {len(pe_prices)} strikes")
+            else:
+                debug_log("📊 Neither DhanHQ nor NSE structure found in option chain data")
+                debug_log(f"📊 Available option chain data structure: {str(option_chain_data)[:500]}...")
     
     # Zone-based strike selection (using supply/demand zones)
     if supply_zone is not None and demand_zone is not None:
@@ -1294,7 +1337,7 @@ def generate_analysis(instrument_name, calculation_type, selected_expiry_str):
                 fontsize=18, fontweight='bold', y=0.94, color='#1e293b', ha='center')
     
     # Enhanced info box with global theme styling
-    info_text = f"{instrument_name}: ₹{current_price}\nExpiry: {expiry_label}\nGenerated: {datetime.now().strftime('%d-%b-%Y %H:%M')}"
+    info_text = f"{instrument_name}: ₹{int(current_price)}\nExpiry: {expiry_label}\nGenerated: {datetime.now().strftime('%d-%b-%Y %I:%M %p')}"
     ax.text(0.5, 0.85, info_text, transform=ax.transAxes, ha='center', va='center', 
             fontsize=12, fontfamily='monospace', color='#1e293b', fontweight='600',
             bbox=dict(boxstyle='round,pad=0.8', facecolor='#f1f5f9', 
@@ -1350,20 +1393,24 @@ def generate_analysis(instrument_name, calculation_type, selected_expiry_str):
                     if current_text and current_text.replace('.', '').isdigit():
                         cell.get_text().set_text(f"₹{int(float(current_text))}")
     
-    # Enhanced footer with global theme styling
-    footer_text = f"Risk Management: 1:1 Target/SL Ratio"
+    # Enhanced footer with updated risk management text
+    footer_text = f"Strategy Analysis: Professional Options Trading"
     ax.text(0.5, 0.15, footer_text, transform=ax.transAxes, ha='center', va='center',
             fontsize=12, fontweight='bold', color='#16a34a',
             bbox=dict(boxstyle='round,pad=0.4', facecolor='#f0fdf4', 
                      edgecolor='#16a34a', alpha=0.8, linewidth=1))
     
-    # Clean disclaimer with global theme
-    ax.text(0.5, 0.06, "For educational purposes only", 
+    # SEBI disclaimer with global theme
+    ax.text(0.5, 0.08, "We are not SEBI registered. For educational purposes only.", 
             transform=ax.transAxes, ha='center', va='center',
-            fontsize=9, color='#64748b', style='italic')
+            fontsize=9, color='#dc2626', style='italic', fontweight='600')
     
-    # Centered FiFTO branding with enhanced styling
-    ax.text(0.5, 0.02, "FiFTO Analytics", transform=ax.transAxes, ha='center', va='center',
+    # Enhanced FiFTO branding with red "O"
+    ax.text(0.5, 0.02, "FiFT", transform=ax.transAxes, ha='center', va='center',
+            fontsize=11, color='#16a34a', fontweight='bold', alpha=0.9)
+    ax.text(0.565, 0.02, "O", transform=ax.transAxes, ha='center', va='center',
+            fontsize=11, color='#dc2626', fontweight='bold', alpha=0.9)  # Red "O"
+    ax.text(0.58, 0.02, " Analytics", transform=ax.transAxes, ha='left', va='center',
             fontsize=11, color='#16a34a', fontweight='bold', alpha=0.9)
     
     plt.savefig(summary_filepath, dpi=150, bbox_inches='tight', facecolor='white', 
@@ -1452,12 +1499,12 @@ def add_to_analysis(analysis_data):
             print(f"   - {trade.get('id', 'NO_ID')}")
     
     new_trades_added = 0
-    start_time = datetime.now().strftime("%Y-%m-%d %H:%M")
+    start_time = datetime.now().strftime("%Y-%m-%d %I:%M %p")
     day_name = datetime.now().strftime("%A")
     entry_tag = f"{day_name} Selling"
     
     # Add timestamp to make trade IDs more unique
-    timestamp_suffix = datetime.now().strftime("%H%M")
+    timestamp_suffix = datetime.now().strftime("%I%M%p")
     
     print(f"🏷️ Entry tag: {entry_tag}")
     print(f"⏰ Timestamp suffix: {timestamp_suffix}")
@@ -1533,7 +1580,7 @@ def auto_add_to_portfolio(analysis_data, auto_tag="Auto Generated"):
     
     trades = load_trades()
     new_trades_added = 0
-    start_time = datetime.now().strftime("%Y-%m-%d %H:%M")
+    start_time = datetime.now().strftime("%Y-%m-%d %I:%M %p")
     
     # Check if any trades from this analysis already exist
     existing_trade_ids = {t['id'] for t in trades}

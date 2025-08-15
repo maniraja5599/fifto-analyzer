@@ -117,7 +117,8 @@
         <!-- Analysis Results Card -->
         <div class="card clean-card border-0 shadow-sm mb-4">
             <div class="card-header bg-light border-bottom">
-                <div class="d-flex align-items-center justify-content-between">
+                <div class="d-flex align-items-center justify-content-between flex-wrap">
+                    <!-- Analysis Results Info -->
                     <div class="d-flex align-items-center">
                         <i class="bi bi-graph-up-arrow text-primary me-3 fs-5"></i>
                         <div>
@@ -125,47 +126,35 @@
                             <p class="text-muted mb-0 small">{{ analysis_data.instrument }} {{ analysis_data.expiry }} - {{ analysis_data.df_data|length }} strategies generated</p>
                         </div>
                     </div>
+                    
+                    <!-- Chart Navigation Buttons -->
+                    <div class="d-flex align-items-center gap-2">
+                        <a href="#analysis-chart" class="btn btn-outline-primary px-3 py-2 chart-nav-btn">
+                            <i class="bi bi-graph-up-arrow me-1"></i>Analysis Chart
+                        </a>
+                        <a href="#payoff-chart" class="btn btn-outline-primary px-3 py-2 chart-nav-btn">
+                            <i class="bi bi-activity me-1"></i>Payoff Chart
+                        </a>
+                        <a href="#data-table" class="btn btn-outline-primary px-3 py-2 chart-nav-btn">
+                            <i class="bi bi-table me-1"></i>Data Table
+                        </a>
+                    </div>
+                    
+                    <!-- Action Buttons - Larger Size -->
+                    <div class="d-flex gap-2 flex-wrap">
+                        <a href="{% url 'add_trades' %}" class="btn btn-success px-4 py-2">
+                            <i class="bi bi-plus-circle me-2"></i>Add to Portfolio
+                        </a>
+                        <button type="button" class="btn btn-outline-secondary px-4 py-2" onclick="clearAnalysis()">
+                            <i class="bi bi-arrow-clockwise me-2"></i>Generate New
+                        </button>
+                        <a href="{% url 'send_charts' %}" class="btn btn-outline-info px-4 py-2">
+                            <i class="bi bi-telegram me-2"></i>Send to Telegram
+                        </a>
+                    </div>
                 </div>
             </div>
             <div class="card-body">
-                <!-- Supply/Demand Zones Display -->
-                {% if analysis_data.zone_based %}
-                <div class="alert alert-info border-0 shadow-sm mb-4">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="d-flex align-items-center">
-                                <i class="bi bi-arrow-up-circle text-danger me-2 fs-5"></i>
-                                <div>
-                                    <h6 class="mb-0 fw-bold text-danger">Supply Zone (Resistance)</h6>
-                                    <span class="fs-5 fw-bold">₹{{ analysis_data.supply_zone|floatformat:0 }}</span>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="d-flex align-items-center">
-                                <i class="bi bi-arrow-down-circle text-success me-2 fs-5"></i>
-                                <div>
-                                    <h6 class="mb-0 fw-bold text-success">Demand Zone (Support)</h6>
-                                    <span class="fs-5 fw-bold">₹{{ analysis_data.demand_zone|floatformat:0 }}</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                {% endif %}
-                
-                <!-- Action Buttons - All in One Row -->
-                <div class="d-flex gap-2 justify-content-center mb-4 flex-wrap">
-                    <a href="{% url 'add_trades' %}" class="btn btn-success px-4">
-                        <i class="bi bi-plus-circle me-2"></i>Add to Portfolio
-                    </a>
-                    <button type="button" class="btn btn-outline-secondary px-4" onclick="clearAnalysis()">
-                        <i class="bi bi-arrow-clockwise me-2"></i>Generate New
-                    </button>
-                    <a href="{% url 'send_charts' %}" class="btn btn-outline-info px-4">
-                        <i class="bi bi-telegram me-1"></i>Send to Telegram
-                    </a>
-                </div>
                         
                         <script>
                         function clearAnalysis() {
@@ -311,59 +300,62 @@
                             });
                         });
                         </script>
+                        
+                        <script>
+                        // Handle chart navigation buttons
+                        document.addEventListener('DOMContentLoaded', function() {
+                            const chartNavBtns = document.querySelectorAll('.chart-nav-btn');
+                            const contentSections = document.querySelectorAll('.content-section');
+                            
+                            chartNavBtns.forEach(btn => {
+                                btn.addEventListener('click', function(e) {
+                                    e.preventDefault();
+                                    
+                                    // Remove active class from all buttons
+                                    chartNavBtns.forEach(b => b.classList.remove('active'));
+                                    
+                                    // Add active class to clicked button
+                                    this.classList.add('active');
+                                    
+                                    // Hide all content sections
+                                    contentSections.forEach(section => section.classList.remove('active'));
+                                    
+                                    // Show the target content section
+                                    const target = this.getAttribute('href').substring(1); // Remove the #
+                                    const targetSection = document.getElementById(target);
+                                    if (targetSection) {
+                                        targetSection.classList.add('active');
+                                    }
+                                });
+                            });
+                            
+                            // Set first button as active by default
+                            if (chartNavBtns.length > 0) {
+                                chartNavBtns[0].classList.add('active');
+                            }
+                        });
+                        </script>
                 
-                <!-- Chart Selection Section -->
-                <div class="chart-selection mb-4">
-                    <ul class="nav nav-pills justify-content-center mb-4 custom-nav-pills" id="analysisTab" role="tablist">
-                        <li class="nav-item">
-                            <a class="nav-link active chart-btn" data-bs-toggle="pill" href="#summary" role="tab">
-                                <div class="btn-icon">
-                                    <i class="bi bi-graph-up-arrow"></i>
-                                </div>
-                                <div class="btn-content">
-                                    <span class="btn-title">Analysis Chart</span>
-                                    <small class="btn-subtitle">Market Overview</small>
-                                </div>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link chart-btn" data-bs-toggle="pill" href="#payoff" role="tab">
-                                <div class="btn-icon">
-                                    <i class="bi bi-activity"></i>
-                                </div>
-                                <div class="btn-content">
-                                    <span class="btn-title">Payoff Chart</span>
-                                    <small class="btn-subtitle">Profit Analysis</small>
-                                </div>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link chart-btn" data-bs-toggle="pill" href="#table" role="tab">
-                                <div class="btn-icon">
-                                    <i class="bi bi-table"></i>
-                                </div>
-                                <div class="btn-content">
-                                    <span class="btn-title">Data Table</span>
-                                    <small class="btn-subtitle">Detailed View</small>
-                                </div>
-                            </a>
-                        </li>
-                    </ul>
-                    <div class="tab-content">
-                        <div class="tab-pane fade show active" id="summary" role="tabpanel">
-                            <div class="chart-container text-center">
-                                <img src="/{{ analysis_data.summary_file }}" class="img-fluid rounded border chart-image">
-                            </div>
+                <!-- Chart Content Areas -->
+                <div class="chart-content">
+                    <!-- Analysis Chart Content -->
+                    <div id="analysis-chart" class="content-section active">
+                        <div class="chart-container text-center">
+                            <img src="/{{ analysis_data.summary_file }}" class="img-fluid rounded border chart-image" alt="Analysis Chart">
                         </div>
-                        <div class="tab-pane fade" id="payoff" role="tabpanel">
-                            <div class="chart-container text-center">
-                                <img src="/{{ analysis_data.payoff_file }}" class="img-fluid rounded border chart-image">
-                            </div>
+                    </div>
+                    
+                    <!-- Payoff Chart Content -->
+                    <div id="payoff-chart" class="content-section">
+                        <div class="chart-container text-center">
+                            <img src="/{{ analysis_data.payoff_file }}" class="img-fluid rounded border chart-image" alt="Payoff Chart">
                         </div>
-                        <div class="tab-pane fade" id="table" role="tabpanel">
-                            <div class="table-container">
-                                {{ analysis_data.display_df_html|safe }}
-                            </div>
+                    </div>
+                    
+                    <!-- Data Table Content -->
+                    <div id="data-table" class="content-section">
+                        <div class="table-container">
+                            {{ analysis_data.display_df_html|safe }}
                         </div>
                     </div>
                 </div>
@@ -391,91 +383,44 @@
 </div>
 
 <style>
-/* Custom Chart Button Styles */
-.custom-nav-pills {
-    gap: 0.75rem;
-}
-
-.custom-nav-pills .nav-link.chart-btn {
-    background: #f8fafc;
-    border: 2px solid #e2e8f0;
-    border-radius: 12px;
-    padding: 1rem 1.25rem;
-    margin: 0;
-    display: flex;
-    align-items: center;
-    text-decoration: none;
+/* Chart Navigation Buttons */
+.chart-nav-btn {
+    text-decoration: none !important;
     transition: all 0.3s ease;
-    min-width: 140px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-    flex: 1;
-    max-width: 200px;
-    color: #475569;
-}
-
-.custom-nav-pills .nav-link.chart-btn:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-    border-color: #cbd5e1;
-    background: #f1f5f9;
-    color: #334155;
-}
-
-.custom-nav-pills .nav-link.chart-btn.active {
-    background: #ffffff;
-    border-color: #3b82f6;
-    color: #3b82f6;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
-}
-
-.btn-icon {
-    margin-right: 10px;
-    font-size: 1.25rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 32px;
-    height: 32px;
-    background: rgba(148, 163, 184, 0.1);
     border-radius: 8px;
-    color: #64748b;
-    transition: all 0.3s ease;
-    flex-shrink: 0;
+    font-weight: 500;
 }
 
-.custom-nav-pills .nav-link.chart-btn.active .btn-icon {
-    background: rgba(59, 130, 246, 0.1);
-    color: #3b82f6;
+.chart-nav-btn:hover {
+    background-color: #f8f9fa;
+    border-color: #007bff;
+    text-decoration: none;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 123, 255, 0.1);
 }
 
-.btn-content {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    text-align: left;
-    flex: 1;
+.chart-nav-btn.active {
+    background-color: #007bff;
+    color: white !important;
+    border-color: #007bff;
 }
 
-.btn-title {
-    font-weight: 600;
-    font-size: 0.875rem;
-    line-height: 1.2;
-    margin-bottom: 2px;
+/* Content Sections */
+.content-section {
+    display: none;
 }
 
-.btn-subtitle {
-    font-size: 0.75rem;
-    opacity: 0.7;
-    font-weight: 400;
+.content-section.active {
+    display: block;
 }
 
-.chart-wrapper {
+.chart-container {
     background: white;
     border-radius: 16px;
     padding: 1.5rem;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
     border: 1px solid #e2e8f0;
+    margin-top: 1.5rem;
 }
 
 .chart-image {
@@ -491,20 +436,33 @@
     padding: 1.5rem;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
     border: 1px solid #e2e8f0;
+    margin-top: 1.5rem;
 }
 
-/* Mobile Responsive */
-@media (max-width: 768px) {
-    .custom-nav-pills {
-        flex-direction: column;
-        gap: 0.5rem;
-    }
-    
-    .custom-nav-pills .nav-link.chart-btn {
-        margin: 0;
-        min-width: 100%;
-        max-width: none;
-        justify-content: flex-start;
+/* Action Buttons Enhanced */
+.action-btn {
+    font-weight: 600;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+    border-width: 2px;
+}
+
+.action-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.action-btn.btn-success {
+    background: linear-gradient(135deg, #10b981, #059669);
+    border-color: #10b981;
+    color: white;
+}
+
+.action-btn.btn-success:hover {
+    background: linear-gradient(135deg, #059669, #047857);
+    border-color: #059669;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
         padding: 0.875rem 1rem;
     }
     

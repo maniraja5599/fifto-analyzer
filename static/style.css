@@ -1592,3 +1592,189 @@ body {
     color: #991b1b;
     border: 1px solid #fca5a5;
 }
+
+/* Enhanced Supply/Demand Zone Styling */
+.pulse-animation {
+    animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0.8;
+        transform: scale(1.05);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/* Enhanced Alert Styling for Zones */
+.alert-success {
+    border-radius: 12px !important;
+    box-shadow: 0 4px 6px -1px rgba(34, 197, 94, 0.1), 0 2px 4px -1px rgba(34, 197, 94, 0.06) !important;
+    transition: all 0.3s ease;
+}
+
+.alert-success:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 15px -3px rgba(34, 197, 94, 0.2), 0 4px 6px -2px rgba(34, 197, 94, 0.1) !important;
+}
+
+.alert-danger {
+    border-radius: 12px !important;
+    box-shadow: 0 4px 6px -1px rgba(239, 68, 68, 0.1), 0 2px 4px -1px rgba(239, 68, 68, 0.06) !important;
+    transition: all 0.3s ease;
+}
+
+.alert-danger:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 15px -3px rgba(239, 68, 68, 0.2), 0 4px 6px -2px rgba(239, 68, 68, 0.1) !important;
+}
+
+/* Enhanced Button Styling */
+.btn-lg {
+    border-radius: 10px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    text-transform: none;
+    letter-spacing: 0.5px;
+}
+
+.btn-lg:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+}
+
+.btn-success:hover {
+    background-color: #16a34a;
+    border-color: #16a34a;
+}
+
+.btn-outline-secondary:hover {
+    background-color: #6b7280;
+    border-color: #6b7280;
+    color: white;
+}
+
+.btn-outline-info:hover {
+    background-color: #0ea5e9;
+    border-color: #0ea5e9;
+    color: white;
+}
+
+/* Zone Badge Animation */
+.badge.pulse-animation {
+    animation: badgePulse 1.5s ease-in-out infinite;
+}
+
+@keyframes badgePulse {
+    0%, 100% {
+        opacity: 1;
+        box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.4);
+    }
+    50% {
+        opacity: 0.9;
+        box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.1);
+    }
+}
+
+/* Enhanced Action Buttons - Larger Size */
+.card-header .btn {
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
+    font-weight: 600;
+    border-radius: 10px;
+    transition: all 0.3s ease;
+    text-transform: none;
+    letter-spacing: 0.5px;
+    min-width: 140px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.card-header .btn i {
+    font-size: 1.1rem;
+    margin-right: 0.5rem;
+}
+
+.card-header .btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+}
+
+.card-header .btn-success:hover {
+    background-color: #16a34a;
+    border-color: #16a34a;
+    box-shadow: 0 8px 16px rgba(22, 163, 74, 0.3);
+}
+
+.card-header .btn-outline-secondary:hover {
+    background-color: #6b7280;
+    border-color: #6b7280;
+    color: white;
+    box-shadow: 0 8px 16px rgba(107, 114, 128, 0.3);
+}
+
+.card-header .btn-outline-info:hover {
+    background-color: #0ea5e9;
+    border-color: #0ea5e9;
+    color: white;
+    box-shadow: 0 8px 16px rgba(14, 165, 233, 0.3);
+}
+
+/* Chart Navigation Buttons in Header */
+.card-header .btn-outline-primary {
+    border-color: #3b82f6;
+    color: #3b82f6;
+    background: transparent;
+    min-width: auto;
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+}
+
+.card-header .btn-outline-primary:hover {
+    background-color: #3b82f6;
+    border-color: #3b82f6;
+    color: white;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.card-header .btn-outline-primary.active {
+    background-color: #3b82f6;
+    border-color: #3b82f6;
+    color: white;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+}
+
+/* Responsive button adjustments */
+@media (max-width: 768px) {
+    .card-header .btn {
+        min-width: 120px;
+        font-size: 0.9rem;
+        padding: 0.6rem 1.2rem;
+    }
+    
+    .card-header .btn-outline-primary {
+        font-size: 0.8rem;
+        padding: 0.4rem 0.8rem;
+        min-width: auto;
+    }
+}
+
+@media (max-width: 480px) {
+    .card-header .btn {
+        min-width: 100%;
+        margin-bottom: 0.5rem;
+    }
+    
+    .card-header .btn-outline-primary {
+        min-width: auto;
+        flex: 1;
+    }
+}
