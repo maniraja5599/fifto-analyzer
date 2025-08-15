@@ -235,8 +235,60 @@ function editSchedule(scheduleId) {
     document.getElementById('scheduleModalTitle').textContent = 'Edit Schedule';
     document.getElementById('formAction').value = 'update';
     document.getElementById('scheduleId').value = scheduleId;
-    // TODO: Load existing data
-    new bootstrap.Modal(document.getElementById('scheduleModal')).show();
+    
+    // Load existing schedule data
+    const formData = new FormData();
+    formData.append('action', 'get_schedule');
+    formData.append('schedule_id', scheduleId);
+    formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+    
+    fetch('{% url "automation" %}', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success && data.schedule) {
+            const schedule = data.schedule;
+            
+            // Populate form fields
+            document.getElementById('scheduleName').value = schedule.name || '';
+            document.getElementById('scheduleTime').value = schedule.time || '09:20';
+            document.getElementById('scheduleEnabled').checked = schedule.enabled || false;
+            
+            // Set NIFTY calculation type
+            const niftyCalcType = document.getElementById('niftyCalcType');
+            if (niftyCalcType && schedule.nifty_calc_type) {
+                niftyCalcType.value = schedule.nifty_calc_type;
+            }
+            
+            // Set BANKNIFTY calculation type
+            const bankniftyCalcType = document.getElementById('bankniftyCalcType');
+            if (bankniftyCalcType && schedule.banknifty_calc_type) {
+                bankniftyCalcType.value = schedule.banknifty_calc_type;
+            }
+            
+            // Set instruments checkboxes
+            const niftyCheckbox = document.getElementById('instNifty');
+            const bankniftyCheckbox = document.getElementById('instBankNifty');
+            
+            if (niftyCheckbox) {
+                niftyCheckbox.checked = schedule.instruments && schedule.instruments.includes('NIFTY');
+            }
+            if (bankniftyCheckbox) {
+                bankniftyCheckbox.checked = schedule.instruments && schedule.instruments.includes('BANKNIFTY');
+            }
+            
+            // Show the modal
+            new bootstrap.Modal(document.getElementById('scheduleModal')).show();
+        } else {
+            alert('Error loading schedule data: ' + (data.message || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        console.error('Error loading schedule data:', error);
+        alert('Network error while loading schedule data');
+    });
 }
 
 function saveSchedule() {
