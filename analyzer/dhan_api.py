@@ -362,11 +362,9 @@ class DhanHQIntegration:
             # Prepare request according to DhanHQ API v2 documentation
             # Based on: https://dhanhq.co/docs/v2/historical-data/#daily-historical-data
             request_body = {
-                "securityId": str(symbol_data['security_id']),  # Must be string according to docs
+                "securityId": symbol_data['security_id'],  # Use integer, not string
                 "exchangeSegment": symbol_data['exchange'],
-                "instrument": symbol_data.get('instrument', 'INDEX'),  # Required field
-                "expiryCode": 0,  # Required for all instruments
-                "oi": False,  # Boolean for open interest data
+                "instrument": "INDEX",  # Fixed to INDEX for NIFTY
                 "fromDate": start_date.strftime('%Y-%m-%d'),
                 "toDate": end_date.strftime('%Y-%m-%d')
             }
