@@ -1693,6 +1693,9 @@ def add_to_analysis(analysis_data):
     for i, entry in enumerate(analysis_data['df_data']):
         print(f"\n🔄 Processing entry {i+1}: {entry}")
         
+        # Debug: Show all available keys in entry
+        print(f"🔍 Available keys in entry: {list(entry.keys())}")
+        
         # Check if the entry has the required fields
         if 'Entry' not in entry:
             print(f"❌ Missing 'Entry' field in entry: {entry}")
@@ -1733,6 +1736,46 @@ def add_to_analysis(analysis_data):
             "target_amount": entry.get('Target', 0), 
             "stoploss_amount": entry.get('Stoploss', 0)
         }
+        
+        # Try to add hedge information from multiple possible column formats
+        # Format 1: Individual columns (CE Hedge Strike, CE Hedge Premium, etc.) - from debug logs
+        ce_hedge_strike = entry.get('CE Hedge Strike', 0)
+        ce_hedge_price = entry.get('CE Hedge Premium', 0)
+        pe_hedge_strike = entry.get('PE Hedge Strike', 0)
+        pe_hedge_price = entry.get('PE Hedge Premium', 0)
+        hedge_cost = entry.get('Hedge Cost', 0)
+        
+        # Format 2: Combined columns (CE Hedge, PE Hedge with format "strike@₹price")
+        if not ce_hedge_strike and 'CE Hedge' in entry:
+            ce_hedge_data = entry.get('CE Hedge', '')
+            if ce_hedge_data and ce_hedge_data != 'N/A' and '@' in str(ce_hedge_data):
+                try:
+                    # Parse format like "25000@₹12.5"
+                    parts = str(ce_hedge_data).split('@')
+                    ce_hedge_strike = float(parts[0])
+                    ce_hedge_price = float(parts[1].replace('₹', ''))
+                except (ValueError, IndexError):
+                    pass
+                    
+        if not pe_hedge_strike and 'PE Hedge' in entry:
+            pe_hedge_data = entry.get('PE Hedge', '')
+            if pe_hedge_data and pe_hedge_data != 'N/A' and '@' in str(pe_hedge_data):
+                try:
+                    # Parse format like "24650@₹20.5"
+                    parts = str(pe_hedge_data).split('@')
+                    pe_hedge_strike = float(parts[0])
+                    pe_hedge_price = float(parts[1].replace('₹', ''))
+                except (ValueError, IndexError):
+                    pass
+        
+        # Add hedge fields to trade
+        new_trade.update({
+            "ce_hedge_strike": ce_hedge_strike,
+            "ce_hedge_price": ce_hedge_price,
+            "pe_hedge_strike": pe_hedge_strike,
+            "pe_hedge_price": pe_hedge_price,
+            "hedge_cost": hedge_cost
+        })
         
         print(f"✅ Adding trade: {new_trade}")
         trades.append(new_trade)

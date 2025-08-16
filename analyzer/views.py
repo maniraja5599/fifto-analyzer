@@ -411,11 +411,15 @@ def trades_list(request):
             utils.send_telegram_message(f"📝 Manual Close: Trade {trade_id} closed with P&L ₹{current_pnl:.2f}")
             messages.success(request, f'Trade {trade_id} closed with P&L ₹{current_pnl:.2f}.')
             return redirect('trades_list')
-            messages.success(request, f'Trade {trade_id} closed successfully with P&L ₹{current_pnl:.2f}.')
-            return redirect('trades_list')
             
         elif action == 'delete_multiple':
+            # Handle both parameter names for backward compatibility
             trade_ids = request.POST.getlist('selected_trades')
+            if not trade_ids:
+                # Try the alternate parameter name
+                trade_ids_str = request.POST.get('trade_ids', '')
+                trade_ids = [tid.strip() for tid in trade_ids_str.split(',') if tid.strip()]
+            
             original_count = len(trades)
             trades = [t for t in trades if t['id'] not in trade_ids]
             deleted_count = original_count - len(trades)
@@ -426,7 +430,13 @@ def trades_list(request):
             return redirect('trades_list')
             
         elif action == 'close_multiple':
+            # Handle both parameter names for backward compatibility
             trade_ids = request.POST.getlist('selected_trades')
+            if not trade_ids:
+                # Try the alternate parameter name
+                trade_ids_str = request.POST.get('trade_ids', '')
+                trade_ids = [tid.strip() for tid in trade_ids_str.split(',') if tid.strip()]
+            
             closed_count = 0
             total_pnl = 0
             for trade in trades:

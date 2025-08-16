@@ -171,6 +171,7 @@
                             <th class="fw-bold">Strategy</th>
                             <th class="fw-bold">Expiry</th>
                             <th class="fw-bold">Strikes</th>
+                            <th class="fw-bold">Hedge Strikes</th>
                             <th class="fw-bold">Premium</th>
                             <th class="fw-bold">Final P&L</th>
                             <th class="fw-bold">Status</th>
@@ -194,6 +195,20 @@
                                 <small class="text-muted">
                                     CE: {{ trade.ce_strike }}<br>
                                     PE: {{ trade.pe_strike }}
+                                </small>
+                            </td>
+                            <td>
+                                <small class="text-muted">
+                                    {% if trade.ce_hedge_strike and trade.ce_hedge_strike != 0 %}
+                                        CE: {{ trade.ce_hedge_strike }}@₹{{ trade.ce_hedge_price|floatformat:1 }}<br>
+                                    {% else %}
+                                        CE: N/A<br>
+                                    {% endif %}
+                                    {% if trade.pe_hedge_strike and trade.pe_hedge_strike != 0 %}
+                                        PE: {{ trade.pe_hedge_strike }}@₹{{ trade.pe_hedge_price|floatformat:1 }}
+                                    {% else %}
+                                        PE: N/A
+                                    {% endif %}
                                 </small>
                             </td>
                             <td class="fw-bold">₹{{ trade.initial_premium|floatformat:2 }}</td>

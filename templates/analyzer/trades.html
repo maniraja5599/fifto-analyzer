@@ -160,6 +160,7 @@
                                 <th class="sticky-top">Instrument</th>
                                 <th class="sticky-top">Expiry</th>
                                 <th class="sticky-top">Strikes</th>
+                                <th class="sticky-top">Hedge Strikes</th>
                                 <th class="sticky-top">Premium</th>
                                 <th class="sticky-top">P&L Status</th>
                                 <th class="sticky-top">Targets</th>
@@ -189,6 +190,20 @@
                                     <div class="strikes-display">
                                         <span class="badge bg-success me-1">CE: {{ trade.ce_strike }}</span>
                                         <span class="badge bg-warning text-dark">PE: {{ trade.pe_strike }}</span>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="hedge-strikes-display">
+                                        {% if trade.ce_hedge_strike and trade.ce_hedge_strike != 0 %}
+                                            <span class="badge bg-secondary me-1 small">CE: {{ trade.ce_hedge_strike }}@₹{{ trade.ce_hedge_price|floatformat:1 }}</span>
+                                        {% else %}
+                                            <span class="badge bg-light text-muted small">CE: N/A</span>
+                                        {% endif %}
+                                        {% if trade.pe_hedge_strike and trade.pe_hedge_strike != 0 %}
+                                            <span class="badge bg-secondary text-white small">PE: {{ trade.pe_hedge_strike }}@₹{{ trade.pe_hedge_price|floatformat:1 }}</span>
+                                        {% else %}
+                                            <span class="badge bg-light text-muted small">PE: N/A</span>
+                                        {% endif %}
                                     </div>
                                 </td>
                                 <td>
