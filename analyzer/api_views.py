@@ -25,7 +25,7 @@ try:
     print("📊 YFinance service available - will use on-demand only")
 except ImportError:
     YFINANCE_AVAILABLE = False
-    print("⚠️ YFinance service not available, falling back to DhanHQ")
+    print("⚠️ YFinance service not available, using NSE fallback")
 
 @csrf_exempt
 @require_http_methods(["GET"])
@@ -190,7 +190,7 @@ def historical_data_api(request):
 @require_http_methods(["GET"])
 def enhanced_market_data_api(request):
     """
-    Enhanced API endpoint with multi-source market data (DhanHQ + NSE fallback)
+    Enhanced API endpoint with multi-source market data (NSE + yfinance)
     Supports source selection and testing
     """
     try:
@@ -403,7 +403,7 @@ def refresh_trades_data_api(request):
             if chain_data:
                 current_ce, current_pe = 0.0, 0.0
                 
-                # Handle DhanHQ data structure
+                # Handle NSE data structure
                 if 'data' in chain_data and 'oc' in chain_data['data']:
                     oc_data = chain_data['data']['oc']
                     for strike_str, strike_data in oc_data.items():

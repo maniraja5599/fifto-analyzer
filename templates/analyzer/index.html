@@ -89,6 +89,38 @@
                         </div>
                     </div>
 
+                    <!-- Target/StopLoss and Hedge Configuration Section -->
+                    <div class="row g-4 mb-4">
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">
+                                <i class="bi bi-percent me-2 text-primary"></i>Target/StopLoss %
+                            </label>
+                            <div class="input-group">
+                                <input type="number" name="coefficient" class="form-control" value="85" min="50" max="100" step="5">
+                                <span class="input-group-text">%</span>
+                            </div>
+                            <small class="text-muted">Percentage of premium for Target/StopLoss calculation (Default: 85%)</small>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">
+                                <i class="bi bi-shield-check me-2 text-success"></i>Hedge Buying %
+                            </label>
+                            <div class="input-group">
+                                <input type="number" name="hedge_percentage" class="form-control" value="10" min="5" max="30" step="1">
+                                <span class="input-group-text">%</span>
+                            </div>
+                            <small class="text-muted">Percentage of premium for hedge strike selection (Default: 10%)</small>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="alert alert-info border-0 mb-0">
+                                <i class="bi bi-info-circle me-2"></i>
+                                <strong>Strategy Info:</strong><br>
+                                Target/SL: 80-90% recommended<br>
+                                Hedge: 10% finds nearby protection strikes
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Generate Button Section with Cache Management -->
                     <div class="row align-items-center">
                         <div class="col-md-8 text-center text-md-start">

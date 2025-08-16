@@ -3,7 +3,7 @@ NSE Data Module - Alternative Data Source for NIFTY and BANKNIFTY
 ================================================================
 
 This module provides NSE as an alternative data source for fetching 
-NIFTY and BANKNIFTY prices when DhanHQ API is unavailable or as backup.
+NIFTY and BANKNIFTY prices with NSE option chain integration.
 
 Features:
 - Real-time index prices from NSE

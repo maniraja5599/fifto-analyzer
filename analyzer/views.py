@@ -111,15 +111,19 @@ def generate_and_show_analysis(request):
         instrument = request.POST.get('instrument')
         calc_type = request.POST.get('calc_type')
         expiry = request.POST.get('expiry')
+        coefficient = float(request.POST.get('coefficient', 85)) / 100  # Convert percentage to decimal
+        hedge_percentage = float(request.POST.get('hedge_percentage', 10))  # Default 10% hedge
         
         debug_log(f"Form data received:")
         debug_log(f"  Instrument: {instrument}")
         debug_log(f"  Calculation Type: {calc_type}")
         debug_log(f"  Expiry: {expiry}")
+        debug_log(f"  Coefficient: {coefficient}")
+        debug_log(f"  Hedge Percentage: {hedge_percentage}%")
         
         try:
             debug_log("Calling utils.generate_analysis()...")
-            analysis_data, status = utils.generate_analysis(instrument, calc_type, expiry)
+            analysis_data, status = utils.generate_analysis(instrument, calc_type, expiry, coefficient, hedge_percentage)
             debug_log(f"Analysis result: {type(analysis_data)}, Status: {status}")
             
             if analysis_data:
