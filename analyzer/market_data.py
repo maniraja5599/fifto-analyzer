@@ -1,219 +1,190 @@
 """
-Market Data Module - Enhanced DhanHQ API Integration v2.0
-========================================================
-
-Real-time market data using DhanHQ API v2 with:
-- Correct security IDs and exchange mappings
-- Proper error handling and fallback mechanisms
-- Rate limiting compliance (1 request/second)
-- OHLC data support for better accuracy
-
-Deprecated: use market_data_v2.get_market_data instead. This file retained for backwards compatibility.
+Market Data Module - NSE Data Only
+Provides current market prices and historical data for Indian indices
 """
-import pandas as pd
-from datetime import datetime, timedelta
+import yfinance as yf
+import requests
 import logging
 import time
 from django.conf import settings
-from .dhan_api import DhanHQIntegration
 
 logger = logging.getLogger(__name__)
 
-# DhanHQ symbol mappings
+# NSE symbol mappings
 MARKET_SYMBOLS = {
-    'NIFTY': {'security_id': '13', 'exchange': 'IDX_I'},
-    'BANKNIFTY': {'security_id': '25', 'exchange': 'IDX_I'},
-    'SENSEX': {'security_id': '1', 'exchange': 'IDX_I'},
-    'VIX': {'security_id': '12', 'exchange': 'IDX_I'}
+    'NIFTY': '^NSEI',
+    'BANKNIFTY': '^NSEBANK',
+    'SENSEX': '^BSESN',
+    'VIX': '^INDIAVIX'
 }
 
 def get_market_data():
     """
-    Fetch current market data for major Indian indices using DhanHQ API
+    Fetch current market data for major Indian indices using yfinance
     Returns a dictionary with current prices and changes
     """
     market_data = {}
     
-    # Initialize DhanHQ API if enabled
-    dhan_api = None
-    if getattr(settings, 'USE_DHAN_API', False):
-        try:
-            dhan_api = DhanHQIntegration()
-        except Exception as e:
-            logger.error(f"Failed to initialize DhanHQ API: {str(e)}")
-    
     try:
-        for i, (name, symbol_info) in enumerate(MARKET_SYMBOLS.items()):
+        for name, yahoo_symbol in MARKET_SYMBOLS.items():
             try:
-                current_data = None
+                # Add small delay between requests
+                if name != 'NIFTY':
+                    time.sleep(0.5)
                 
-                # Add rate limiting delay between requests (except for first request)
-                if i > 0 and dhan_api:
-                    time.sleep(1.2)  # 1.2 seconds delay to stay under 1 req/sec limit
+                # Get current price using yfinance
+                ticker = yf.Ticker(yahoo_symbol)
+                info = ticker.info
+                hist = ticker.history(period="2d")
                 
-                # Try DhanHQ API first
-                if dhan_api:
-                    try:
-                        security_id = int(symbol_info['security_id'])
-                        exchange = symbol_info['exchange']
-                        
-                        # Get current price from DhanHQ
-                        price_data = dhan_api.get_current_price(name)
-                        
-                        if price_data:
-                            current_price = float(price_data)
-                            # For now, use a simple calculation for previous close
-                            # In a real scenario, you'd get this from historical data
-                            prev_close = current_price * 0.999  # Assume 0.1% change for demo
-                            
-                            # Calculate change
-                            change = current_price - prev_close
-                            change_percent = (change / prev_close) * 100 if prev_close != 0 else 0
-                            
-                            current_data = {
-                                'price': round(current_price, 2),
-                                'change': round(change, 2),
-                                'change_percent': round(change_percent, 2),
-                                'previous_close': round(prev_close, 2),
-                                'status': 'positive' if change >= 0 else 'negative',
-                                'last_updated': datetime.now().strftime('%I:%M:%S %p'),
-                                'source': 'DhanHQ'
-                            }
-                            
-                    except Exception as e:
-                        logger.error(f"DhanHQ API error for {name}: {str(e)}")
-                
-                # If DhanHQ failed or not available, use fallback
-                if not current_data:
-                    current_data = get_fallback_data(name)
-                
-                market_data[name] = current_data
+                if not hist.empty and len(hist) >= 1:
+                    current_price = hist['Close'].iloc[-1]
+                    
+                    # Calculate change if we have at least 2 days of data
+                    if len(hist) >= 2:
+                        previous_close = hist['Close'].iloc[-2]
+                        change = current_price - previous_close
+                        change_percent = (change / previous_close) * 100
+                    else:
+                        change = 0
+                        change_percent = 0
+                    
+                    market_data[name] = {
+                        'current_price': round(current_price, 2),
+                        'change': round(change, 2),
+                        'change_percent': round(change_percent, 2),
+                        'symbol': yahoo_symbol,
+                        'source': 'yfinance'
+                    }
+                    
+                    logger.info(f"✅ {name}: ₹{current_price:.2f} ({change:+.2f}, {change_percent:+.2f}%)")
+                else:
+                    logger.warning(f"⚠️ No price data available for {name}")
                     
             except Exception as e:
-                logger.error(f"Error fetching data for {name}: {str(e)}")
-                market_data[name] = get_fallback_data(name)
+                logger.error(f"❌ Error fetching data for {name}: {str(e)}")
+                # Add fallback data to prevent UI errors
+                market_data[name] = {
+                    'current_price': 0,
+                    'change': 0,
+                    'change_percent': 0,
+                    'symbol': yahoo_symbol,
+                    'source': 'fallback',
+                    'error': str(e)
+                }
                 
     except Exception as e:
-        logger.error(f"General error in market data fetch: {str(e)}")
-        # Return fallback data for all indices
-        for name in MARKET_SYMBOLS.keys():
-            market_data[name] = get_fallback_data(name)
+        logger.error(f"❌ Error in market data fetch: {str(e)}")
     
     return market_data
 
-def get_fallback_data(name):
-    """
-    Provide fallback data when DhanHQ API fails
-    """
-    fallback_data = {
-        'NIFTY': {'price': 24500.00, 'change': 125.50, 'change_percent': 0.51},
-        'BANKNIFTY': {'price': 51200.00, 'change': -80.25, 'change_percent': -0.16},
-        'SENSEX': {'price': 80500.00, 'change': 200.75, 'change_percent': 0.25},
-        'VIX': {'price': 13.45, 'change': 0.25, 'change_percent': 1.89}
-    }
-    
-    data = fallback_data.get(name, {'price': 0, 'change': 0, 'change_percent': 0})
-    
-    return {
-        'price': data['price'],
-        'change': data['change'],
-        'change_percent': data['change_percent'],
-        'previous_close': data['price'] - data['change'],
-        'status': 'positive' if data['change'] >= 0 else 'negative',
-        'last_updated': datetime.now().strftime('%I:%M:%S %p'),
-        'is_fallback': True,
-        'source': 'Fallback'
-    }
-
-def get_intraday_data(symbol_name, period="1d", interval="5m"):
-    """
-    Get intraday data for charts using DhanHQ API
-    """
-    try:
-        # Initialize DhanHQ API if enabled
-        if getattr(settings, 'USE_DHAN_API', False):
-            try:
-                dhan_api = DhanHQIntegration()
-                
-                # Get historical data from DhanHQ
-                # For now, use a simple price point as DhanHQ historical data needs specific date ranges
-                current_data = dhan_api.get_current_price(symbol_name.upper())
-                
-                if current_data and 'price' in current_data:
-                    # Generate simple chart data based on current price
-                    # This is a simplified approach - in production you'd use proper historical API
-                    chart_data = []
-                    base_price = current_data['price']
-                    now = datetime.now()
-                    
-                    # Generate 12 data points (last hour in 5-minute intervals)
-                    for i in range(12):
-                        timestamp = now - timedelta(minutes=i*5)
-                        # Add some minor variation around current price (±0.5%)
-                        import random
-                        variation = random.uniform(-0.005, 0.005)
-                        price = base_price * (1 + variation)
-                        
-                        chart_data.append({
-                            'timestamp': timestamp.strftime('%I:%M %p'),
-                            'price': round(price, 2),
-                            'volume': random.randint(100000, 500000)
-                        })
-                    
-                    return list(reversed(chart_data))  # Reverse to show chronological order
-                    
-            except Exception as e:
-                logger.error(f"Error fetching DhanHQ intraday data for {symbol_name}: {str(e)}")
-        
-    except Exception as e:
-        logger.error(f"Error fetching intraday data for {symbol_name}: {str(e)}")
-    
-    return None
-
 def get_market_status():
     """
-    Determine if Indian markets are open
+    Get Indian market status (Open/Closed) based on time
     """
-    now = datetime.now()
+    from datetime import datetime, time as dt_time
+    import pytz
     
-    # Check if it's a weekday (Monday = 0, Sunday = 6)
-    if now.weekday() >= 5:  # Saturday or Sunday
+    try:
+        # Indian market hours: 9:15 AM to 3:30 PM IST, Monday to Friday
+        ist = pytz.timezone('Asia/Kolkata')
+        now = datetime.now(ist)
+        
+        # Check if it's a weekday
+        if now.weekday() >= 5:  # Saturday = 5, Sunday = 6
+            return {
+                'status': 'Closed',
+                'reason': 'Weekend',
+                'next_open': 'Monday 9:15 AM IST'
+            }
+        
+        # Market hours
+        market_open = dt_time(9, 15)  # 9:15 AM
+        market_close = dt_time(15, 30)  # 3:30 PM
+        current_time = now.time()
+        
+        if market_open <= current_time <= market_close:
+            return {
+                'status': 'Open',
+                'current_time': now.strftime('%H:%M:%S IST'),
+                'closes_at': '15:30 IST'
+            }
+        else:
+            return {
+                'status': 'Closed',
+                'reason': 'After hours' if current_time > market_close else 'Before hours',
+                'next_open': 'Today 9:15 AM IST' if current_time < market_open else 'Tomorrow 9:15 AM IST'
+            }
+            
+    except Exception as e:
+        logger.error(f"❌ Error getting market status: {str(e)}")
         return {
-            'is_open': False,
-            'status': 'Closed - Weekend',
-            'next_open': 'Monday 09:15 AM'
-        }
-    
-    # Market hours: 9:15 AM to 3:30 PM IST
-    market_open = now.replace(hour=9, minute=15, second=0, microsecond=0)
-    market_close = now.replace(hour=15, minute=30, second=0, microsecond=0)
-    
-    if market_open <= now <= market_close:
-        return {
-            'is_open': True,
-            'status': 'Open',
-            'closes_at': '15:30'
-        }
-    elif now < market_open:
-        return {
-            'is_open': False,
-            'status': 'Pre-Market',
-            'opens_at': '09:15'
-        }
-    else:
-        return {
-            'is_open': False,
-            'status': 'Closed',
-            'next_open': 'Tomorrow 09:15 AM'
+            'status': 'Unknown',
+            'error': str(e)
         }
 
-def format_currency(amount):
-    """Format currency in Indian style"""
-    if amount >= 10000000:  # 1 crore
-        return f"₹{amount/10000000:.2f}Cr"
-    elif amount >= 100000:  # 1 lakh
-        return f"₹{amount/100000:.2f}L"
-    elif amount >= 1000:  # 1 thousand
-        return f"₹{amount/1000:.2f}K"
-    else:
-        return f"₹{amount:.2f}"
+def get_historical_data(symbol_name, period='1mo'):
+    """
+    Get historical data for a symbol using yfinance
+    """
+    try:
+        yahoo_symbol = MARKET_SYMBOLS.get(symbol_name.upper())
+        if not yahoo_symbol:
+            logger.error(f"Symbol {symbol_name} not found in mappings")
+            return None
+            
+        ticker = yf.Ticker(yahoo_symbol)
+        hist = ticker.history(period=period)
+        
+        if hist.empty:
+            logger.warning(f"No historical data for {symbol_name}")
+            return None
+            
+        # Convert to list of dictionaries for easier consumption
+        data = []
+        for index, row in hist.iterrows():
+            date_str = str(index)[:10]  # Get YYYY-MM-DD part
+            data.append({
+                'date': date_str,
+                'open': round(row['Open'], 2),
+                'high': round(row['High'], 2),
+                'low': round(row['Low'], 2),
+                'close': round(row['Close'], 2),
+                'volume': int(row['Volume']) if 'Volume' in row else 0
+            })
+            
+        logger.info(f"✅ Historical data for {symbol_name}: {len(data)} records")
+        return data
+        
+    except Exception as e:
+        logger.error(f"❌ Error getting historical data for {symbol_name}: {str(e)}")
+        return None
+
+def get_current_price(symbol_name):
+    """
+    Get current price for a symbol using yfinance
+    """
+    try:
+        yahoo_symbol = MARKET_SYMBOLS.get(symbol_name.upper())
+        if not yahoo_symbol:
+            logger.error(f"Symbol {symbol_name} not found in mappings")
+            return None
+            
+        ticker = yf.Ticker(yahoo_symbol)
+        hist = ticker.history(period="1d")
+        
+        if not hist.empty:
+            current_price = hist['Close'].iloc[-1]
+            logger.info(f"✅ Current price for {symbol_name}: ₹{current_price:.2f}")
+            return {
+                'price': round(current_price, 2),
+                'symbol': yahoo_symbol,
+                'source': 'yfinance'
+            }
+        else:
+            logger.warning(f"No current price data for {symbol_name}")
+            return None
+            
+    except Exception as e:
+        logger.error(f"❌ Error getting current price for {symbol_name}: {str(e)}")
+        return None

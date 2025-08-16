@@ -8,7 +8,7 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.conf import settings
-from .market_data import get_market_data, get_market_status  # uses unified dhan_api internally now
+from .market_data import get_market_data, get_market_status  # uses NSE data only
 from .historical_data import historical_fetcher
 
 # Import enhanced market data with NSE support
