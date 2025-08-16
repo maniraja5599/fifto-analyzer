@@ -11,17 +11,18 @@ from collections import defaultdict
 import numpy as np
 from django.conf import settings
 
-# DhanHQ Integration
-try:
-    from .dhan_api import dhan_api, get_dhan_price, get_dhan_historical, get_dhan_option_chain
-    DHAN_AVAILABLE = True
-    print("✅ DhanHQ API module loaded successfully")
-except ImportError as e:
-    print(f"⚠️  DhanHQ not available: {e}. Using fallback methods.")
-    DHAN_AVAILABLE = False
-
-# Fallback imports
+# Primary data sources - YFinance for chart analysis and zone calculations
 import yfinance as yf
+
+# NSE Data Integration for current prices only
+try:
+    from .nse_data import get_alternative_nse_data
+    from .nse_enhanced import get_enhanced_nse_data
+    NSE_AVAILABLE = True
+    print("✅ NSE data modules loaded successfully for current prices")
+except ImportError as e:
+    print(f"⚠️  NSE data modules not available: {e}. Using yfinance fallback.")
+    NSE_AVAILABLE = False
 
 # --- Configuration Paths ---
 BASE_DIR_USER = os.path.expanduser('~') # User's home directory for data files
@@ -782,106 +783,46 @@ def get_option_chain_expiry_dates_only(symbol):
 
 def _fetch_fresh_option_chain_data(symbol):
     """
-    Internal function to fetch fresh option chain data
+    Internal function to fetch fresh option chain data using NSE API only
     """
     try:
-        # Try DhanHQ first
-        if DHAN_AVAILABLE and getattr(settings, 'USE_DHAN_API', True):
-            print(f"🔄 Attempting DhanHQ option chain for {symbol}...")
-            dhan_data = get_dhan_option_chain(symbol)
-            if dhan_data and 'expiryDates' in dhan_data:
-                print(f"✅ DhanHQ option chain for {symbol}: {len(dhan_data['expiryDates'])} expiry dates")
-                return dhan_data
-            elif dhan_data:
-                print(f"⚠️  DhanHQ returned data but no expiry dates for {symbol}")
-                # Try to extract expiry dates from the data structure
-                expiry_dates = extract_expiry_dates_from_dhan_data(dhan_data, symbol)
-                if expiry_dates:
-                    dhan_data['expiryDates'] = expiry_dates
-                    print(f"✅ Extracted {len(expiry_dates)} expiry dates from DhanHQ data")
-                    return dhan_data
+        # Use NSE API only for option chain data
+        print(f"🔄 Fetching NSE option chain for {symbol}...")
+        session = requests.Session()
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+            'Accept': 'application/json, text/javascript, */*; q=0.01',
+            'Accept-Language': 'en-US,en;q=0.9'
+        }
+        api_url = f"https://www.nseindia.com/api/option-chain-indices?symbol={symbol}"
         
-        # Fallback to NSE API
-        print(f"🔄 Falling back to NSE API for {symbol}...")
-        if getattr(settings, 'FALLBACK_TO_NSE', True):
-            session = requests.Session()
-            headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
-                'Accept': 'application/json, text/javascript, */*; q=0.01',
-                'Accept-Language': 'en-US,en;q=0.9'
-            }
-            api_url = f"https://www.nseindia.com/api/option-chain-indices?symbol={symbol}"
-            
-            session.get(f"https://www.nseindia.com/get-quotes/derivatives?symbol={symbol}", headers=headers, timeout=15)
-            time.sleep(1)
-            response = session.get(api_url, headers=headers, timeout=15)
-            response.raise_for_status()
-            print(f"✅ NSE option chain fallback for {symbol}")
-            return response.json()
+        # Get a session cookie first
+        session.get(f"https://www.nseindia.com/get-quotes/derivatives?symbol={symbol}", headers=headers, timeout=15)
+        time.sleep(1)
+        
+        # Fetch option chain data
+        response = session.get(api_url, headers=headers, timeout=15)
+        response.raise_for_status()
+        
+        data = response.json()
+        print(f"✅ NSE option chain for {symbol} fetched successfully")
+        return data
             
     except requests.exceptions.RequestException as e:
-        print(f"❌ Error fetching option chain for {symbol}: {e}")
+        print(f"❌ Error fetching NSE option chain for {symbol}: {e}")
         return None
     except Exception as e:
-        print(f"❌ General error in fetch for {symbol}: {e}")
+        print(f"❌ General error in NSE fetch for {symbol}: {e}")
         return None
-
-def extract_expiry_dates_from_dhan_data(dhan_data, symbol):
-    """
-    Extract expiry dates from DhanHQ option chain response
-    """
-    try:
-        expiry_dates = []
-        
-        # Check if the response has expiry dates in the data structure
-        if 'data' in dhan_data:
-            data = dhan_data['data']
-            
-            # Look for expiry dates in various possible locations in the response
-            if isinstance(data, list):
-                # If data is a list, check each item for expiry information
-                for item in data:
-                    if isinstance(item, dict) and 'expiryDate' in item:
-                        expiry_date = item['expiryDate']
-                        if expiry_date not in expiry_dates:
-                            expiry_dates.append(expiry_date)
-            elif isinstance(data, dict):
-                # If data is a dict, look for expiry information
-                if 'expiryDates' in data:
-                    expiry_dates = data['expiryDates']
-                elif 'expiry' in data:
-                    expiry_dates = [data['expiry']]
-        
-        # If no expiry dates found, calculate them
-        if not expiry_dates:
-            print(f"⚠️  No expiry dates found in DhanHQ response, calculating fallback dates for {symbol}")
-            from datetime import datetime, timedelta
-            current_date = datetime.now()
-            
-            # Generate next 4 weekly expiries (Thursdays)
-            for i in range(4):
-                days_ahead = (3 - current_date.weekday()) % 7  # Thursday is 3
-                if days_ahead == 0 and current_date.hour > 15:
-                    days_ahead = 7
-                
-                next_thursday = current_date + timedelta(days=days_ahead + (i * 7))
-                expiry_date = next_thursday.strftime('%d-%b-%Y')
-                expiry_dates.append(expiry_date)
-        
-        return expiry_dates[:10]  # Return first 10 expiry dates
-        
-    except Exception as e:
-        print(f"❌ Error extracting expiry dates from DhanHQ data: {e}")
-        return []
 
 def get_fallback_expiry_data(symbol):
     """
-    Generate fallback expiry dates when both DhanHQ and NSE fail
+    Generate simple fallback expiry dates when NSE fails
     """
     try:
         from datetime import datetime, timedelta
         
-        # Generate next 6 weekly expiries starting from next Thursday
+        # Generate next 4 weekly expiries (Thursdays)
         today = datetime.now().date()
         days_until_thursday = (3 - today.weekday()) % 7  # Thursday is weekday 3
         if days_until_thursday == 0:  # If today is Thursday, get next Thursday
@@ -890,47 +831,11 @@ def get_fallback_expiry_data(symbol):
         next_thursday = today + timedelta(days=days_until_thursday)
         
         expiries = []
-        for i in range(6):  # Next 6 weekly expiries
+        for i in range(4):  # Next 4 weekly expiries
             expiry_date = next_thursday + timedelta(weeks=i)
             expiries.append(expiry_date.strftime("%d-%b-%Y"))
         
-        # Add monthly expiry (last Thursday of current/next month)
-        import calendar
-        
-        # Current month last Thursday
-        year, month = today.year, today.month
-        last_day = calendar.monthrange(year, month)[1]
-        last_date = datetime(year, month, last_day).date()
-        
-        # Find last Thursday
-        while last_date.weekday() != 3:  # Thursday
-            last_date -= timedelta(days=1)
-            
-        if last_date > today:
-            monthly_expiry = last_date.strftime("%d-%b-%Y")
-            if monthly_expiry not in expiries:
-                expiries.append(monthly_expiry)
-        
-        # Next month last Thursday
-        if month == 12:
-            year, month = year + 1, 1
-        else:
-            month += 1
-            
-        last_day = calendar.monthrange(year, month)[1]
-        last_date = datetime(year, month, last_day).date()
-        
-        while last_date.weekday() != 3:  # Thursday
-            last_date -= timedelta(days=1)
-            
-        monthly_expiry = last_date.strftime("%d-%b-%Y")
-        if monthly_expiry not in expiries:
-            expiries.append(monthly_expiry)
-        
-        # Sort expiries
-        expiries.sort(key=lambda x: datetime.strptime(x, "%d-%b-%Y"))
-        
-        print(f"🔄 Using fallback expiry dates for {symbol}: {expiries[:3]}...")
+        print(f"🔄 Using fallback expiry dates for {symbol}: {expiries}")
         
         # Return in consistent format
         return {
@@ -941,7 +846,7 @@ def get_fallback_expiry_data(symbol):
             'records': {
                 'expiryDates': expiries,
                 'data': [],
-                'underlyingValue': get_current_market_price(symbol) or 24500  # Fallback price
+                'underlyingValue': get_current_market_price(symbol) or 24500
             }
         }
         
@@ -956,18 +861,7 @@ def get_fallback_expiry_data(symbol):
                 (datetime.now() + timedelta(days=28)).strftime("%d-%b-%Y")
             ],
             'symbol': symbol,
-            'source': 'ultimate_fallback',
-            'timestamp': datetime.now().isoformat(),
-            'records': {
-                'expiryDates': [
-                    (datetime.now() + timedelta(days=7)).strftime("%d-%b-%Y"),
-                    (datetime.now() + timedelta(days=14)).strftime("%d-%b-%Y"),
-                    (datetime.now() + timedelta(days=21)).strftime("%d-%b-%Y"),
-                    (datetime.now() + timedelta(days=28)).strftime("%d-%b-%Y")
-                ],
-                'data': [],
-                'underlyingValue': 24500
-            }
+            'source': 'ultimate_fallback'
         }
 
 # --- Local Data Caching Functions ---
@@ -1557,51 +1451,31 @@ def generate_analysis(instrument_name, calculation_type, selected_expiry_str):
     expiry_label = datetime.strptime(selected_expiry_str, '%d-%b-%Y').strftime("%d-%b")
     
     if option_chain_data:
-        # Extract real data from DhanHQ API
+        # Extract option data from NSE API structure
         ce_prices, pe_prices = {}, {}
         
-        # Get current price from the chain data
-        if 'data' in option_chain_data and 'last_price' in option_chain_data['data']:
-            current_price = option_chain_data['data']['last_price']
-            debug_log(f"📊 Updated current price from option chain: {current_price}")
+        # Get current price from the chain data  
+        if 'records' in option_chain_data and 'underlyingValue' in option_chain_data['records']:
+            current_price = option_chain_data['records']['underlyingValue']
+            debug_log(f"📊 Updated current price from NSE option chain: {current_price}")
         
         # Debug: Log the actual option chain data structure
-        debug_log(f"📊 Option chain data keys: {list(option_chain_data.keys()) if isinstance(option_chain_data, dict) else 'Not a dict'}")
-        if isinstance(option_chain_data, dict) and 'data' in option_chain_data:
-            debug_log(f"📊 Option chain data['data'] keys: {list(option_chain_data['data'].keys()) if isinstance(option_chain_data['data'], dict) else 'Not a dict'}")
+        debug_log(f"📊 NSE option chain data keys: {list(option_chain_data.keys()) if isinstance(option_chain_data, dict) else 'Not a dict'}")
+        if isinstance(option_chain_data, dict) and 'records' in option_chain_data:
+            debug_log(f"📊 NSE records keys: {list(option_chain_data['records'].keys()) if isinstance(option_chain_data['records'], dict) else 'Not a dict'}")
         
-        # Extract option data from DhanHQ structure
-        if 'data' in option_chain_data and 'oc' in option_chain_data['data']:
-            oc_data = option_chain_data['data']['oc']
-            debug_log(f"📊 Found DhanHQ structure with {len(oc_data)} strikes")
-            for strike_str, strike_data in oc_data.items():
-                try:
-                    strike_price = float(strike_str)
-                    
-                    # Extract CE (Call) data
-                    if 'ce' in strike_data and 'last_price' in strike_data['ce']:
-                        ce_prices[strike_price] = strike_data['ce']['last_price']
-                    
-                    # Extract PE (Put) data  
-                    if 'pe' in strike_data and 'last_price' in strike_data['pe']:
-                        pe_prices[strike_price] = strike_data['pe']['last_price']
-                        
-                except (ValueError, KeyError) as e:
-                    continue
-                    
-            debug_log(f"📊 DhanHQ API data - CE: {len(ce_prices)}, PE: {len(pe_prices)} strikes")
+        # Extract option data from NSE structure
+        if 'records' in option_chain_data and 'data' in option_chain_data['records']:
+            for item in option_chain_data['records']['data']:
+                if item.get("expiryDate") == selected_expiry_str:
+                    if item.get("CE"): 
+                        ce_prices[item['strikePrice']] = item["CE"]["lastPrice"]
+                    if item.get("PE"): 
+                        pe_prices[item['strikePrice']] = item["PE"]["lastPrice"]
+            debug_log(f"📊 NSE API data - CE: {len(ce_prices)}, PE: {len(pe_prices)} strikes")
         else:
-            debug_log("📊 DhanHQ structure not found, trying NSE structure...")
-            # Fallback: try old NSE structure if DhanHQ structure not found
-            if 'records' in option_chain_data and 'data' in option_chain_data['records']:
-                for item in option_chain_data['records']['data']:
-                    if item.get("expiryDate") == selected_expiry_str:
-                        if item.get("CE"): ce_prices[item['strikePrice']] = item["CE"]["lastPrice"]
-                        if item.get("PE"): pe_prices[item['strikePrice']] = item["PE"]["lastPrice"]
-                debug_log(f"📊 Fallback NSE data - CE: {len(ce_prices)}, PE: {len(pe_prices)} strikes")
-            else:
-                debug_log("📊 Neither DhanHQ nor NSE structure found in option chain data")
-                debug_log(f"📊 Available option chain data structure: {str(option_chain_data)[:500]}...")
+            debug_log("📊 NSE structure not found in option chain data")
+            debug_log(f"📊 Available option chain data structure: {str(option_chain_data)[:500]}...")
     
     # Zone-based strike selection (using supply/demand zones)
     if supply_zone is not None and demand_zone is not None:

@@ -279,27 +279,10 @@ def check_and_auto_close_trades(trades):
             if chain_data:
                 current_ce, current_pe = 0.0, 0.0
                 
-                # Handle DhanHQ data structure
-                if 'data' in chain_data and 'oc' in chain_data['data']:
-                    oc_data = chain_data['data']['oc']
-                    for strike_str, strike_data in oc_data.items():
-                        try:
-                            strike_price = float(strike_str)
-                            
-                            # Match CE (Call) data
-                            if strike_price == trade.get('ce_strike') and 'ce' in strike_data:
-                                current_ce = strike_data['ce'].get('last_price', 0.0)
-                            
-                            # Match PE (Put) data
-                            if strike_price == trade.get('pe_strike') and 'pe' in strike_data:
-                                current_pe = strike_data['pe'].get('last_price', 0.0)
-                                
-                        except (ValueError, KeyError):
-                            continue
-                
-                # Fallback: Try old NSE structure if DhanHQ structure not found
-                elif chain_data.get('records', {}).get('data'):
-                    for item in chain_data['records']['data']:
+                # Handle NSE data structure only
+                records = chain_data.get('records', {})
+                if records and 'data' in records and isinstance(records['data'], list):
+                    for item in records['data']:
                         if item.get("expiryDate") == trade.get('expiry'):
                             if item.get("strikePrice") == trade.get('ce_strike') and item.get("CE"):
                                 current_ce = item["CE"]["lastPrice"]
@@ -615,27 +598,10 @@ def trades_list(request):
         current_ce, current_pe = 0.0, 0.0
         
         if chain_data is not None:
-            # Handle DhanHQ data structure
-            if 'data' in chain_data and 'oc' in chain_data['data']:
-                oc_data = chain_data['data']['oc']
-                for strike_str, strike_data in oc_data.items():
-                    try:
-                        strike_price = float(strike_str)
-                        
-                        # Match CE (Call) data
-                        if strike_price == trade.get('ce_strike') and 'ce' in strike_data:
-                            current_ce = strike_data['ce'].get('last_price', 0.0)
-                        
-                        # Match PE (Put) data
-                        if strike_price == trade.get('pe_strike') and 'pe' in strike_data:
-                            current_pe = strike_data['pe'].get('last_price', 0.0)
-                            
-                    except (ValueError, KeyError):
-                        continue
-            
-            # Fallback: Try old NSE structure if DhanHQ structure not found
-            elif chain_data.get('records', {}).get('data'):
-                for item in chain_data['records']['data']:
+            # Handle NSE data structure only
+            records = chain_data.get('records', {})
+            if records and 'data' in records and isinstance(records['data'], list):
+                for item in records['data']:
                     if item.get("expiryDate") == trade.get('expiry'):
                         if item.get("strikePrice") == trade.get('ce_strike') and item.get("CE"):
                             current_ce = item["CE"]["lastPrice"]
@@ -1462,9 +1428,8 @@ def option_chain_view(request):
             print(f"💾 Using cached option chain data for {instrument} {expiry}")
             option_chain_data = cached_data
         else:
-            # Get fresh DhanHQ option chain data
-            from .dhan_api import get_dhan_option_chain
-            option_chain_data = get_dhan_option_chain(instrument)
+            # Get fresh NSE option chain data
+            option_chain_data = utils._fetch_fresh_option_chain_data(instrument)
             
             # Save to cache for future use
             if option_chain_data:

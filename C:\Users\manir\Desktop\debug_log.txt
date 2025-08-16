@@ -781,3 +781,563 @@
 [2025-08-15 10:16:21 PM] UTILS: Generated files: summary_fe5370390f6e4457a8e1b9905c3d8ae5.png, static/payoff_93c6a84c831d4eb1a668a47d4a28ddd3.png
 [2025-08-15 10:16:21 PM] Analysis result: <class 'dict'>, Status: ✅ Weekly analysis completed with supply/demand zones (Supply: ₹24608, Demand: ₹24135)
 [2025-08-15 10:16:21 PM] ✅ Analysis successful - data saved to session
+[2025-08-15 10:58:55 PM] === Generate Analysis View Called ===
+[2025-08-15 10:58:55 PM] Request method: POST
+[2025-08-15 10:58:55 PM] Form data received:
+[2025-08-15 10:58:55 PM]   Instrument: NIFTY
+[2025-08-15 10:58:55 PM]   Calculation Type: Weekly
+[2025-08-15 10:58:55 PM]   Expiry: 28-Aug-2025
+[2025-08-15 10:58:55 PM] Calling utils.generate_analysis()...
+[2025-08-15 10:58:55 PM] UTILS: === generate_analysis() called ===
+[2025-08-15 10:58:55 PM] UTILS: Parameters: instrument=NIFTY, calc_type=Weekly, expiry=28-Aug-2025
+[2025-08-15 10:58:55 PM] UTILS: Using ticker symbol: ^NSEI
+[2025-08-15 10:58:55 PM] UTILS: 📊 Calculating Weekly supply/demand zones...
+[2025-08-15 10:58:55 PM] UTILS: ✅ Zones calculated - Supply: ₹25050, Demand: ₹24200
+[2025-08-15 10:58:55 PM] OPTION_CHAIN: 📡 get_option_chain_data called for NIFTY - fetching fresh data
+[2025-08-15 10:58:57 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 10:58:57 PM] UTILS: ✅ Option chain fetch successful
+[2025-08-15 10:58:57 PM] UTILS: 📊 Updated current price from option chain: 24631.30078125
+[2025-08-15 10:58:57 PM] UTILS: 📊 Option chain data keys: ['data', 'status', 'expiryDates', 'symbol', 'underlying']
+[2025-08-15 10:58:57 PM] UTILS: 📊 Option chain data['data'] keys: ['last_price', 'oc']
+[2025-08-15 10:58:57 PM] UTILS: 📊 Found DhanHQ structure with 228 strikes
+[2025-08-15 10:58:57 PM] UTILS: 📊 DhanHQ API data - CE: 228, PE: 228 strikes
+[2025-08-15 10:58:57 PM] UTILS: 📊 Using zone-based strike selection
+[2025-08-15 10:58:57 PM] UTILS: 📊 Zone-based strikes:
+[2025-08-15 10:58:57 PM] UTILS:    CE strikes (from supply ₹25050): [25050, 25100, 25150]
+[2025-08-15 10:58:57 PM] UTILS:    PE strikes (from demand ₹24200): [24200, 24150.0, 24100.0]
+[2025-08-15 10:58:57 PM] UTILS: 📊 DataFrame created with shape: (3, 8)
+[2025-08-15 10:58:57 PM] UTILS: 📊 Display DataFrame: 
+         Entry  CE Strike  CE Price  PE Strike  PE Price Target/SL (1:1)
+0  High Reward      25050     24.55    24200.0      28.8           ₹3400
+1   Mid Reward      25100     19.60    24150.0      23.9           ₹2750
+2   Low Reward      25150     15.75    24100.0      20.5           ₹2300
+[2025-08-15 10:58:57 PM] UTILS: 📊 CE Prices found: 228 items
+[2025-08-15 10:58:57 PM] UTILS: 📊 PE Prices found: 228 items
+[2025-08-15 10:58:58 PM] UTILS: ✅ Analysis completed successfully for NIFTY
+[2025-08-15 10:58:58 PM] UTILS: Generated files: summary_22d8ecfcaf49483fa71db6cac661a9e0.png, static/payoff_a30f7e897c92426f8c2c19c3be9ff9e3.png
+[2025-08-15 10:58:58 PM] Analysis result: <class 'dict'>, Status: ✅ Weekly analysis completed with supply/demand zones (Supply: ₹25050, Demand: ₹24200)
+[2025-08-15 10:58:58 PM] ✅ Analysis successful - data saved to session
+[2025-08-15 10:59:13 PM] === Generate Analysis View Called ===
+[2025-08-15 10:59:13 PM] Request method: POST
+[2025-08-15 10:59:13 PM] Form data received:
+[2025-08-15 10:59:13 PM]   Instrument: NIFTY
+[2025-08-15 10:59:13 PM]   Calculation Type: Weekly
+[2025-08-15 10:59:13 PM]   Expiry: 21-Aug-2025
+[2025-08-15 10:59:13 PM] Calling utils.generate_analysis()...
+[2025-08-15 10:59:13 PM] UTILS: === generate_analysis() called ===
+[2025-08-15 10:59:13 PM] UTILS: Parameters: instrument=NIFTY, calc_type=Weekly, expiry=21-Aug-2025
+[2025-08-15 10:59:13 PM] UTILS: Using ticker symbol: ^NSEI
+[2025-08-15 10:59:13 PM] UTILS: 📊 Calculating Weekly supply/demand zones...
+[2025-08-15 10:59:13 PM] UTILS: ✅ Zones calculated - Supply: ₹25050, Demand: ₹24200
+[2025-08-15 10:59:13 PM] OPTION_CHAIN: 📡 get_option_chain_data called for NIFTY - fetching fresh data
+[2025-08-15 10:59:13 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 10:59:13 PM] UTILS: ✅ Option chain fetch successful
+[2025-08-15 10:59:13 PM] UTILS: 📊 Updated current price from option chain: 24631.30078125
+[2025-08-15 10:59:13 PM] UTILS: 📊 Option chain data keys: ['data', 'status', 'expiryDates', 'symbol', 'underlying']
+[2025-08-15 10:59:13 PM] UTILS: 📊 Option chain data['data'] keys: ['last_price', 'oc']
+[2025-08-15 10:59:13 PM] UTILS: 📊 Found DhanHQ structure with 228 strikes
+[2025-08-15 10:59:13 PM] UTILS: 📊 DhanHQ API data - CE: 228, PE: 228 strikes
+[2025-08-15 10:59:13 PM] UTILS: 📊 Using zone-based strike selection
+[2025-08-15 10:59:13 PM] UTILS: 📊 Zone-based strikes:
+[2025-08-15 10:59:13 PM] UTILS:    CE strikes (from supply ₹25050): [25050, 25100, 25150]
+[2025-08-15 10:59:13 PM] UTILS:    PE strikes (from demand ₹24200): [24200, 24150.0, 24100.0]
+[2025-08-15 10:59:13 PM] UTILS: 📊 DataFrame created with shape: (3, 8)
+[2025-08-15 10:59:13 PM] UTILS: 📊 Display DataFrame: 
+         Entry  CE Strike  CE Price  PE Strike  PE Price Target/SL (1:1)
+0  High Reward      25050     24.55    24200.0      28.8           ₹3400
+1   Mid Reward      25100     19.60    24150.0      23.9           ₹2750
+2   Low Reward      25150     15.75    24100.0      20.5           ₹2300
+[2025-08-15 10:59:13 PM] UTILS: 📊 CE Prices found: 228 items
+[2025-08-15 10:59:13 PM] UTILS: 📊 PE Prices found: 228 items
+[2025-08-15 10:59:14 PM] UTILS: ✅ Analysis completed successfully for NIFTY
+[2025-08-15 10:59:14 PM] UTILS: Generated files: summary_e57ca9a9f01e4fc3b5ab66b67fff01b1.png, static/payoff_815ba07f97dc411ca3d1eae959504d09.png
+[2025-08-15 10:59:14 PM] Analysis result: <class 'dict'>, Status: ✅ Weekly analysis completed with supply/demand zones (Supply: ₹25050, Demand: ₹24200)
+[2025-08-15 10:59:14 PM] ✅ Analysis successful - data saved to session
+[2025-08-15 11:02:39 PM] === Generate Analysis View Called ===
+[2025-08-15 11:02:39 PM] Request method: POST
+[2025-08-15 11:02:39 PM] Form data received:
+[2025-08-15 11:02:39 PM]   Instrument: NIFTY
+[2025-08-15 11:02:39 PM]   Calculation Type: Weekly
+[2025-08-15 11:02:39 PM]   Expiry: 21-Aug-2025
+[2025-08-15 11:02:39 PM] Calling utils.generate_analysis()...
+[2025-08-15 11:02:39 PM] UTILS: === generate_analysis() called ===
+[2025-08-15 11:02:39 PM] UTILS: Parameters: instrument=NIFTY, calc_type=Weekly, expiry=21-Aug-2025
+[2025-08-15 11:02:39 PM] UTILS: 📊 Using yfinance for chart analysis generation
+[2025-08-15 11:02:39 PM] UTILS: Using ticker symbol: ^NSEI
+[2025-08-15 11:02:39 PM] UTILS: 📊 Calculating Weekly supply/demand zones using yfinance...
+[2025-08-15 11:02:39 PM] OPTION_CHAIN: 📡 get_option_chain_data called for NIFTY - fetching fresh data
+[2025-08-15 11:02:40 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 11:02:40 PM] UTILS: ✅ Zones calculated - Supply: ₹25050, Demand: ₹24200
+[2025-08-15 11:02:40 PM] OPTION_CHAIN: 📡 get_option_chain_data called for NIFTY - fetching fresh data
+[2025-08-15 11:02:40 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 11:02:40 PM] UTILS: ✅ Option chain fetch successful
+[2025-08-15 11:02:40 PM] UTILS: 📊 Updated current price from option chain: 24631.30078125
+[2025-08-15 11:02:40 PM] UTILS: 📊 Option chain data keys: ['data', 'status', 'expiryDates', 'symbol', 'underlying']
+[2025-08-15 11:02:40 PM] UTILS: 📊 Option chain data['data'] keys: ['last_price', 'oc']
+[2025-08-15 11:02:40 PM] UTILS: 📊 Found DhanHQ structure with 228 strikes
+[2025-08-15 11:02:40 PM] UTILS: 📊 DhanHQ API data - CE: 228, PE: 228 strikes
+[2025-08-15 11:02:40 PM] UTILS: 📊 Using zone-based strike selection
+[2025-08-15 11:02:40 PM] UTILS: 📊 Zone-based strikes:
+[2025-08-15 11:02:40 PM] UTILS:    CE strikes (from supply ₹25050): [25050, 25100, 25150]
+[2025-08-15 11:02:40 PM] UTILS:    PE strikes (from demand ₹24200): [24200, 24150.0, 24100.0]
+[2025-08-15 11:02:40 PM] UTILS: 📊 DataFrame created with shape: (3, 8)
+[2025-08-15 11:02:40 PM] UTILS: 📊 Display DataFrame: 
+         Entry  CE Strike  CE Price  PE Strike  PE Price Target/SL (1:1)
+0  High Reward      25050     24.55    24200.0      28.8           ₹3400
+1   Mid Reward      25100     19.60    24150.0      23.9           ₹2750
+2   Low Reward      25150     15.75    24100.0      20.5           ₹2300
+[2025-08-15 11:02:40 PM] UTILS: 📊 CE Prices found: 228 items
+[2025-08-15 11:02:40 PM] UTILS: 📊 PE Prices found: 228 items
+[2025-08-15 11:02:41 PM] UTILS: ✅ Analysis completed successfully for NIFTY
+[2025-08-15 11:02:41 PM] UTILS: Generated files: summary_cf62c44977464356baa16d88ab101a93.png, static/payoff_0817790ab18647c3b416e88710bf0201.png
+[2025-08-15 11:02:41 PM] Analysis result: <class 'dict'>, Status: ✅ Weekly analysis completed with supply/demand zones (Supply: ₹25050, Demand: ₹24200)
+[2025-08-15 11:02:41 PM] ✅ Analysis successful - data saved to session
+[2025-08-15 11:08:39 PM] === Generate Analysis View Called ===
+[2025-08-15 11:08:39 PM] Request method: POST
+[2025-08-15 11:08:39 PM] Form data received:
+[2025-08-15 11:08:39 PM]   Instrument: NIFTY
+[2025-08-15 11:08:39 PM]   Calculation Type: Weekly
+[2025-08-15 11:08:39 PM]   Expiry: 21-Aug-2025
+[2025-08-15 11:08:39 PM] Calling utils.generate_analysis()...
+[2025-08-15 11:08:39 PM] UTILS: === generate_analysis() called ===
+[2025-08-15 11:08:39 PM] UTILS: Parameters: instrument=NIFTY, calc_type=Weekly, expiry=21-Aug-2025
+[2025-08-15 11:08:39 PM] UTILS: 📊 Using yfinance for chart analysis generation
+[2025-08-15 11:08:39 PM] UTILS: Using ticker symbol: ^NSEI
+[2025-08-15 11:08:39 PM] UTILS: 📊 Calculating Weekly supply/demand zones using yfinance...
+[2025-08-15 11:08:40 PM] UTILS: ✅ Zones calculated - Supply: ₹24607.53, Demand: ₹24135.47
+[2025-08-15 11:08:40 PM] OPTION_CHAIN: 📡 get_option_chain_data called for NIFTY - fetching fresh data
+[2025-08-15 11:08:40 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 11:08:40 PM] UTILS: ✅ Option chain fetch successful
+[2025-08-15 11:08:40 PM] UTILS: 📊 Updated current price from option chain: 24631.30078125
+[2025-08-15 11:08:40 PM] UTILS: 📊 Option chain data keys: ['data', 'status', 'expiryDates', 'symbol', 'underlying']
+[2025-08-15 11:08:40 PM] UTILS: 📊 Option chain data['data'] keys: ['last_price', 'oc']
+[2025-08-15 11:08:40 PM] UTILS: 📊 Found DhanHQ structure with 228 strikes
+[2025-08-15 11:08:40 PM] UTILS: 📊 DhanHQ API data - CE: 228, PE: 228 strikes
+[2025-08-15 11:08:40 PM] UTILS: 📊 Using zone-based strike selection
+[2025-08-15 11:08:40 PM] UTILS: 📊 Zone-based strikes:
+[2025-08-15 11:08:40 PM] UTILS:    CE strikes (from supply ₹24607.53): [24650, 24700, 24750]
+[2025-08-15 11:08:40 PM] UTILS:    PE strikes (from demand ₹24135.47): [24100, 24050.0, 24000.0]
+[2025-08-15 11:08:40 PM] UTILS: 📊 DataFrame created with shape: (3, 8)
+[2025-08-15 11:08:40 PM] UTILS: 📊 Display DataFrame: 
+         Entry  CE Strike  CE Price  PE Strike  PE Price Target/SL (1:1)
+0  High Reward      24650    141.30    24100.0     20.50          ₹10300
+1   Mid Reward      24700    119.35    24050.0     18.15           ₹8750
+2   Low Reward      24750     96.45    24000.0     15.85           ₹7150
+[2025-08-15 11:08:40 PM] UTILS: 📊 CE Prices found: 228 items
+[2025-08-15 11:08:40 PM] UTILS: 📊 PE Prices found: 228 items
+[2025-08-15 11:08:41 PM] UTILS: ✅ Analysis completed successfully for NIFTY
+[2025-08-15 11:08:41 PM] UTILS: Generated files: summary_9f66d7bbfa744eeaa48b2bbab6a5eaf0.png, static/payoff_90ee10b21b684f8fa1983044f78792c6.png
+[2025-08-15 11:08:41 PM] Analysis result: <class 'dict'>, Status: ✅ Weekly analysis completed with supply/demand zones (Supply: ₹24608, Demand: ₹24135)
+[2025-08-15 11:08:41 PM] ✅ Analysis successful - data saved to session
+[2025-08-15 11:09:03 PM] === Generate Analysis View Called ===
+[2025-08-15 11:09:03 PM] Request method: POST
+[2025-08-15 11:09:03 PM] Form data received:
+[2025-08-15 11:09:03 PM]   Instrument: NIFTY
+[2025-08-15 11:09:03 PM]   Calculation Type: Weekly
+[2025-08-15 11:09:03 PM]   Expiry: 28-Aug-2025
+[2025-08-15 11:09:03 PM] Calling utils.generate_analysis()...
+[2025-08-15 11:09:03 PM] UTILS: === generate_analysis() called ===
+[2025-08-15 11:09:03 PM] UTILS: Parameters: instrument=NIFTY, calc_type=Weekly, expiry=28-Aug-2025
+[2025-08-15 11:09:03 PM] UTILS: 📊 Using yfinance for chart analysis generation
+[2025-08-15 11:09:03 PM] UTILS: Using ticker symbol: ^NSEI
+[2025-08-15 11:09:03 PM] UTILS: 📊 Calculating Weekly supply/demand zones using yfinance...
+[2025-08-15 11:09:03 PM] UTILS: ✅ Zones calculated - Supply: ₹24607.53, Demand: ₹24135.47
+[2025-08-15 11:09:03 PM] OPTION_CHAIN: 📡 get_option_chain_data called for NIFTY - fetching fresh data
+[2025-08-15 11:09:03 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 11:09:03 PM] UTILS: ✅ Option chain fetch successful
+[2025-08-15 11:09:03 PM] UTILS: 📊 Updated current price from option chain: 24631.30078125
+[2025-08-15 11:09:03 PM] UTILS: 📊 Option chain data keys: ['data', 'status', 'expiryDates', 'symbol', 'underlying']
+[2025-08-15 11:09:03 PM] UTILS: 📊 Option chain data['data'] keys: ['last_price', 'oc']
+[2025-08-15 11:09:03 PM] UTILS: 📊 Found DhanHQ structure with 228 strikes
+[2025-08-15 11:09:03 PM] UTILS: 📊 DhanHQ API data - CE: 228, PE: 228 strikes
+[2025-08-15 11:09:03 PM] UTILS: 📊 Using zone-based strike selection
+[2025-08-15 11:09:03 PM] UTILS: 📊 Zone-based strikes:
+[2025-08-15 11:09:03 PM] UTILS:    CE strikes (from supply ₹24607.53): [24650, 24700, 24750]
+[2025-08-15 11:09:03 PM] UTILS:    PE strikes (from demand ₹24135.47): [24100, 24050.0, 24000.0]
+[2025-08-15 11:09:03 PM] UTILS: 📊 DataFrame created with shape: (3, 8)
+[2025-08-15 11:09:03 PM] UTILS: 📊 Display DataFrame: 
+         Entry  CE Strike  CE Price  PE Strike  PE Price Target/SL (1:1)
+0  High Reward      24650    141.30    24100.0     20.50          ₹10300
+1   Mid Reward      24700    119.35    24050.0     18.15           ₹8750
+2   Low Reward      24750     96.45    24000.0     15.85           ₹7150
+[2025-08-15 11:09:03 PM] UTILS: 📊 CE Prices found: 228 items
+[2025-08-15 11:09:03 PM] UTILS: 📊 PE Prices found: 228 items
+[2025-08-15 11:09:04 PM] UTILS: ✅ Analysis completed successfully for NIFTY
+[2025-08-15 11:09:04 PM] UTILS: Generated files: summary_cc8974cd79824d549cd0a4d5e2089398.png, static/payoff_4fdef0a8d5804460838ba59609e98a80.png
+[2025-08-15 11:09:04 PM] Analysis result: <class 'dict'>, Status: ✅ Weekly analysis completed with supply/demand zones (Supply: ₹24608, Demand: ₹24135)
+[2025-08-15 11:09:04 PM] ✅ Analysis successful - data saved to session
+[2025-08-15 11:16:45 PM] === Generate Analysis View Called ===
+[2025-08-15 11:16:45 PM] Request method: POST
+[2025-08-15 11:16:45 PM] Form data received:
+[2025-08-15 11:16:45 PM]   Instrument: NIFTY
+[2025-08-15 11:16:45 PM]   Calculation Type: Weekly
+[2025-08-15 11:16:45 PM]   Expiry: 21-Aug-2025
+[2025-08-15 11:16:45 PM] Calling utils.generate_analysis()...
+[2025-08-15 11:16:45 PM] UTILS: === generate_analysis() called ===
+[2025-08-15 11:16:45 PM] UTILS: Parameters: instrument=NIFTY, calc_type=Weekly, expiry=21-Aug-2025
+[2025-08-15 11:16:45 PM] UTILS: 📊 Using yfinance for chart analysis generation
+[2025-08-15 11:16:45 PM] UTILS: Using ticker symbol: ^NSEI
+[2025-08-15 11:16:45 PM] UTILS: 📊 Calculating Weekly supply/demand zones using yfinance...
+[2025-08-15 11:16:46 PM] UTILS: ✅ Zones calculated - Supply: ₹24607.53, Demand: ₹24135.47
+[2025-08-15 11:16:46 PM] UTILS: 📅 Converted expiry format: 21-Aug-2025 -> 2025-08-21
+[2025-08-15 11:16:46 PM] OPTION_CHAIN: 📡 get_option_chain_data called for NIFTY expiry 2025-08-21 - fetching fresh data
+[2025-08-15 11:16:46 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 11:16:46 PM] UTILS: ✅ Option chain fetch successful
+[2025-08-15 11:16:46 PM] UTILS: 📊 Updated current price from option chain: 24631.30078125
+[2025-08-15 11:16:46 PM] UTILS: 📊 Option chain data keys: ['data', 'status', 'expiryDates', 'symbol', 'underlying']
+[2025-08-15 11:16:46 PM] UTILS: 📊 Option chain data['data'] keys: ['last_price', 'oc']
+[2025-08-15 11:16:46 PM] UTILS: 📊 Found DhanHQ structure with 228 strikes
+[2025-08-15 11:16:46 PM] UTILS: 📊 DhanHQ API data - CE: 228, PE: 228 strikes
+[2025-08-15 11:16:46 PM] UTILS: 📊 Using zone-based strike selection
+[2025-08-15 11:16:46 PM] UTILS: 📊 Zone-based strikes:
+[2025-08-15 11:16:46 PM] UTILS:    CE strikes (from supply ₹24607.53): [24650, 24700, 24750]
+[2025-08-15 11:16:46 PM] UTILS:    PE strikes (from demand ₹24135.47): [24100, 24050.0, 24000.0]
+[2025-08-15 11:16:46 PM] UTILS: 📊 DataFrame created with shape: (3, 8)
+[2025-08-15 11:16:46 PM] UTILS: 📊 Display DataFrame: 
+         Entry  CE Strike  CE Price  PE Strike  PE Price Target/SL (1:1)
+0  High Reward      24650    141.30    24100.0     20.50          ₹10300
+1   Mid Reward      24700    119.35    24050.0     18.15           ₹8750
+2   Low Reward      24750     96.45    24000.0     15.85           ₹7150
+[2025-08-15 11:16:46 PM] UTILS: 📊 CE Prices found: 228 items
+[2025-08-15 11:16:46 PM] UTILS: 📊 PE Prices found: 228 items
+[2025-08-15 11:16:47 PM] UTILS: ✅ Analysis completed successfully for NIFTY
+[2025-08-15 11:16:47 PM] UTILS: Generated files: summary_df9443f56e684e18bc29217ed7356d3b.png, static/payoff_502a2d14df4549b7a50085de43eb9aeb.png
+[2025-08-15 11:16:47 PM] Analysis result: <class 'dict'>, Status: ✅ Weekly analysis completed with supply/demand zones (Supply: ₹24608, Demand: ₹24135)
+[2025-08-15 11:16:47 PM] ✅ Analysis successful - data saved to session
+[2025-08-15 11:16:57 PM] === Generate Analysis View Called ===
+[2025-08-15 11:16:57 PM] Request method: POST
+[2025-08-15 11:16:57 PM] Form data received:
+[2025-08-15 11:16:57 PM]   Instrument: NIFTY
+[2025-08-15 11:16:57 PM]   Calculation Type: Weekly
+[2025-08-15 11:16:57 PM]   Expiry: 28-Aug-2025
+[2025-08-15 11:16:57 PM] Calling utils.generate_analysis()...
+[2025-08-15 11:16:57 PM] UTILS: === generate_analysis() called ===
+[2025-08-15 11:16:57 PM] UTILS: Parameters: instrument=NIFTY, calc_type=Weekly, expiry=28-Aug-2025
+[2025-08-15 11:16:57 PM] UTILS: 📊 Using yfinance for chart analysis generation
+[2025-08-15 11:16:57 PM] UTILS: Using ticker symbol: ^NSEI
+[2025-08-15 11:16:57 PM] UTILS: 📊 Calculating Weekly supply/demand zones using yfinance...
+[2025-08-15 11:16:57 PM] UTILS: ✅ Zones calculated - Supply: ₹24607.53, Demand: ₹24135.47
+[2025-08-15 11:16:57 PM] UTILS: 📅 Converted expiry format: 28-Aug-2025 -> 2025-08-28
+[2025-08-15 11:16:57 PM] OPTION_CHAIN: 📡 get_option_chain_data called for NIFTY expiry 2025-08-28 - fetching fresh data
+[2025-08-15 11:16:57 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 11:16:57 PM] UTILS: ✅ Option chain fetch successful
+[2025-08-15 11:16:57 PM] UTILS: 📊 Updated current price from option chain: 24631.30078125
+[2025-08-15 11:16:57 PM] UTILS: 📊 Option chain data keys: ['data', 'status', 'expiryDates', 'symbol', 'underlying']
+[2025-08-15 11:16:57 PM] UTILS: 📊 Option chain data['data'] keys: ['last_price', 'oc']
+[2025-08-15 11:16:57 PM] UTILS: 📊 Found DhanHQ structure with 237 strikes
+[2025-08-15 11:16:57 PM] UTILS: 📊 DhanHQ API data - CE: 237, PE: 237 strikes
+[2025-08-15 11:16:57 PM] UTILS: 📊 Using zone-based strike selection
+[2025-08-15 11:16:57 PM] UTILS: 📊 Zone-based strikes:
+[2025-08-15 11:16:57 PM] UTILS:    CE strikes (from supply ₹24607.53): [24650, 24700, 24750]
+[2025-08-15 11:16:57 PM] UTILS:    PE strikes (from demand ₹24135.47): [24100, 24050.0, 24000.0]
+[2025-08-15 11:16:57 PM] UTILS: 📊 DataFrame created with shape: (3, 8)
+[2025-08-15 11:16:57 PM] UTILS: 📊 Display DataFrame: 
+         Entry  CE Strike  CE Price  PE Strike  PE Price Target/SL (1:1)
+0  High Reward      24650    213.95    24100.0     50.00          ₹16850
+1   Mid Reward      24700    188.45    24050.0     44.55          ₹14850
+2   Low Reward      24750    168.00    24000.0     39.00          ₹13200
+[2025-08-15 11:16:57 PM] UTILS: 📊 CE Prices found: 237 items
+[2025-08-15 11:16:57 PM] UTILS: 📊 PE Prices found: 237 items
+[2025-08-15 11:16:58 PM] UTILS: ✅ Analysis completed successfully for NIFTY
+[2025-08-15 11:16:58 PM] UTILS: Generated files: summary_1f6cab2d129940f2a2d21e25be6ab866.png, static/payoff_cf1d25dd256d4e1dab1cfd385851ba08.png
+[2025-08-15 11:16:58 PM] Analysis result: <class 'dict'>, Status: ✅ Weekly analysis completed with supply/demand zones (Supply: ₹24608, Demand: ₹24135)
+[2025-08-15 11:16:58 PM] ✅ Analysis successful - data saved to session
+[2025-08-15 11:19:07 PM] === Generate Analysis View Called ===
+[2025-08-15 11:19:07 PM] Request method: POST
+[2025-08-15 11:19:07 PM] Form data received:
+[2025-08-15 11:19:07 PM]   Instrument: NIFTY
+[2025-08-15 11:19:07 PM]   Calculation Type: Weekly
+[2025-08-15 11:19:07 PM]   Expiry: 02-Sep-2025
+[2025-08-15 11:19:07 PM] Calling utils.generate_analysis()...
+[2025-08-15 11:19:07 PM] UTILS: === generate_analysis() called ===
+[2025-08-15 11:19:07 PM] UTILS: Parameters: instrument=NIFTY, calc_type=Weekly, expiry=02-Sep-2025
+[2025-08-15 11:19:07 PM] UTILS: 📊 Using yfinance for chart analysis generation
+[2025-08-15 11:19:07 PM] UTILS: Using ticker symbol: ^NSEI
+[2025-08-15 11:19:07 PM] UTILS: 📊 Calculating Weekly supply/demand zones using yfinance...
+[2025-08-15 11:19:08 PM] OPTION_CHAIN: 📡 get_option_chain_data called for NIFTY - fetching fresh data
+[2025-08-15 11:19:08 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 11:19:08 PM] UTILS: ✅ Zones calculated - Supply: ₹25050, Demand: ₹24200
+[2025-08-15 11:19:08 PM] UTILS: 📅 Converted expiry format: 02-Sep-2025 -> 2025-09-02
+[2025-08-15 11:19:08 PM] OPTION_CHAIN: 📡 get_option_chain_data called for NIFTY expiry 2025-09-02 - fetching fresh data
+[2025-08-15 11:19:11 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 11:19:11 PM] UTILS: ✅ Option chain fetch successful
+[2025-08-15 11:19:11 PM] UTILS: 📊 Updated current price from option chain: 24631.30078125
+[2025-08-15 11:19:11 PM] UTILS: 📊 Option chain data keys: ['data', 'status', 'expiryDates', 'symbol', 'underlying']
+[2025-08-15 11:19:11 PM] UTILS: 📊 Option chain data['data'] keys: ['last_price', 'oc']
+[2025-08-15 11:19:11 PM] UTILS: 📊 Found DhanHQ structure with 225 strikes
+[2025-08-15 11:19:11 PM] UTILS: 📊 DhanHQ API data - CE: 225, PE: 225 strikes
+[2025-08-15 11:19:11 PM] UTILS: 📊 Using zone-based strike selection
+[2025-08-15 11:19:11 PM] UTILS: 📊 Zone-based strikes:
+[2025-08-15 11:19:11 PM] UTILS:    CE strikes (from supply ₹25050): [25050, 25100, 25150]
+[2025-08-15 11:19:11 PM] UTILS:    PE strikes (from demand ₹24200): [24200, 24050.0, 23950.0]
+[2025-08-15 11:19:11 PM] UTILS: 📊 DataFrame created with shape: (3, 8)
+[2025-08-15 11:19:11 PM] UTILS: 📊 Display DataFrame: 
+         Entry  CE Strike  CE Price  PE Strike  PE Price Target/SL (1:1)
+0  High Reward      25050    631.90    24200.0      82.7          ₹45550
+1   Mid Reward      25100    605.35    24050.0     135.8          ₹47250
+2   Low Reward      25150    579.50    23950.0      96.0          ₹43050
+[2025-08-15 11:19:11 PM] UTILS: 📊 CE Prices found: 225 items
+[2025-08-15 11:19:11 PM] UTILS: 📊 PE Prices found: 225 items
+[2025-08-15 11:19:12 PM] UTILS: ✅ Analysis completed successfully for NIFTY
+[2025-08-15 11:19:12 PM] UTILS: Generated files: summary_3e8f8264e1c048c5a0f6742ed277831f.png, static/payoff_3d14f40a613f4be697b422c4fc335c4a.png
+[2025-08-15 11:19:12 PM] Analysis result: <class 'dict'>, Status: ✅ Weekly analysis completed with supply/demand zones (Supply: ₹25050, Demand: ₹24200)
+[2025-08-15 11:19:12 PM] ✅ Analysis successful - data saved to session
+[2025-08-15 11:19:41 PM] === Generate Analysis View Called ===
+[2025-08-15 11:19:41 PM] Request method: POST
+[2025-08-15 11:19:41 PM] Form data received:
+[2025-08-15 11:19:41 PM]   Instrument: NIFTY
+[2025-08-15 11:19:41 PM]   Calculation Type: Weekly
+[2025-08-15 11:19:41 PM]   Expiry: 21-Aug-2025
+[2025-08-15 11:19:41 PM] Calling utils.generate_analysis()...
+[2025-08-15 11:19:41 PM] UTILS: === generate_analysis() called ===
+[2025-08-15 11:19:41 PM] UTILS: Parameters: instrument=NIFTY, calc_type=Weekly, expiry=21-Aug-2025
+[2025-08-15 11:19:41 PM] UTILS: 📊 Using yfinance for chart analysis generation
+[2025-08-15 11:19:41 PM] UTILS: Using ticker symbol: ^NSEI
+[2025-08-15 11:19:41 PM] UTILS: 📊 Calculating Weekly supply/demand zones using yfinance...
+[2025-08-15 11:19:41 PM] OPTION_CHAIN: 📡 get_option_chain_data called for NIFTY - fetching fresh data
+[2025-08-15 11:19:42 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 11:19:42 PM] UTILS: ✅ Zones calculated - Supply: ₹25050, Demand: ₹24200
+[2025-08-15 11:19:42 PM] UTILS: 📅 Converted expiry format: 21-Aug-2025 -> 2025-08-21
+[2025-08-15 11:19:42 PM] OPTION_CHAIN: 📡 get_option_chain_data called for NIFTY expiry 2025-08-21 - fetching fresh data
+[2025-08-15 11:19:46 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 11:19:46 PM] UTILS: ✅ Option chain fetch successful
+[2025-08-15 11:19:46 PM] UTILS: 📊 Updated current price from option chain: 24631.30078125
+[2025-08-15 11:19:46 PM] UTILS: 📊 Option chain data keys: ['data', 'status', 'expiryDates', 'symbol', 'underlying']
+[2025-08-15 11:19:46 PM] UTILS: 📊 Option chain data['data'] keys: ['last_price', 'oc']
+[2025-08-15 11:19:46 PM] UTILS: 📊 Found DhanHQ structure with 228 strikes
+[2025-08-15 11:19:46 PM] UTILS: 📊 DhanHQ API data - CE: 228, PE: 228 strikes
+[2025-08-15 11:19:46 PM] UTILS: 📊 Using zone-based strike selection
+[2025-08-15 11:19:46 PM] UTILS: 📊 Zone-based strikes:
+[2025-08-15 11:19:46 PM] UTILS:    CE strikes (from supply ₹25050): [25050, 25100, 25150]
+[2025-08-15 11:19:46 PM] UTILS:    PE strikes (from demand ₹24200): [24200, 24150.0, 24100.0]
+[2025-08-15 11:19:46 PM] UTILS: 📊 DataFrame created with shape: (3, 8)
+[2025-08-15 11:19:46 PM] UTILS: 📊 Display DataFrame: 
+         Entry  CE Strike  CE Price  PE Strike  PE Price Target/SL (1:1)
+0  High Reward      25050     24.55    24200.0      28.8           ₹3400
+1   Mid Reward      25100     19.60    24150.0      23.9           ₹2750
+2   Low Reward      25150     15.75    24100.0      20.5           ₹2300
+[2025-08-15 11:19:46 PM] UTILS: 📊 CE Prices found: 228 items
+[2025-08-15 11:19:46 PM] UTILS: 📊 PE Prices found: 228 items
+[2025-08-15 11:19:46 PM] UTILS: ✅ Analysis completed successfully for NIFTY
+[2025-08-15 11:19:46 PM] UTILS: Generated files: summary_22822858aace42ac8f78e68375980ee6.png, static/payoff_20986aa0243844df80fe38889ebfd0a2.png
+[2025-08-15 11:19:46 PM] Analysis result: <class 'dict'>, Status: ✅ Weekly analysis completed with supply/demand zones (Supply: ₹25050, Demand: ₹24200)
+[2025-08-15 11:19:46 PM] ✅ Analysis successful - data saved to session
+[2025-08-15 11:20:04 PM] === Generate Analysis View Called ===
+[2025-08-15 11:20:04 PM] Request method: POST
+[2025-08-15 11:20:04 PM] Form data received:
+[2025-08-15 11:20:04 PM]   Instrument: NIFTY
+[2025-08-15 11:20:04 PM]   Calculation Type: Weekly
+[2025-08-15 11:20:04 PM]   Expiry: 21-Aug-2025
+[2025-08-15 11:20:04 PM] Calling utils.generate_analysis()...
+[2025-08-15 11:20:04 PM] UTILS: === generate_analysis() called ===
+[2025-08-15 11:20:04 PM] UTILS: Parameters: instrument=NIFTY, calc_type=Weekly, expiry=21-Aug-2025
+[2025-08-15 11:20:04 PM] UTILS: 📊 Using yfinance for chart analysis generation
+[2025-08-15 11:20:04 PM] UTILS: Using ticker symbol: ^NSEI
+[2025-08-15 11:20:04 PM] UTILS: 📊 Calculating Weekly supply/demand zones using yfinance...
+[2025-08-15 11:20:04 PM] OPTION_CHAIN: 📡 get_option_chain_data called for NIFTY - fetching fresh data
+[2025-08-15 11:20:05 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 11:20:05 PM] UTILS: ✅ Zones calculated - Supply: ₹25050, Demand: ₹24200
+[2025-08-15 11:20:05 PM] OPTION_CHAIN: 📡 get_option_chain_data called for NIFTY - fetching fresh data
+[2025-08-15 11:20:05 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 11:20:05 PM] UTILS: ✅ Option chain fetch successful
+[2025-08-15 11:20:05 PM] UTILS: 📊 Updated current price from option chain: 24631.30078125
+[2025-08-15 11:20:05 PM] UTILS: 📊 Option chain data keys: ['data', 'status', 'expiryDates', 'symbol', 'underlying']
+[2025-08-15 11:20:05 PM] UTILS: 📊 Option chain data['data'] keys: ['last_price', 'oc']
+[2025-08-15 11:20:05 PM] UTILS: 📊 Found DhanHQ structure with 228 strikes
+[2025-08-15 11:20:05 PM] UTILS: 📊 DhanHQ API data - CE: 228, PE: 228 strikes
+[2025-08-15 11:20:05 PM] UTILS: 📊 Using zone-based strike selection
+[2025-08-15 11:20:05 PM] UTILS: 📊 Zone-based strikes:
+[2025-08-15 11:20:05 PM] UTILS:    CE strikes (from supply ₹25050): [25050, 25100, 25150]
+[2025-08-15 11:20:05 PM] UTILS:    PE strikes (from demand ₹24200): [24200, 24150.0, 24100.0]
+[2025-08-15 11:20:05 PM] UTILS: 📊 DataFrame created with shape: (3, 8)
+[2025-08-15 11:20:05 PM] UTILS: 📊 Display DataFrame: 
+         Entry  CE Strike  CE Price  PE Strike  PE Price Target/SL (1:1)
+0  High Reward      25050     24.55    24200.0      28.8           ₹3400
+1   Mid Reward      25100     19.60    24150.0      23.9           ₹2750
+2   Low Reward      25150     15.75    24100.0      20.5           ₹2300
+[2025-08-15 11:20:05 PM] UTILS: 📊 CE Prices found: 228 items
+[2025-08-15 11:20:05 PM] UTILS: 📊 PE Prices found: 228 items
+[2025-08-15 11:20:05 PM] UTILS: ✅ Analysis completed successfully for NIFTY
+[2025-08-15 11:20:05 PM] UTILS: Generated files: summary_040e5d421d394bb6af88322632a1734f.png, static/payoff_c01108f4e4a5465485c0ef4e0fedc9a8.png
+[2025-08-15 11:20:05 PM] Analysis result: <class 'dict'>, Status: ✅ Weekly analysis completed with supply/demand zones (Supply: ₹25050, Demand: ₹24200)
+[2025-08-15 11:20:05 PM] ✅ Analysis successful - data saved to session
+[2025-08-15 11:20:46 PM] === Generate Analysis View Called ===
+[2025-08-15 11:20:46 PM] Request method: POST
+[2025-08-15 11:20:46 PM] Form data received:
+[2025-08-15 11:20:46 PM]   Instrument: NIFTY
+[2025-08-15 11:20:46 PM]   Calculation Type: Weekly
+[2025-08-15 11:20:46 PM]   Expiry: 21-Aug-2025
+[2025-08-15 11:20:46 PM] Calling utils.generate_analysis()...
+[2025-08-15 11:20:46 PM] UTILS: === generate_analysis() called ===
+[2025-08-15 11:20:46 PM] UTILS: Parameters: instrument=NIFTY, calc_type=Weekly, expiry=21-Aug-2025
+[2025-08-15 11:20:46 PM] UTILS: 📊 Using yfinance for chart analysis generation
+[2025-08-15 11:20:46 PM] UTILS: Using ticker symbol: ^NSEI
+[2025-08-15 11:20:46 PM] UTILS: 📊 Calculating Weekly supply/demand zones using yfinance...
+[2025-08-15 11:20:46 PM] OPTION_CHAIN: 📡 get_option_chain_data called for NIFTY - fetching fresh data
+[2025-08-15 11:20:47 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 11:20:47 PM] UTILS: ✅ Zones calculated - Supply: ₹25050, Demand: ₹24200
+[2025-08-15 11:20:47 PM] OPTION_CHAIN: 📡 get_option_chain_data called for NIFTY - fetching fresh data
+[2025-08-15 11:20:47 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-15 11:20:47 PM] UTILS: ✅ Option chain fetch successful
+[2025-08-15 11:20:47 PM] UTILS: 📊 Updated current price from option chain: 24631.30078125
+[2025-08-15 11:20:47 PM] UTILS: 📊 Option chain data keys: ['data', 'status', 'expiryDates', 'symbol', 'underlying']
+[2025-08-15 11:20:47 PM] UTILS: 📊 Option chain data['data'] keys: ['last_price', 'oc']
+[2025-08-15 11:20:47 PM] UTILS: 📊 Found DhanHQ structure with 228 strikes
+[2025-08-15 11:20:47 PM] UTILS: 📊 DhanHQ API data - CE: 228, PE: 228 strikes
+[2025-08-15 11:20:47 PM] UTILS: 📊 Using zone-based strike selection
+[2025-08-15 11:20:47 PM] UTILS: 📊 Zone-based strikes:
+[2025-08-15 11:20:47 PM] UTILS:    CE strikes (from supply ₹25050): [25050, 25100, 25150]
+[2025-08-15 11:20:47 PM] UTILS:    PE strikes (from demand ₹24200): [24200, 24150.0, 24100.0]
+[2025-08-15 11:20:47 PM] UTILS: 📊 DataFrame created with shape: (3, 8)
+[2025-08-15 11:20:47 PM] UTILS: 📊 Display DataFrame: 
+         Entry  CE Strike  CE Price  PE Strike  PE Price Target/SL (1:1)
+0  High Reward      25050     24.55    24200.0      28.8           ₹3400
+1   Mid Reward      25100     19.60    24150.0      23.9           ₹2750
+2   Low Reward      25150     15.75    24100.0      20.5           ₹2300
+[2025-08-15 11:20:47 PM] UTILS: 📊 CE Prices found: 228 items
+[2025-08-15 11:20:47 PM] UTILS: 📊 PE Prices found: 228 items
+[2025-08-15 11:20:47 PM] UTILS: ✅ Analysis completed successfully for NIFTY
+[2025-08-15 11:20:47 PM] UTILS: Generated files: summary_5cfc0867061241b782202b0eb852f6c8.png, static/payoff_6b4d664b921a42e28b69a030b3fdfcd3.png
+[2025-08-15 11:20:47 PM] Analysis result: <class 'dict'>, Status: ✅ Weekly analysis completed with supply/demand zones (Supply: ₹25050, Demand: ₹24200)
+[2025-08-15 11:20:47 PM] ✅ Analysis successful - data saved to session
+[2025-08-16 07:54:44 AM] === Generate Analysis View Called ===
+[2025-08-16 07:54:44 AM] Request method: POST
+[2025-08-16 07:54:44 AM] Form data received:
+[2025-08-16 07:54:44 AM]   Instrument: NIFTY
+[2025-08-16 07:54:44 AM]   Calculation Type: Weekly
+[2025-08-16 07:54:44 AM]   Expiry: 21-Aug-2025
+[2025-08-16 07:54:44 AM] Calling utils.generate_analysis()...
+[2025-08-16 07:54:44 AM] UTILS: === generate_analysis() called ===
+[2025-08-16 07:54:44 AM] UTILS: Parameters: instrument=NIFTY, calc_type=Weekly, expiry=21-Aug-2025
+[2025-08-16 07:54:44 AM] UTILS: 📊 Using yfinance for chart analysis generation
+[2025-08-16 07:54:44 AM] UTILS: Using ticker symbol: ^NSEI
+[2025-08-16 07:54:44 AM] UTILS: 📊 Calculating Weekly supply/demand zones using yfinance...
+[2025-08-16 07:54:45 AM] OPTION_CHAIN: 📡 get_option_chain_data called for NIFTY - fetching fresh data
+[2025-08-16 07:54:47 AM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-16 07:54:47 AM] UTILS: ✅ Zones calculated - Supply: ₹25050, Demand: ₹24200
+[2025-08-16 07:54:47 AM] OPTION_CHAIN: 📡 get_option_chain_data called for NIFTY - fetching fresh data
+[2025-08-16 07:54:47 AM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-16 07:54:47 AM] UTILS: ✅ Option chain fetch successful
+[2025-08-16 07:54:47 AM] UTILS: 📊 Updated current price from option chain: 24631.30078125
+[2025-08-16 07:54:47 AM] UTILS: 📊 Option chain data keys: ['data', 'status', 'expiryDates', 'symbol', 'underlying']
+[2025-08-16 07:54:47 AM] UTILS: 📊 Option chain data['data'] keys: ['last_price', 'oc']
+[2025-08-16 07:54:47 AM] UTILS: 📊 Found DhanHQ structure with 228 strikes
+[2025-08-16 07:54:47 AM] UTILS: 📊 DhanHQ API data - CE: 228, PE: 228 strikes
+[2025-08-16 07:54:47 AM] UTILS: 📊 Using zone-based strike selection
+[2025-08-16 07:54:47 AM] UTILS: 📊 Zone-based strikes:
+[2025-08-16 07:54:47 AM] UTILS:    CE strikes (from supply ₹25050): [25050, 25100, 25150]
+[2025-08-16 07:54:47 AM] UTILS:    PE strikes (from demand ₹24200): [24200, 24150.0, 24100.0]
+[2025-08-16 07:54:47 AM] UTILS: 📊 DataFrame created with shape: (3, 8)
+[2025-08-16 07:54:47 AM] UTILS: 📊 Display DataFrame: 
+         Entry  CE Strike  CE Price  PE Strike  PE Price Target/SL (1:1)
+0  High Reward      25050     24.55    24200.0      28.8           ₹3200
+1   Mid Reward      25100     19.60    24150.0      23.9           ₹2600
+2   Low Reward      25150     15.75    24100.0      20.5           ₹2200
+[2025-08-16 07:54:47 AM] UTILS: 📊 CE Prices found: 228 items
+[2025-08-16 07:54:47 AM] UTILS: 📊 PE Prices found: 228 items
+[2025-08-16 07:54:48 AM] UTILS: ✅ Analysis completed successfully for NIFTY
+[2025-08-16 07:54:48 AM] UTILS: Generated files: summary_fdb3aded5b2642a1b9a02758f70cacd6.png, static/payoff_a74d3bffe47d4bd8aa9abf248e145d34.png
+[2025-08-16 07:54:48 AM] Analysis result: <class 'dict'>, Status: ✅ Weekly analysis completed with supply/demand zones (Supply: ₹25050, Demand: ₹24200)
+[2025-08-16 07:54:48 AM] ✅ Analysis successful - data saved to session
+[2025-08-16 08:20:02 AM] UTILS: === generate_analysis() called ===
+[2025-08-16 08:20:02 AM] UTILS: Parameters: instrument=NIFTY, calc_type=Weekly, expiry=21-Aug-2025
+[2025-08-16 08:20:02 AM] UTILS: 📊 Using yfinance for chart analysis generation
+[2025-08-16 08:20:02 AM] UTILS: Using ticker symbol: ^NSEI
+[2025-08-16 08:20:02 AM] UTILS: 📊 Calculating Weekly supply/demand zones using yfinance...
+[2025-08-16 08:20:03 AM] UTILS: ✅ Zones calculated - Supply: ₹24607.53, Demand: ₹24135.47
+[2025-08-16 08:20:03 AM] OPTION_CHAIN: 📡 get_option_chain_data called for NIFTY - fetching fresh data
+[2025-08-16 08:20:04 AM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-16 08:20:04 AM] UTILS: ✅ Option chain fetch successful
+[2025-08-16 08:20:04 AM] UTILS: 📊 Updated current price from option chain: 24631.30078125
+[2025-08-16 08:20:04 AM] UTILS: 📊 Option chain data keys: ['data', 'status', 'expiryDates', 'symbol', 'underlying']
+[2025-08-16 08:20:04 AM] UTILS: 📊 Option chain data['data'] keys: ['last_price', 'oc']
+[2025-08-16 08:20:04 AM] UTILS: 📊 Found DhanHQ structure with 228 strikes
+[2025-08-16 08:20:04 AM] UTILS: 📊 DhanHQ API data - CE: 228, PE: 228 strikes
+[2025-08-16 08:20:04 AM] UTILS: 📊 Using zone-based strike selection
+[2025-08-16 08:20:04 AM] UTILS: 📊 Zone-based strikes:
+[2025-08-16 08:20:04 AM] UTILS:    CE strikes (from supply ₹24607.53): [24650, 24700, 24750]
+[2025-08-16 08:20:04 AM] UTILS:    PE strikes (from demand ₹24135.47): [24100, 24050.0, 24000.0]
+[2025-08-16 08:20:04 AM] UTILS: 📊 DataFrame created with shape: (3, 8)
+[2025-08-16 08:20:04 AM] UTILS: 📊 Display DataFrame: 
+         Entry  CE Strike  CE Price  PE Strike  PE Price Target/SL (1:1)
+0  High Reward      24650    141.30    24100.0     20.50           ₹9700
+1   Mid Reward      24700    119.35    24050.0     18.15           ₹8250
+2   Low Reward      24750     96.45    24000.0     15.85           ₹6750
+[2025-08-16 08:20:04 AM] UTILS: 📊 CE Prices found: 228 items
+[2025-08-16 08:20:04 AM] UTILS: 📊 PE Prices found: 228 items
+[2025-08-16 08:20:04 AM] UTILS: ✅ Analysis completed successfully for NIFTY
+[2025-08-16 08:20:04 AM] UTILS: Generated files: summary_6758c0f0c5354ca9a32478a42922d2dd.png, static/payoff_001f8f28ee574e3883eb747a340432cf.png
+[2025-08-16 08:23:42 AM] === Generate Analysis View Called ===
+[2025-08-16 08:23:42 AM] Request method: POST
+[2025-08-16 08:23:42 AM] Form data received:
+[2025-08-16 08:23:42 AM]   Instrument: NIFTY
+[2025-08-16 08:23:42 AM]   Calculation Type: Weekly
+[2025-08-16 08:23:42 AM]   Expiry: 21-Aug-2025
+[2025-08-16 08:23:42 AM] Calling utils.generate_analysis()...
+[2025-08-16 08:23:42 AM] UTILS: === generate_analysis() called ===
+[2025-08-16 08:23:42 AM] UTILS: Parameters: instrument=NIFTY, calc_type=Weekly, expiry=21-Aug-2025
+[2025-08-16 08:23:42 AM] UTILS: 📊 Using yfinance for chart analysis generation
+[2025-08-16 08:23:42 AM] UTILS: Using ticker symbol: ^NSEI
+[2025-08-16 08:23:42 AM] UTILS: 📊 Calculating Weekly supply/demand zones using yfinance...
+[2025-08-16 08:23:43 AM] UTILS: ✅ Zones calculated - Supply: ₹24607.53, Demand: ₹24135.47
+[2025-08-16 08:23:43 AM] OPTION_CHAIN: 📡 get_option_chain_data called for NIFTY - fetching fresh data
+[2025-08-16 08:23:44 AM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-16 08:23:44 AM] UTILS: ✅ Option chain fetch successful
+[2025-08-16 08:23:44 AM] UTILS: 📊 Updated current price from option chain: 24631.30078125
+[2025-08-16 08:23:44 AM] UTILS: 📊 Option chain data keys: ['data', 'status', 'expiryDates', 'symbol', 'underlying']
+[2025-08-16 08:23:44 AM] UTILS: 📊 Option chain data['data'] keys: ['last_price', 'oc']
+[2025-08-16 08:23:44 AM] UTILS: 📊 Found DhanHQ structure with 228 strikes
+[2025-08-16 08:23:44 AM] UTILS: 📊 DhanHQ API data - CE: 228, PE: 228 strikes
+[2025-08-16 08:23:44 AM] UTILS: 📊 Using zone-based strike selection
+[2025-08-16 08:23:44 AM] UTILS: 📊 Zone-based strikes:
+[2025-08-16 08:23:44 AM] UTILS:    CE strikes (from supply ₹24607.53): [24650, 24700, 24750]
+[2025-08-16 08:23:44 AM] UTILS:    PE strikes (from demand ₹24135.47): [24100, 24050.0, 24000.0]
+[2025-08-16 08:23:44 AM] UTILS: 📊 DataFrame created with shape: (3, 8)
+[2025-08-16 08:23:44 AM] UTILS: 📊 Display DataFrame: 
+         Entry  CE Strike  CE Price  PE Strike  PE Price Target/SL (1:1)
+0  High Reward      24650    141.30    24100.0     20.50           ₹9700
+1   Mid Reward      24700    119.35    24050.0     18.15           ₹8250
+2   Low Reward      24750     96.45    24000.0     15.85           ₹6750
+[2025-08-16 08:23:44 AM] UTILS: 📊 CE Prices found: 228 items
+[2025-08-16 08:23:44 AM] UTILS: 📊 PE Prices found: 228 items
+[2025-08-16 08:23:44 AM] UTILS: ✅ Analysis completed successfully for NIFTY
+[2025-08-16 08:23:44 AM] UTILS: Generated files: summary_208c0c1c64394696888550834a358860.png, static/payoff_68db74343e924ffab991bf3da0bb9c8e.png
+[2025-08-16 08:23:44 AM] Analysis result: <class 'dict'>, Status: ✅ Weekly analysis completed with supply/demand zones (Supply: ₹24608, Demand: ₹24135)
+[2025-08-16 08:23:44 AM] ✅ Analysis successful - data saved to session
+[2025-08-16 08:25:09 AM] === Generate Analysis View Called ===
+[2025-08-16 08:25:09 AM] Request method: POST
+[2025-08-16 08:25:09 AM] Form data received:
+[2025-08-16 08:25:09 AM]   Instrument: NIFTY
+[2025-08-16 08:25:09 AM]   Calculation Type: Weekly
+[2025-08-16 08:25:09 AM]   Expiry: 28-Aug-2025
+[2025-08-16 08:25:09 AM] Calling utils.generate_analysis()...
+[2025-08-16 08:25:09 AM] UTILS: === generate_analysis() called ===
+[2025-08-16 08:25:09 AM] UTILS: Parameters: instrument=NIFTY, calc_type=Weekly, expiry=28-Aug-2025
+[2025-08-16 08:25:09 AM] UTILS: 📊 Using yfinance for chart analysis generation
+[2025-08-16 08:25:09 AM] UTILS: Using ticker symbol: ^NSEI
+[2025-08-16 08:25:09 AM] UTILS: 📊 Calculating Weekly supply/demand zones using yfinance...
+[2025-08-16 08:25:10 AM] UTILS: ✅ Zones calculated - Supply: ₹24607.53, Demand: ₹24135.47
+[2025-08-16 08:25:10 AM] OPTION_CHAIN: 📡 get_option_chain_data called for NIFTY - fetching fresh data
+[2025-08-16 08:25:10 AM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-16 08:25:10 AM] UTILS: ✅ Option chain fetch successful
+[2025-08-16 08:25:10 AM] UTILS: 📊 Updated current price from option chain: 24631.30078125
+[2025-08-16 08:25:10 AM] UTILS: 📊 Option chain data keys: ['data', 'status', 'expiryDates', 'symbol', 'underlying']
+[2025-08-16 08:25:10 AM] UTILS: 📊 Option chain data['data'] keys: ['last_price', 'oc']
+[2025-08-16 08:25:10 AM] UTILS: 📊 Found DhanHQ structure with 228 strikes
+[2025-08-16 08:25:10 AM] UTILS: 📊 DhanHQ API data - CE: 228, PE: 228 strikes
+[2025-08-16 08:25:10 AM] UTILS: 📊 Using zone-based strike selection
+[2025-08-16 08:25:10 AM] UTILS: 📊 Zone-based strikes:
+[2025-08-16 08:25:10 AM] UTILS:    CE strikes (from supply ₹24607.53): [24650, 24700, 24750]
+[2025-08-16 08:25:10 AM] UTILS:    PE strikes (from demand ₹24135.47): [24100, 24050.0, 24000.0]
+[2025-08-16 08:25:10 AM] UTILS: 📊 DataFrame created with shape: (3, 8)
+[2025-08-16 08:25:10 AM] UTILS: 📊 Display DataFrame: 
+         Entry  CE Strike  CE Price  PE Strike  PE Price Target/SL (1:1)
+0  High Reward      24650    141.30    24100.0     20.50           ₹9700
+1   Mid Reward      24700    119.35    24050.0     18.15           ₹8250
+2   Low Reward      24750     96.45    24000.0     15.85           ₹6750
+[2025-08-16 08:25:10 AM] UTILS: 📊 CE Prices found: 228 items
+[2025-08-16 08:25:10 AM] UTILS: 📊 PE Prices found: 228 items
+[2025-08-16 08:25:11 AM] UTILS: ✅ Analysis completed successfully for NIFTY
+[2025-08-16 08:25:11 AM] UTILS: Generated files: summary_0a509e26ba9f44deb6213df17a980cab.png, static/payoff_a92a798ca2664c69a855883693079a6a.png
+[2025-08-16 08:25:11 AM] Analysis result: <class 'dict'>, Status: ✅ Weekly analysis completed with supply/demand zones (Supply: ₹24608, Demand: ₹24135)
+[2025-08-16 08:25:11 AM] ✅ Analysis successful - data saved to session
