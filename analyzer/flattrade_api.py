@@ -70,6 +70,20 @@ class FlatTradeAPI:
         logger.info(f"Generated FlatTrade OAuth URL: {oauth_url}")
         return oauth_url
     
+    def exchange_code_for_token(self, code: str, api_secret: str, redirect_uri: str) -> Tuple[bool, Dict]:
+        """
+        Exchange authorization code for access token (wrapper for exchange_auth_code)
+        
+        Args:
+            code: Authorization code from callback
+            api_secret: FlatTrade API Secret  
+            redirect_uri: Redirect URI (not used by FlatTrade but kept for compatibility)
+            
+        Returns:
+            Tuple of (success, result_dict)
+        """
+        return self.exchange_auth_code(code, self.api_key, api_secret)
+    
     @classmethod
     def exchange_auth_code(cls, request_code: str, api_key: str, api_secret: str) -> Tuple[bool, Dict]:
         """
@@ -247,8 +261,8 @@ class FlatTradeAPI:
             logger.info(f"FlatTrade: Data being sent: {data}")
             logger.info(f"FlatTrade: jData JSON: {jdata_str}")
             
-            # Use URL-encoded approach as it got further (authentication error vs JSON error)
-            payload_string = f"jData={quote(jdata_str)}&jKey={quote(self.access_token)}"
+            # Use the raw format (Test 5 worked - got auth error instead of JSON error)
+            payload_string = f"jData={jdata_str}&jKey={self.access_token}"
             
             headers = {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
@@ -274,6 +288,15 @@ class FlatTradeAPI:
                 if isinstance(response_data, dict) and response_data.get('stat') == 'Not_Ok':
                     error_msg = response_data.get('emsg', 'Unknown API error')
                     logger.error(f"FlatTrade API error on {endpoint}: {error_msg}")
+                    
+                    # Check for authentication errors
+                    if any(auth_error in error_msg.lower() for auth_error in [
+                        'session expired', 'invalid session', 'not logged in', 
+                        'authentication failed', 'unauthorized'
+                    ]):
+                        logger.warning("🔑 FlatTrade authentication error detected")
+                        return False, {'error': error_msg, 'auth_error': True}
+                    
                     return False, {'error': error_msg}
                 return True, response_data
             else:
@@ -287,6 +310,20 @@ class FlatTradeAPI:
         except Exception as e:
             logger.error(f"FlatTrade unexpected error on {endpoint}: {e}")
             return False, {'error': f'Request error: {str(e)}'}
+    
+    def is_token_valid(self) -> bool:
+        """
+        Check if the current access token is valid by making a test API call
+        
+        Returns:
+            True if token is valid, False otherwise
+        """
+        if not self.access_token:
+            return False
+        
+        # Use the most lightweight API call to test token
+        success, result = self.get_user_details()
+        return success and not result.get('auth_error', False)
     
     def get_user_details(self) -> Tuple[bool, Dict]:
         """Get user details and account information"""

@@ -196,3 +196,102 @@
 [2025-08-17 07:05:03 PM] UTILS: 📊 PE Prices found: 88 items
 [2025-08-17 07:05:03 PM] UTILS: ✅ Analysis completed successfully for NIFTY
 [2025-08-17 07:05:03 PM] UTILS: Generated files: summary_10515f2dbd7a4cb588146414ee8144b5.png, static/payoff_d43c73c3842845e3be6f6b92c5f3528f.png
+[2025-08-17 07:32:00 PM] UTILS: === generate_analysis() called ===
+[2025-08-17 07:32:00 PM] UTILS: Parameters: instrument=NIFTY, calc_type=Weekly, expiry=21-Aug-2025
+[2025-08-17 07:32:00 PM] UTILS: 📊 Using yfinance for chart analysis generation
+[2025-08-17 07:32:00 PM] UTILS: Using ticker symbol: ^NSEI
+[2025-08-17 07:32:00 PM] UTILS: 📊 Calculating Weekly supply/demand zones using live NIFSEL...
+[2025-08-17 07:32:00 PM] OPTION_CHAIN: 📡 get_option_chain_data called for NIFTY - fetching fresh data
+[2025-08-17 07:32:01 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-17 07:32:01 PM] UTILS: ✅ Zones calculated - Supply: ₹24607.53, Demand: ₹24135.47
+[2025-08-17 07:32:01 PM] OPTION_CHAIN: 📡 get_option_chain_data called for NIFTY - fetching fresh data
+[2025-08-17 07:32:03 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-17 07:32:03 PM] UTILS: ✅ Option chain fetch successful
+[2025-08-17 07:32:03 PM] UTILS: 📊 Updated current price from NSE option chain: 24631.3
+[2025-08-17 07:32:03 PM] UTILS: 📊 NSE option chain data keys: ['records', 'filtered']
+[2025-08-17 07:32:03 PM] UTILS: 📊 NSE records keys: ['expiryDates', 'data', 'timestamp', 'underlyingValue', 'strikePrices', 'index']
+[2025-08-17 07:32:03 PM] UTILS: 📊 NSE API data - CE: 88, PE: 88 strikes
+[2025-08-17 07:32:03 PM] UTILS: 📊 Using zone-based strike selection
+[2025-08-17 07:32:03 PM] UTILS: 📊 Zone-based strikes:
+[2025-08-17 07:32:03 PM] UTILS:    CE strikes (from supply ₹24607.53): [24650, 24700, 24750]
+[2025-08-17 07:32:03 PM] UTILS:    PE strikes (from demand ₹24135.47): [24100, 24050, 24000]
+[2025-08-17 07:32:03 PM] UTILS: 🛡️ Calculating hedge strikes with 10.0% of premium...
+[2025-08-17 07:32:03 PM] UTILS:    High Reward: CE Hedge 27150@₹14.60, PE Hedge 22850@₹2.00
+[2025-08-17 07:32:03 PM] UTILS:    Mid Reward: CE Hedge 25200@₹11.85, PE Hedge 22900@₹1.85
+[2025-08-17 07:32:03 PM] UTILS:    Low Reward: CE Hedge 25250@₹9.70, PE Hedge 22600@₹1.60
+[2025-08-17 07:32:03 PM] UTILS: 📊 Enhanced DataFrame created with shape: (3, 13)
+[2025-08-17 07:32:03 PM] UTILS: 📊 Display DataFrame with hedging: 
+         Entry  CE Strike  CE Price  PE Strike  PE Price     CE Hedge    PE Hedge Hedge Cost Target/SL (1:1)
+0  High Reward      24650    141.30      24100     20.50  27150@₹14.6  22850@₹2.0      ₹16.6          ₹10300
+1   Mid Reward      24700    119.35      24050     18.15  25200@₹11.8  22900@₹1.9      ₹13.7           ₹8750
+2   Low Reward      24750     96.45      24000     15.85   25250@₹9.7  22600@₹1.6      ₹11.3           ₹7150
+[2025-08-17 07:32:03 PM] UTILS: 📊 CE Prices found: 88 items
+[2025-08-17 07:32:03 PM] UTILS: 📊 PE Prices found: 88 items
+[2025-08-17 07:32:04 PM] UTILS: ✅ Analysis completed successfully for NIFTY
+[2025-08-17 07:32:04 PM] UTILS: Generated files: summary_5f55fc48706a4deda0698eee963690ea.png, static/payoff_faec404104a24791afd0d4670c2cb0f0.png
+[2025-08-17 07:43:00 PM] UTILS: === generate_analysis() called ===
+[2025-08-17 07:43:00 PM] UTILS: Parameters: instrument=NIFTY, calc_type=Weekly, expiry=21-Aug-2025
+[2025-08-17 07:43:00 PM] UTILS: 📊 Using yfinance for chart analysis generation
+[2025-08-17 07:43:00 PM] UTILS: Using ticker symbol: ^NSEI
+[2025-08-17 07:43:00 PM] UTILS: 📊 Calculating Weekly supply/demand zones using live NIFSEL...
+[2025-08-17 07:43:00 PM] OPTION_CHAIN: 📡 get_option_chain_data called for NIFTY - fetching fresh data
+[2025-08-17 07:43:01 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-17 07:43:02 PM] UTILS: ✅ Zones calculated - Supply: ₹24607.53, Demand: ₹24135.47
+[2025-08-17 07:43:02 PM] OPTION_CHAIN: 📡 get_option_chain_data called for NIFTY - fetching fresh data
+[2025-08-17 07:43:03 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-17 07:43:03 PM] UTILS: ✅ Option chain fetch successful
+[2025-08-17 07:43:03 PM] UTILS: 📊 Updated current price from NSE option chain: 24631.3
+[2025-08-17 07:43:03 PM] UTILS: 📊 NSE option chain data keys: ['records', 'filtered']
+[2025-08-17 07:43:03 PM] UTILS: 📊 NSE records keys: ['expiryDates', 'data', 'timestamp', 'underlyingValue', 'strikePrices', 'index']
+[2025-08-17 07:43:03 PM] UTILS: 📊 NSE API data - CE: 88, PE: 88 strikes
+[2025-08-17 07:43:03 PM] UTILS: 📊 Using zone-based strike selection
+[2025-08-17 07:43:03 PM] UTILS: 📊 Zone-based strikes:
+[2025-08-17 07:43:03 PM] UTILS:    CE strikes (from supply ₹24607.53): [24650, 24700, 24750]
+[2025-08-17 07:43:03 PM] UTILS:    PE strikes (from demand ₹24135.47): [24100, 24050, 24000]
+[2025-08-17 07:43:03 PM] UTILS: 🛡️ Calculating hedge strikes with 10.0% of premium...
+[2025-08-17 07:43:03 PM] UTILS:    High Reward: CE Hedge 27150@₹14.60, PE Hedge 22850@₹2.00
+[2025-08-17 07:43:03 PM] UTILS:    Mid Reward: CE Hedge 25200@₹11.85, PE Hedge 22900@₹1.85
+[2025-08-17 07:43:03 PM] UTILS:    Low Reward: CE Hedge 25250@₹9.70, PE Hedge 22600@₹1.60
+[2025-08-17 07:43:03 PM] UTILS: 📊 Enhanced DataFrame created with shape: (3, 13)
+[2025-08-17 07:43:03 PM] UTILS: 📊 Display DataFrame with hedging: 
+         Entry  CE Strike  CE Price  PE Strike  PE Price     CE Hedge    PE Hedge Hedge Cost Target/SL (1:1)
+0  High Reward      24650    141.30      24100     20.50  27150@₹14.6  22850@₹2.0      ₹16.6          ₹10300
+1   Mid Reward      24700    119.35      24050     18.15  25200@₹11.8  22900@₹1.9      ₹13.7           ₹8750
+2   Low Reward      24750     96.45      24000     15.85   25250@₹9.7  22600@₹1.6      ₹11.3           ₹7150
+[2025-08-17 07:43:03 PM] UTILS: 📊 CE Prices found: 88 items
+[2025-08-17 07:43:03 PM] UTILS: 📊 PE Prices found: 88 items
+[2025-08-17 07:43:04 PM] UTILS: ✅ Analysis completed successfully for NIFTY
+[2025-08-17 07:43:04 PM] UTILS: Generated files: summary_ab87b0daebb14e7c9f0ee38d21f711f3.png, static/payoff_58753fb44bcd41bf9d33b799dc6db8ac.png
+[2025-08-17 07:48:00 PM] UTILS: === generate_analysis() called ===
+[2025-08-17 07:48:00 PM] UTILS: Parameters: instrument=NIFTY, calc_type=Weekly, expiry=21-Aug-2025
+[2025-08-17 07:48:00 PM] UTILS: 📊 Using yfinance for chart analysis generation
+[2025-08-17 07:48:00 PM] UTILS: Using ticker symbol: ^NSEI
+[2025-08-17 07:48:00 PM] UTILS: 📊 Calculating Weekly supply/demand zones using live NIFSEL...
+[2025-08-17 07:48:00 PM] OPTION_CHAIN: 📡 get_option_chain_data called for NIFTY - fetching fresh data
+[2025-08-17 07:48:01 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-17 07:48:02 PM] UTILS: ✅ Zones calculated - Supply: ₹24607.53, Demand: ₹24135.47
+[2025-08-17 07:48:02 PM] OPTION_CHAIN: 📡 get_option_chain_data called for NIFTY - fetching fresh data
+[2025-08-17 07:48:03 PM] OPTION_CHAIN: ✅ Fresh option chain data fetched successfully
+[2025-08-17 07:48:03 PM] UTILS: ✅ Option chain fetch successful
+[2025-08-17 07:48:03 PM] UTILS: 📊 Updated current price from NSE option chain: 24631.3
+[2025-08-17 07:48:03 PM] UTILS: 📊 NSE option chain data keys: ['records', 'filtered']
+[2025-08-17 07:48:03 PM] UTILS: 📊 NSE records keys: ['expiryDates', 'data', 'timestamp', 'underlyingValue', 'strikePrices', 'index']
+[2025-08-17 07:48:03 PM] UTILS: 📊 NSE API data - CE: 88, PE: 88 strikes
+[2025-08-17 07:48:03 PM] UTILS: 📊 Using zone-based strike selection
+[2025-08-17 07:48:03 PM] UTILS: 📊 Zone-based strikes:
+[2025-08-17 07:48:03 PM] UTILS:    CE strikes (from supply ₹24607.53): [24650, 24700, 24750]
+[2025-08-17 07:48:03 PM] UTILS:    PE strikes (from demand ₹24135.47): [24100, 24050, 24000]
+[2025-08-17 07:48:03 PM] UTILS: 🛡️ Calculating hedge strikes with 10.0% of premium...
+[2025-08-17 07:48:03 PM] UTILS:    High Reward: CE Hedge 27150@₹14.60, PE Hedge 22850@₹2.00
+[2025-08-17 07:48:03 PM] UTILS:    Mid Reward: CE Hedge 25200@₹11.85, PE Hedge 22900@₹1.85
+[2025-08-17 07:48:03 PM] UTILS:    Low Reward: CE Hedge 25250@₹9.70, PE Hedge 22600@₹1.60
+[2025-08-17 07:48:03 PM] UTILS: 📊 Enhanced DataFrame created with shape: (3, 13)
+[2025-08-17 07:48:03 PM] UTILS: 📊 Display DataFrame with hedging: 
+         Entry  CE Strike  CE Price  PE Strike  PE Price     CE Hedge    PE Hedge Hedge Cost Target/SL (1:1)
+0  High Reward      24650    141.30      24100     20.50  27150@₹14.6  22850@₹2.0      ₹16.6          ₹10300
+1   Mid Reward      24700    119.35      24050     18.15  25200@₹11.8  22900@₹1.9      ₹13.7           ₹8750
+2   Low Reward      24750     96.45      24000     15.85   25250@₹9.7  22600@₹1.6      ₹11.3           ₹7150
+[2025-08-17 07:48:03 PM] UTILS: 📊 CE Prices found: 88 items
+[2025-08-17 07:48:03 PM] UTILS: 📊 PE Prices found: 88 items
+[2025-08-17 07:48:04 PM] UTILS: ✅ Analysis completed successfully for NIFTY
+[2025-08-17 07:48:04 PM] UTILS: Generated files: summary_5392c149e52b4221ae2c0003bab1a5a5.png, static/payoff_ddd305ffa9d446608aa30334a002ce37.png
