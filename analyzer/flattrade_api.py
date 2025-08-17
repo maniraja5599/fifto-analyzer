@@ -239,45 +239,63 @@ class FlatTradeAPI:
         try:
             url = f"{self.API_BASE_URL}/{endpoint}"
             
+            # Create JSON string ensuring proper formatting
+            jdata_str = json.dumps(data, separators=(',', ':'), ensure_ascii=False)
+            
             # Prepare payload as per FlatTrade API format
             payload = {
-                'jData': json.dumps(data),
+                'jData': jdata_str,
                 'jKey': self.access_token
             }
             
-            logger.debug(f"Making request to {url} with data: {data}")
+            logger.info(f"FlatTrade: Making request to {endpoint}")
+            logger.info(f"FlatTrade: Request URL: {url}")
+            logger.info(f"FlatTrade: Data being sent: {data}")
+            logger.info(f"FlatTrade: jData JSON: {jdata_str}")
+            logger.info(f"FlatTrade: Full payload keys: {list(payload.keys())}")
             
-            response = self.session.post(url, data=payload, timeout=30)
+            # Set proper headers for form data
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                'Accept': 'application/json',
+                'Content-Type': 'application/x-www-form-urlencoded'
+            }
             
-            # Enhanced error logging for debugging
-            if response.status_code != 200:
-                logger.error(f"HTTP {response.status_code} error on {endpoint}")
+            response = self.session.post(url, data=payload, headers=headers, timeout=30)
+            
+            logger.info(f"FlatTrade: Response status: {response.status_code}")
+            logger.info(f"FlatTrade: Response headers: {dict(response.headers)}")
+            
+            # Handle different response content types
+            try:
+                response_data = response.json()
+                logger.info(f"FlatTrade: Response JSON: {response_data}")
+            except json.JSONDecodeError:
+                logger.error(f"FlatTrade: Non-JSON response: {response.text}")
+                return False, {'error': f'Invalid JSON response: {response.text[:200]}'}
+            
+            if response.status_code == 200:
+                if isinstance(response_data, dict) and response_data.get('stat') == 'Not_Ok':
+                    error_msg = response_data.get('emsg', 'Unknown API error')
+                    logger.error(f"FlatTrade API error on {endpoint}: {error_msg}")
+                    return False, {'error': error_msg}
+                return True, response_data
+            else:
+                logger.error(f"FlatTrade HTTP {response.status_code} error on {endpoint}")
                 logger.error(f"Request URL: {url}")
                 logger.error(f"Request Data: {data}")
                 logger.error(f"Response Text: {response.text}")
                 logger.error(f"Response Headers: {dict(response.headers)}")
                 return False, {'error': f'HTTP {response.status_code}: {response.text}'}
-            
-            response_data = response.json()
-            logger.debug(f"Response from {endpoint}: {response_data}")
-            
-            # Check for API-level errors
-            if isinstance(response_data, dict) and response_data.get('stat') == 'Not_Ok':
-                error_msg = response_data.get('emsg', 'Unknown API error')
-                logger.error(f"FlatTrade API error on {endpoint}: {error_msg}")
-                logger.error(f"Full response: {response_data}")
-                return False, {'error': error_msg, 'full_response': response_data}
-            
-            return True, response_data
                 
         except requests.RequestException as e:
-            logger.error(f"Request failed on {endpoint}: {e}")
+            logger.error(f"FlatTrade request failed on {endpoint}: {e}")
             return False, {'error': f'Network error: {str(e)}'}
         except json.JSONDecodeError as e:
-            logger.error(f"JSON decode error on {endpoint}: {e}")
+            logger.error(f"FlatTrade JSON decode error on {endpoint}: {e}")
             return False, {'error': f'Invalid response format: {str(e)}'}
         except Exception as e:
-            logger.error(f"Unexpected error on {endpoint}: {e}")
+            logger.error(f"FlatTrade unexpected error on {endpoint}: {e}")
             return False, {'error': f'Request error: {str(e)}'}
     
     def get_user_details(self) -> Tuple[bool, Dict]:
@@ -356,32 +374,13 @@ class FlatTradeAPI:
         Returns:
             Tuple of (success, response_data)
         """
-        # Validate required parameters
-        if not symbol or not exchange or not transaction_type:
-            error_msg = f"Missing required parameters: symbol={symbol}, exchange={exchange}, transaction_type={transaction_type}"
-            logger.error(error_msg)
-            return False, {'error': error_msg}
-        
-        if quantity <= 0:
-            error_msg = f"Invalid quantity: {quantity}"
-            logger.error(error_msg)
-            return False, {'error': error_msg}
-        
-        if order_type in ['LMT', 'SL-LMT'] and price <= 0:
-            error_msg = f"Invalid price for limit order: {price}"
-            logger.error(error_msg)
-            return False, {'error': error_msg}
-        
-        # Log order details for debugging
-        logger.info(f"FlatTrade placing order: {transaction_type} {quantity} {symbol} @ {price} on {exchange}")
-        
         data = {
             'uid': self.client_id,
             'actid': self.client_id,
             'exch': exchange,
             'tsym': symbol,
             'qty': str(quantity),
-            'prc': str(price) if price > 0 else '0',
+            'prc': str(price),
             'prd': product,
             'trantype': transaction_type,
             'prctyp': order_type,
@@ -390,17 +389,14 @@ class FlatTradeAPI:
             'ordersource': 'API'
         }
         
-        if trigger_price and trigger_price > 0:
+        if trigger_price:
             data['trgprc'] = str(trigger_price)
             
         if remarks:
-            data['remarks'] = remarks[:50]  # Limit remarks length
+            data['remarks'] = remarks
             
         if amo:
             data['amo'] = 'Yes'
-        
-        # Log the exact data being sent
-        logger.info(f"FlatTrade order data: {data}")
             
         return self._make_request('PlaceOrder', data)
     
@@ -672,19 +668,34 @@ class FlatTradeBrokerHandler:
             # Convert transaction type to FlatTrade format
             side = 'B' if transaction_type.upper() == 'BUY' else 'S'
             
-            # Convert order type and handle pricing
+            # Convert order type
             ft_order_type = 'MKT' if order_type.upper() == 'MARKET' else 'LMT'
             
-            # For market orders, FlatTrade might require a nominal price or specific handling
+            # Set appropriate price based on order type
             if ft_order_type == 'MKT':
-                # For market orders, use a nominal price (some brokers require this)
-                price = 1.0  # Nominal price for market orders
+                price = 0  # FlatTrade expects 0 for market orders
             else:
-                # For limit orders, we need to get actual market price
-                # TODO: Implement market price fetching for limit orders
-                price = 1.0  # Placeholder - should fetch current market price
+                price = 1.0  # Placeholder for limit orders
             
             logger.info(f"FlatTrade: Placing {ft_order_type} order for {symbol} at price {price}")
+            logger.info(f"FlatTrade placing order: {side} {quantity} {symbol} @ {price} on NFO")
+            
+            # Create order data for logging
+            order_data = {
+                'uid': self.api.client_id,
+                'actid': self.api.client_id,
+                'exch': 'NFO',
+                'tsym': symbol,
+                'qty': str(quantity),
+                'prc': str(price),
+                'prd': 'M',
+                'trantype': side,
+                'prctyp': ft_order_type,
+                'ret': 'DAY',
+                'dscqty': '0',
+                'ordersource': 'API'
+            }
+            logger.info(f"FlatTrade order data: {order_data}")
             
             success, result = self.api.place_order(
                 symbol=symbol,
