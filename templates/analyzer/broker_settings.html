@@ -1,0 +1,707 @@
+{% extends "analyzer/layout.html" %}
+{% block content %}
+
+<!-- Page Header -->
+<div class="page-header">
+    <div class="row align-items-center">
+        <div class="col-lg-8">
+            <h1 class="page-title">
+                <i class="bi bi-bank2 text-success"></i>
+                Broker Settings
+            </h1>
+            <p class="page-subtitle">Configure broker accounts for live trading, manage API credentials, and setup automated order placement</p>
+            <div class="page-stats">
+                <span class="stat-badge primary">
+                    <i class="bi bi-shield-check"></i>
+                    {{ broker_accounts|length }} Account{{ broker_accounts|length|pluralize }} Configured
+                </span>
+                <span class="stat-badge {% if live_trading_enabled %}success{% else %}secondary{% endif %}">
+                    <i class="bi bi-lightning-charge"></i>
+                    Live Trading {% if live_trading_enabled %}Enabled{% else %}Disabled{% endif %}
+                </span>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="page-actions">
+                <button type="button" class="btn btn-success" onclick="addBrokerAccount()">
+                    <i class="bi bi-plus-circle me-2"></i>
+                    Add Broker Account
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Live Trading Configuration -->
+<div class="card clean-card border-0 shadow-sm mb-4">
+    <div class="card-header bg-light border-bottom">
+        <div class="d-flex align-items-center">
+            <i class="bi bi-lightning-charge text-warning me-3 fs-5"></i>
+            <div>
+                <h5 class="mb-0 fw-bold">Live Trading Configuration</h5>
+                <small class="text-muted">Global settings for automated trading</small>
+            </div>
+        </div>
+    </div>
+    <div class="card-body">
+        <form method="post" id="brokerSettingsForm">
+            {% csrf_token %}
+            <input type="hidden" name="broker_accounts_json" id="brokerAccountsJson" value="">
+            
+            <div class="row g-4">
+                <div class="col-md-6">
+                    <div class="form-check form-switch form-switch-lg">
+                        <input class="form-check-input" type="checkbox" name="enable_live_trading" id="enableLiveTrading" 
+                               {% if live_trading_enabled %}checked{% endif %}>
+                        <label class="form-check-label fw-semibold" for="enableLiveTrading">
+                            <i class="bi bi-toggle-on text-success me-2"></i>
+                            Enable Live Trading
+                        </label>
+                        <div class="form-text">Allow automatic order placement when analysis is generated</div>
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="form-check form-switch form-switch-lg">
+                        <input class="form-check-input" type="checkbox" name="auto_place_orders" id="autoPlaceOrders" 
+                               {% if auto_place_orders %}checked{% endif %}>
+                        <label class="form-check-label fw-semibold" for="autoPlaceOrders">
+                            <i class="bi bi-robot text-primary me-2"></i>
+                            Auto Place Orders
+                        </label>
+                        <div class="form-text">Automatically place orders when new analysis is generated</div>
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Default Order Type</label>
+                    <select name="default_order_type" class="form-select">
+                        <option value="MARKET" {% if default_order_type == 'MARKET' %}selected{% endif %}>Market Order</option>
+                        <option value="LIMIT" {% if default_order_type == 'LIMIT' %}selected{% endif %}>Limit Order</option>
+                    </select>
+                    <div class="form-text">Default order type for automated trades</div>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="form-check form-switch form-switch-lg">
+                        <input class="form-check-input" type="checkbox" name="enable_position_monitoring" id="enablePositionMonitoring" 
+                               {% if enable_position_monitoring %}checked{% endif %}>
+                        <label class="form-check-label fw-semibold" for="enablePositionMonitoring">
+                            <i class="bi bi-eye text-info me-2"></i>
+                            Position Monitoring
+                        </label>
+                        <div class="form-text">Monitor positions for target/stoploss and auto-close</div>
+                    </div>
+                </div>
+                
+                <!-- Lot Size Configuration -->
+                <div class="col-12">
+                    <hr class="my-4">
+                    <h6 class="fw-bold text-secondary mb-3">
+                        <i class="bi bi-calculator text-success me-2"></i>
+                        Lot Size Configuration
+                    </h6>
+                </div>
+                
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">NIFTY Lot Size</label>
+                    <input type="number" name="nifty_lot_size" class="form-control" 
+                           value="{{ nifty_lot_size|default:25 }}" min="1" max="1000">
+                    <div class="form-text">Number of lots for NIFTY trades</div>
+                </div>
+                
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">BANKNIFTY Lot Size</label>
+                    <input type="number" name="banknifty_lot_size" class="form-control" 
+                           value="{{ banknifty_lot_size|default:15 }}" min="1" max="1000">
+                    <div class="form-text">Number of lots for BANKNIFTY trades</div>
+                </div>
+                
+                <!-- Auto-Close Configuration -->
+                <div class="col-12">
+                    <hr class="my-4">
+                    <h6 class="fw-bold text-secondary mb-3">
+                        <i class="bi bi-shield-check text-warning me-2"></i>
+                        Auto-Close Configuration
+                    </h6>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="form-check form-switch form-switch-lg">
+                        <input class="form-check-input" type="checkbox" name="auto_close_targets" id="autoCloseTargets" 
+                               {% if auto_close_targets %}checked{% endif %}>
+                        <label class="form-check-label fw-semibold" for="autoCloseTargets">
+                            <i class="bi bi-bullseye text-success me-2"></i>
+                            Auto Close on Target
+                        </label>
+                        <div class="form-text">Automatically close trades when target is hit</div>
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="form-check form-switch form-switch-lg">
+                        <input class="form-check-input" type="checkbox" name="auto_close_stoploss" id="autoCloseStoploss" 
+                               {% if auto_close_stoploss %}checked{% endif %}>
+                        <label class="form-check-label fw-semibold" for="autoCloseStoploss">
+                            <i class="bi bi-shield-x text-danger me-2"></i>
+                            Auto Close on Stop Loss
+                        </label>
+                        <div class="form-text">Automatically close trades when stop loss is hit</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Save Button for Live Trading Settings -->
+            <div class="row mt-4">
+                <div class="col-12">
+                    <div class="d-flex gap-3">
+                        <button type="submit" class="btn btn-success">
+                            <i class="bi bi-check-circle me-2"></i>
+                            Save Live Trading Settings
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" onclick="testConnection()">
+                            <i class="bi bi-wifi me-2"></i>
+                            Test Connection
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Available Brokers -->
+<div class="card clean-card border-0 shadow-sm mb-4">
+    <div class="card-header bg-light border-bottom">
+        <div class="d-flex align-items-center">
+            <i class="bi bi-shop text-primary me-3 fs-5"></i>
+            <div>
+                <h5 class="mb-0 fw-bold">Supported Brokers</h5>
+                <small class="text-muted">Choose from our supported broker integrations</small>
+            </div>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="row g-3">
+            {% for broker_code, broker_info in available_brokers.items %}
+            <div class="col-md-4">
+                <div class="broker-card" onclick="selectBroker('{{ broker_code }}')">
+                    <div class="broker-icon" style="color: {{ broker_info.color }}">
+                        <i class="bi {{ broker_info.logo }}"></i>
+                    </div>
+                    <div class="broker-info">
+                        <h6 class="broker-name">{{ broker_info.name }}</h6>
+                        <p class="broker-desc">{{ broker_info.description }}</p>
+                    </div>
+                    <div class="broker-action">
+                        <i class="bi bi-plus-circle text-success"></i>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- Configured Broker Accounts -->
+<div class="card clean-card border-0 shadow-sm">
+    <div class="card-header bg-light border-bottom">
+        <div class="d-flex align-items-center justify-content-between">
+            <div class="d-flex align-items-center">
+                <i class="bi bi-person-check text-success me-3 fs-5"></i>
+                <div>
+                    <h5 class="mb-0 fw-bold">Configured Accounts</h5>
+                    <small class="text-muted">Manage your broker API credentials</small>
+                </div>
+            </div>
+            <button type="button" class="btn btn-sm btn-outline-success" onclick="testAllConnections()">
+                <i class="bi bi-wifi me-1"></i>
+                Test All Connections
+            </button>
+        </div>
+    </div>
+    <div class="card-body">
+        <div id="brokerAccountsContainer">
+            <!-- Broker accounts will be populated here -->
+        </div>
+        
+        <div id="noBrokerAccounts" class="text-center py-5" style="display: none;">
+            <i class="bi bi-bank2 text-muted" style="font-size: 3rem;"></i>
+            <h5 class="text-muted mt-3">No Broker Accounts Configured</h5>
+            <p class="text-muted">Add your first broker account to start live trading</p>
+            <button type="button" class="btn btn-success" onclick="addBrokerAccount()">
+                <i class="bi bi-plus-circle me-2"></i>
+                Add Broker Account
+            </button>
+        </div>
+    </div>
+</div>
+
+{{ broker_accounts|json_script:"broker-accounts-data" }}
+{{ available_brokers|json_script:"available-brokers-data" }}
+
+<!-- Broker Account Modal -->
+<div class="modal fade" id="brokerAccountModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-bank2 me-2"></i>
+                    <span id="modalTitle">Add Broker Account</span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="brokerAccountForm">
+                    <input type="hidden" id="accountIndex" value="-1">
+                    
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Broker</label>
+                            <select id="brokerType" class="form-select" onchange="updateRequiredFields()">
+                                <option value="">Select Broker</option>
+                                {% for broker_code, broker_info in available_brokers.items %}
+                                <option value="{{ broker_code }}">{{ broker_info.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Client ID</label>
+                            <input type="text" id="accountId" class="form-control" placeholder="Your client ID">
+                        </div>
+                        
+                        <div class="col-12">
+                            <label class="form-label fw-semibold">Account Name (Optional)</label>
+                            <input type="text" id="accountName" class="form-control" placeholder="Display name for this account">
+                        </div>
+                        
+                        <div id="dynamicFields" class="col-12">
+                            <!-- Dynamic fields will be populated based on selected broker -->
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="accountEnabled" checked>
+                                <label class="form-check-label fw-semibold" for="accountEnabled">
+                                    Enable Account
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" onclick="saveBrokerAccount()">
+                    <i class="bi bi-check-circle me-1"></i>
+                    Save Account
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.broker-card {
+    border: 2px solid #e9ecef;
+    border-radius: 12px;
+    padding: 1.5rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background: white;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    height: 100%;
+}
+
+.broker-card:hover {
+    border-color: #28a745;
+    box-shadow: 0 4px 15px rgba(40, 167, 69, 0.1);
+    transform: translateY(-2px);
+}
+
+.broker-icon {
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+}
+
+.broker-name {
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: #2d3748;
+}
+
+.broker-desc {
+    font-size: 0.875rem;
+    color: #6c757d;
+    margin-bottom: 1rem;
+}
+
+.broker-action {
+    margin-top: auto;
+    font-size: 1.5rem;
+}
+
+.account-card {
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+    background: white;
+    transition: all 0.2s ease;
+}
+
+.account-card:hover {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.status-badge {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
+    font-weight: 600;
+}
+
+.status-connected {
+    background: #d4edda;
+    color: #155724;
+}
+
+.status-error {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.status-disabled {
+    background: #e2e3e5;
+    color: #6c757d;
+}
+
+.form-switch-lg .form-check-input {
+    width: 3rem;
+    height: 1.5rem;
+}
+</style>
+
+<script>
+// Available brokers configuration
+const availableBrokers = JSON.parse(document.getElementById('available-brokers-data').textContent);
+
+// Current broker accounts
+let brokerAccounts = JSON.parse(document.getElementById('broker-accounts-data').textContent);
+
+// Initialize page
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Broker accounts data:', brokerAccounts);
+    console.log('Available brokers:', availableBrokers);
+    renderBrokerAccounts();
+    updateBrokerAccountsJson();
+});
+
+function renderBrokerAccounts() {
+    const container = document.getElementById('brokerAccountsContainer');
+    const noBrokerAccounts = document.getElementById('noBrokerAccounts');
+    
+    console.log('renderBrokerAccounts called, accounts length:', brokerAccounts.length);
+    
+    if (brokerAccounts.length === 0) {
+        container.style.display = 'none';
+        noBrokerAccounts.style.display = 'block';
+        return;
+    }
+    
+    container.style.display = 'block';
+    noBrokerAccounts.style.display = 'none';
+    
+    container.innerHTML = brokerAccounts.map((account, index) => `
+        <div class="account-card">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <div class="d-flex align-items-center mb-2">
+                        <i class="bi ${availableBrokers[account.broker]?.logo || 'bi-bank'} me-2" 
+                           style="color: ${availableBrokers[account.broker]?.color || '#6c757d'}; font-size: 1.25rem;"></i>
+                        <h6 class="mb-0 fw-semibold">${account.account_name || availableBrokers[account.broker]?.name || account.broker}</h6>
+                        <span class="status-badge ${account.enabled ? 'status-connected' : 'status-disabled'} ms-2">
+                            ${account.enabled ? 'Active' : 'Disabled'}
+                        </span>
+                    </div>
+                    <div class="text-muted">
+                        <small><i class="bi bi-person me-1"></i>Client ID: ${account.client_id}</small>
+                        <span class="mx-2">•</span>
+                        <small><i class="bi bi-building me-1"></i>${availableBrokers[account.broker]?.name || account.broker}</small>
+                    </div>
+                </div>
+                <div class="col-md-4 text-end">
+                    ${account.broker === 'FLATTRADE' ? `
+                        <button type="button" class="btn btn-sm btn-outline-warning me-2" onclick="authenticateFlatTrade('${account.client_id}')" title="OAuth Authentication">
+                            <i class="bi bi-shield-lock"></i>
+                        </button>
+                    ` : ''}
+                    <button type="button" class="btn btn-sm btn-outline-primary me-2" onclick="editBrokerAccount(${index})">
+                        <i class="bi bi-pencil"></i>
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-success me-2" onclick="testConnection(${index})">
+                        <i class="bi bi-wifi"></i>
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteBrokerAccount(${index})">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function addBrokerAccount() {
+    document.getElementById('modalTitle').textContent = 'Add Broker Account';
+    document.getElementById('accountIndex').value = '-1';
+    document.getElementById('brokerAccountForm').reset();
+    document.getElementById('accountEnabled').checked = true;
+    document.getElementById('dynamicFields').innerHTML = '';
+    
+    const modal = new bootstrap.Modal(document.getElementById('brokerAccountModal'));
+    modal.show();
+}
+
+function editBrokerAccount(index) {
+    const account = brokerAccounts[index];
+    
+    document.getElementById('modalTitle').textContent = 'Edit Broker Account';
+    document.getElementById('accountIndex').value = index;
+    document.getElementById('brokerType').value = account.broker;
+    document.getElementById('accountId').value = account.client_id;
+    document.getElementById('accountName').value = account.account_name || '';
+    document.getElementById('accountEnabled').checked = account.enabled;
+    
+    updateRequiredFields();
+    
+    // Fill dynamic fields
+    const broker = availableBrokers[account.broker];
+    if (broker) {
+        broker.fields.forEach(field => {
+            const input = document.getElementById(field);
+            if (input && account[field]) {
+                input.value = account[field];
+            }
+        });
+    }
+    
+    const modal = new bootstrap.Modal(document.getElementById('brokerAccountModal'));
+    modal.show();
+}
+
+function deleteBrokerAccount(index) {
+    console.log('Deleting broker account at index:', index);
+    console.log('Current accounts:', brokerAccounts);
+    
+    if (confirm('Are you sure you want to delete this broker account?')) {
+        // Remove the account from the array
+        brokerAccounts.splice(index, 1);
+        console.log('Accounts after deletion:', brokerAccounts);
+        
+        // Re-render the display
+        renderBrokerAccounts();
+        
+        // Update the hidden form field
+        updateBrokerAccountsJson();
+        
+        // Submit the form to save changes
+        document.getElementById('brokerSettingsForm').submit();
+    }
+}
+
+function selectBroker(brokerCode) {
+    document.getElementById('brokerType').value = brokerCode;
+    updateRequiredFields();
+    addBrokerAccount();
+}
+
+function updateRequiredFields() {
+    const brokerType = document.getElementById('brokerType').value;
+    const dynamicFields = document.getElementById('dynamicFields');
+    
+    if (!brokerType || !availableBrokers[brokerType]) {
+        dynamicFields.innerHTML = '';
+        return;
+    }
+    
+    const broker = availableBrokers[brokerType];
+    // Filter out client_id since it's already handled by the static Client ID field
+    const fieldsToShow = broker.fields.filter(field => field !== 'client_id');
+    
+    dynamicFields.innerHTML = fieldsToShow.map(field => `
+        <div class="col-md-6 mb-3">
+            <label class="form-label fw-semibold">${field.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}</label>
+            <input type="text" id="${field}" class="form-control" placeholder="Your ${field.replace('_', ' ')}" required>
+        </div>
+    `).join('');
+}
+
+function saveBrokerAccount() {
+    const form = document.getElementById('brokerAccountForm');
+    const index = parseInt(document.getElementById('accountIndex').value);
+    
+    const brokerType = document.getElementById('brokerType').value;
+    const accountId = document.getElementById('accountId').value;
+    const accountName = document.getElementById('accountName').value;
+    const enabled = document.getElementById('accountEnabled').checked;
+    
+    if (!brokerType || !accountId) {
+        alert('Please fill in all required fields');
+        return;
+    }
+    
+    const account = {
+        broker: brokerType,
+        client_id: accountId,   // Use only client_id for FlatTrade
+        account_name: accountName,
+        enabled: enabled
+    };
+    
+    // Add dynamic fields
+    const broker = availableBrokers[brokerType];
+    if (broker) {
+        broker.fields.forEach(field => {
+            const input = document.getElementById(field);
+            if (input) {
+                account[field] = input.value;
+            }
+        });
+    }
+    
+    if (index === -1) {
+        // Add new account
+        brokerAccounts.push(account);
+    } else {
+        // Update existing account
+        brokerAccounts[index] = account;
+    }
+    
+    renderBrokerAccounts();
+    updateBrokerAccountsJson();
+    
+    // Close modal
+    const modal = bootstrap.Modal.getInstance(document.getElementById('brokerAccountModal'));
+    modal.hide();
+    
+    // Auto-save
+    document.getElementById('brokerSettingsForm').submit();
+}
+
+function updateBrokerAccountsJson() {
+    document.getElementById('brokerAccountsJson').value = JSON.stringify(brokerAccounts);
+}
+
+function testConnection(index) {
+    const account = brokerAccounts[index];
+    const button = document.querySelector(`button[onclick="testConnection(${index})"]`);
+    const originalText = button.innerHTML;
+    
+    // Show loading state
+    button.innerHTML = '<i class="bi bi-hourglass-split"></i> Testing...';
+    button.disabled = true;
+    
+    // Prepare test data
+    const testData = {
+        broker: account.broker,
+        config: {
+            account_id: account.account_id,
+            api_key: account.api_key,
+            secret_key: account.secret_key,
+            access_token: account.access_token,
+            client_id: account.client_id
+        }
+    };
+    
+    fetch('/test_broker_connection/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        },
+        body: JSON.stringify(testData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            button.innerHTML = '<i class="bi bi-check-circle text-success"></i> Connected';
+            button.className = 'btn btn-sm btn-outline-success';
+            setTimeout(() => {
+                button.innerHTML = originalText;
+                button.className = 'btn btn-sm btn-outline-primary';
+                button.disabled = false;
+            }, 3000);
+        } else {
+            button.innerHTML = '<i class="bi bi-x-circle text-danger"></i> Failed';
+            button.className = 'btn btn-sm btn-outline-danger';
+            alert(`Connection failed: ${data.error}`);
+            setTimeout(() => {
+                button.innerHTML = originalText;
+                button.className = 'btn btn-sm btn-outline-primary';
+                button.disabled = false;
+            }, 3000);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        button.innerHTML = '<i class="bi bi-x-circle text-danger"></i> Error';
+        button.className = 'btn btn-sm btn-outline-danger';
+        alert('Connection test failed due to network error');
+        setTimeout(() => {
+            button.innerHTML = originalText;
+            button.className = 'btn btn-sm btn-outline-primary';
+            button.disabled = false;
+        }, 3000);
+    });
+}
+
+function testAllConnections() {
+    if (brokerAccounts.length === 0) {
+        alert('No broker accounts configured to test');
+        return;
+    }
+    
+    const button = document.querySelector('button[onclick="testAllConnections()"]');
+    const originalText = button.innerHTML;
+    
+    button.innerHTML = '<i class="bi bi-hourglass-split"></i> Testing All...';
+    button.disabled = true;
+    
+    let completed = 0;
+    let failed = 0;
+    
+    brokerAccounts.forEach((account, index) => {
+        setTimeout(() => {
+            testConnection(index);
+            completed++;
+            if (completed === brokerAccounts.length) {
+                setTimeout(() => {
+                    button.innerHTML = originalText;
+                    button.disabled = false;
+                    if (failed === 0) {
+                        alert(`All ${completed} broker connections tested successfully!`);
+                    } else {
+                        alert(`${completed - failed} of ${completed} connections successful. ${failed} failed.`);
+                    }
+                }, 1000);
+            }
+        }, index * 1000); // Stagger tests by 1 second
+    });
+}
+
+function authenticateFlatTrade(clientId) {
+    // Show confirmation
+    if (!confirm('This will open FlatTrade OAuth authentication. Continue?')) {
+        return;
+    }
+    
+    // Open OAuth URL
+    const oauthUrl = `/flattrade_oauth/?client_id=${encodeURIComponent(clientId)}`;
+    window.open(oauthUrl, 'flattrade_oauth', 'width=600,height=700,scrollbars=yes,resizable=yes');
+}
+</script>
+
+{% endblock %}

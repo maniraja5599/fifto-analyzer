@@ -3,11 +3,12 @@ API endpoints for market data - Enhanced with NSE integration
 """
 import os
 import json
-from datetime import datetime, time
+from datetime import datetime, time, timedelta
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_http_methods
+from django.views.decorators.http import require_http_methods, require_POST
 from django.conf import settings
+from django.utils import timezone
 from .market_data import get_market_data, get_market_status  # uses NSE data only
 from .historical_data import historical_fetcher
 
@@ -468,4 +469,135 @@ def refresh_trades_data_api(request):
             'success': False,
             'error': str(e),
             'message': 'Trades data refresh failed'
+        }, status=500)
+
+
+@require_POST
+@csrf_exempt
+@require_http_methods(["POST"])
+def position_monitor_status_api(request):
+    """
+    API endpoint to get current position monitoring status
+    Returns active positions, monitoring status, and recent alerts
+    """
+    try:
+        from .position_monitor import position_monitor
+        from . import utils
+        
+        # Get monitoring status
+        status_info = position_monitor.get_monitoring_status()
+        is_monitoring = status_info.get('running', False)
+        active_positions = status_info.get('positions', [])
+        
+        # Get recent trades with positions
+        all_trades = utils.load_trades()
+        
+        # Filter recent trades (last 24 hours)
+        current_time = datetime.now()
+        recent_trades = []
+        
+        for trade in all_trades:
+            try:
+                # Parse trade creation time
+                created_at_str = trade.get('created_at', '')
+                if created_at_str:
+                    trade_time = datetime.fromisoformat(created_at_str.replace('Z', '+00:00'))
+                    # Check if trade is within last 24 hours and is open
+                    if (current_time - trade_time).total_seconds() < 86400 and trade.get('is_open', True):
+                        trade_info = {
+                            'id': trade.get('id', ''),
+                            'nifty_ltp': trade.get('nifty_ltp', 0),
+                            'strategy': trade.get('strategy', 'Unknown'),
+                            'target': trade.get('target', 0),
+                            'stoploss': trade.get('stoploss', 0),
+                            'current_pnl': trade.get('current_pnl', 0),
+                            'created_at': created_at_str,
+                            'is_monitored': str(trade.get('id', '')) in active_positions
+                        }
+                        recent_trades.append(trade_info)
+            except Exception as parse_error:
+                print(f"Error parsing trade: {parse_error}")
+                continue
+        
+        # Limit to 10 most recent trades
+        recent_trades = recent_trades[-10:] if len(recent_trades) > 10 else recent_trades
+        
+        response_data = {
+            'is_monitoring': is_monitoring,
+            'active_positions_count': len(active_positions),
+            'active_positions': active_positions,
+            'recent_trades': recent_trades,
+            'service_status': 'running' if is_monitoring else 'stopped',
+            'total_closed': status_info.get('total_closed', 0),
+            'last_check': status_info.get('last_check', '')
+        }
+        
+        return JsonResponse({
+            'success': True,
+            'data': response_data,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        print(f"❌ Error getting position monitor status: {e}")
+        return JsonResponse({
+            'success': False,
+            'error': str(e),
+            'message': 'Failed to get position monitor status'
+        }, status=500)
+
+
+@require_POST
+@csrf_exempt
+@require_http_methods(["POST"])
+@csrf_exempt
+def broker_accounts_status_api(request):
+    """
+    API endpoint to get broker account status for automation schedule configuration
+    Returns list of enabled broker accounts from fifto_settings.json
+    """
+    try:
+        from . import utils
+        
+        # Get broker accounts from fifto_settings.json
+        settings = utils.load_settings()
+        broker_accounts = settings.get('broker_accounts', [])
+        
+        broker_status = []
+        
+        for account in broker_accounts:
+            if account.get('enabled', False):
+                # For FlatTrade, use client_id; for others, use account_id
+                account_id = account.get('client_id') if account.get('broker') == 'FLATTRADE' else account.get('account_id')
+                
+                if account_id:
+                    account_info = {
+                        'id': account_id,
+                        'broker': account.get('broker', ''),
+                        'account_name': account.get('account_name', account_id),
+                        'status': 'enabled',
+                        'enabled': True
+                    }
+                    broker_status.append(account_info)
+        
+        response_data = {
+            'broker_accounts': broker_status,
+            'summary': {
+                'total_accounts': len(broker_status),
+                'enabled_accounts': len(broker_status)
+            }
+        }
+        
+        return JsonResponse({
+            'success': True,
+            'data': response_data,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        print(f"❌ Error getting broker accounts: {e}")
+        return JsonResponse({
+            'success': False,
+            'error': str(e),
+            'message': 'Failed to get broker accounts'
         }, status=500)

@@ -1,49 +1,68 @@
 {
-  "multiple_schedules": [
-    {
-      "id": "1723186800",
-      "name": "Morning NIFTY Strategy",
-      "enabled": true,
-      "time": "09:20",
-      "instruments": [
-        "NIFTY"
-      ],
-      "nifty_calc_type": "Weekly",
-      "banknifty_calc_type": "Monthly",
-      "active_days": [
-        "monday",
-        "tuesday",
-        "wednesday",
-        "thursday",
-        "friday"
-      ],
-      "telegram_alerts": true,
-      "created_at": "2025-08-09T11:37:23.232622",
-      "last_run": null,
-      "last_result": null
-    },
-    {
-      "id": "1723186801",
-      "name": "BANKNIFTY Auto Trade",
-      "enabled": false,
-      "time": "09:30",
-      "instruments": [
-        "BANKNIFTY"
-      ],
-      "nifty_calc_type": "Weekly",
-      "banknifty_calc_type": "Weekly",
-      "active_days": [
-        "monday",
-        "wednesday",
-        "friday"
-      ],
-      "telegram_alerts": false,
-      "created_at": "2025-08-09T11:37:23.232628",
-      "last_run": null,
-      "last_result": null
-    }
-  ],
-  "auto_add_to_portfolio": true,
-  "telegram_bot_token": "",
-  "telegram_chat_id": ""
+    "update_interval": "15 Mins",
+    "bot_token": "7981319366:AAG4mfNVjIyRSehitfkxQTN9D63d1EJMaa8",
+    "chat_id": "-1002639599677",
+    "enable_target_alerts": true,
+    "enable_stoploss_alerts": true,
+    "auto_close_targets": false,
+    "auto_close_stoploss": false,
+    "enable_trade_alerts": true,
+    "enable_bulk_alerts": true,
+    "enable_summary_alerts": true,
+    "nifty_lot_size": 75,
+    "banknifty_lot_size": 35,
+    "broker_accounts": [
+        {
+            "broker": "FLATTRADE",
+            "client_id": "FT003862",
+            "account_name": "FlatTrade Account",
+            "enabled": true,
+            "api_key": "130f996a94c444359fac442b48deb6e9",
+            "secret_key": "2025.c2818f24dab04e37b756327af571b2b90b3fc75e59621221",
+            "access_token": "8a3721f64257b66bb98089f7f7857625e530e74ae03582fcc5b1ad745760ce7d",
+            "token_expiry": "2025-08-18T11:00:43.325019"
+        }
+    ],
+    "enable_live_trading": true,
+    "auto_place_orders": true,
+    "default_order_type": "MARKET",
+    "enable_position_monitoring": true,
+    "multiple_schedules": [
+        {
+            "id": "1755408746",
+            "name": "NIFTY 17AUG25 SUNDAY",
+            "enabled": true,
+            "time": "11:03",
+            "instruments": [
+                "NIFTY"
+            ],
+            "nifty_calc_type": "Weekly",
+            "banknifty_calc_type": "Monthly",
+            "active_days": [
+                "monday",
+                "tuesday",
+                "wednesday",
+                "thursday",
+                "friday",
+                "saturday",
+                "sunday"
+            ],
+            "telegram_alerts": true,
+            "created_at": "2025-08-17T11:02:26.980284",
+            "last_run": "2025-08-17T11:03:00.043670+05:30",
+            "last_result": "Success: Charts generated",
+            "enable_live_trading": true,
+            "auto_place_orders": true,
+            "selected_broker_accounts": ["FT003862"]
+        }
+    ],
+    "automation_activities": [
+        {
+            "title": "Schedule Created",
+            "description": "Created new schedule: NIFTY 17AUG25 SUNDAY",
+            "status": "success",
+            "time": "17 Aug 2025, 11:02 AM",
+            "timestamp": "2025-08-17T11:02:27.093796"
+        }
+    ]
 }

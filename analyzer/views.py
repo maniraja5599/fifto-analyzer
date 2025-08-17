@@ -145,6 +145,107 @@ def generate_and_show_analysis(request):
     debug_log("❌ Non-POST request - redirecting to index")
     return redirect(reverse('index'))
 
+@require_http_methods(["POST"])
+def place_live_orders(request):
+    """API endpoint for manual live order placement"""
+    try:
+        # Check if live trading is enabled
+        current_settings = utils.load_settings()
+        if not current_settings.get('enable_live_trading', False):
+            return JsonResponse({
+                'success': False,
+                'message': 'Live trading is not enabled in settings'
+            })
+        
+        # Get analysis data from session
+        analysis_data = request.session.get('analysis_data')
+        if not analysis_data:
+            return JsonResponse({
+                'success': False,
+                'message': 'No analysis data found. Please generate an analysis first.'
+            })
+        
+        # Import broker manager
+        from .broker_manager import broker_manager
+        
+        # Get enabled broker accounts
+        enabled_accounts = []
+        for acc in current_settings.get('broker_accounts', []):
+            if acc.get('enabled', False):
+                # For FlatTrade, use client_id; for others, use account_id
+                account_id = acc.get('client_id') if acc.get('broker') == 'FLATTRADE' else acc.get('account_id')
+                if account_id:
+                    enabled_accounts.append(account_id)
+        
+        if not enabled_accounts:
+            return JsonResponse({
+                'success': False,
+                'message': 'No enabled broker accounts found. Please configure broker accounts in settings.'
+            })
+        
+        # Place orders
+        live_trading_result = broker_manager.place_strategy_orders(
+            analysis_data, 
+            account_ids=enabled_accounts
+        )
+        
+        if live_trading_result['success']:
+            orders_count = len(live_trading_result['orders_placed'])
+            accounts_count = live_trading_result['successful_accounts']
+            
+            # Send Telegram notification
+            if current_settings.get('enable_trade_alerts', False):
+                telegram_msg = f"📱 **Manual Live Orders**\n\n"
+                telegram_msg += f"📊 Strategy: {analysis_data.get('instrument')} {analysis_data.get('expiry')}\n"
+                telegram_msg += f"📈 Orders: {orders_count} placed\n"
+                telegram_msg += f"🏦 Accounts: {accounts_count} brokers\n"
+                telegram_msg += f"👤 Triggered: Manually\n"
+                telegram_msg += f"⏰ Time: {datetime.now().strftime('%I:%M:%S %p')}"
+                utils.send_telegram_message(telegram_msg)
+            
+            # Start position monitoring if enabled
+            if current_settings.get('enable_position_monitoring', False):
+                from .position_monitor import position_monitor
+                
+                # Get the latest trades that were just added
+                trades = utils.load_trades()
+                instrument = analysis_data.get('instrument')
+                latest_trades = [t for t in trades if t.get('instrument') == instrument]
+                
+                # Add positions to monitoring
+                for trade in latest_trades[-len(analysis_data.get('df_data', [])):]:  # Get latest trades
+                    position_monitor.add_position_for_monitoring(
+                        trade, 
+                        live_trading_result['orders_placed']
+                    )
+                
+                # Start monitoring service if not already running
+                if not position_monitor.running:
+                    position_monitor.start_monitoring()
+            
+            return JsonResponse({
+                'success': True,
+                'message': f'Successfully placed {orders_count} orders across {accounts_count} broker accounts',
+                'orders_count': orders_count,
+                'accounts_count': accounts_count,
+                'orders': live_trading_result['orders_placed']
+            })
+        else:
+            error_msg = '; '.join(live_trading_result['errors'][:3])  # Show first 3 errors
+            return JsonResponse({
+                'success': False,
+                'message': f'Order placement failed: {error_msg}',
+                'errors': live_trading_result['errors']
+            })
+            
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({
+            'success': False,
+            'message': f'Live trading error: {str(e)}'
+        })
+
 def check_task_status(request, task_id):
     """Simple status check - not needed for basic version."""
     return JsonResponse({
@@ -176,6 +277,58 @@ def add_trades(request):
         return redirect(reverse('index'))
     
     print(f"📈 Processing analysis for {analysis_data.get('instrument', 'Unknown')} {analysis_data.get('expiry', 'Unknown')}")
+    
+    # Check live trading settings
+    current_settings = utils.load_settings()
+    enable_live_trading = current_settings.get('enable_live_trading', False)
+    auto_place_orders = current_settings.get('auto_place_orders', False)
+    
+    # Live trading integration
+    live_trading_result = None
+    if enable_live_trading and auto_place_orders:
+        try:
+            from .broker_manager import broker_manager
+            
+            print("🔄 Live trading enabled - placing orders automatically...")
+            
+            # Get enabled broker accounts
+            enabled_accounts = []
+            for acc in current_settings.get('broker_accounts', []):
+                if acc.get('enabled', False):
+                    # For FlatTrade, use client_id; for others, use account_id
+                    account_id = acc.get('client_id') if acc.get('broker') == 'FLATTRADE' else acc.get('account_id')
+                    if account_id:
+                        enabled_accounts.append(account_id)
+            
+            if enabled_accounts:
+                live_trading_result = broker_manager.place_strategy_orders(
+                    analysis_data, 
+                    account_ids=enabled_accounts
+                )
+                
+                if live_trading_result['success']:
+                    orders_count = len(live_trading_result['orders_placed'])
+                    accounts_count = live_trading_result['successful_accounts']
+                    messages.success(request, 
+                        f'🚀 Live Trading: {orders_count} orders placed across {accounts_count} broker accounts!')
+                    
+                    # Send Telegram notification about live orders
+                    if current_settings.get('enable_trade_alerts', False):
+                        telegram_msg = f"🚀 **Live Orders Placed**\n\n"
+                        telegram_msg += f"📊 Strategy: {analysis_data.get('instrument')} {analysis_data.get('expiry')}\n"
+                        telegram_msg += f"📈 Orders: {orders_count} placed\n"
+                        telegram_msg += f"🏦 Accounts: {accounts_count} brokers\n"
+                        telegram_msg += f"⏰ Time: {datetime.now().strftime('%I:%M:%S %p')}"
+                        utils.send_telegram_message(telegram_msg)
+                else:
+                    error_msg = '; '.join(live_trading_result['errors'][:3])  # Show first 3 errors
+                    messages.warning(request, f'⚠️ Live Trading Issues: {error_msg}')
+            else:
+                messages.info(request, '📝 Live trading enabled but no broker accounts configured')
+                
+        except Exception as e:
+            print(f"❌ Live trading error: {e}")
+            messages.error(request, f'❌ Live trading error: {str(e)}')
     
     # Check trades before adding
     trades_before = utils.load_trades()
@@ -766,15 +919,9 @@ def settings_view(request):
         # Get alert preferences
         enable_target_alerts = 'enable_target_alerts' in request.POST
         enable_stoploss_alerts = 'enable_stoploss_alerts' in request.POST
-        auto_close_targets = 'auto_close_targets' in request.POST
-        auto_close_stoploss = 'auto_close_stoploss' in request.POST
         enable_trade_alerts = 'enable_trade_alerts' in request.POST
         enable_bulk_alerts = 'enable_bulk_alerts' in request.POST
         enable_summary_alerts = 'enable_summary_alerts' in request.POST
-        
-        # Get lot size configuration
-        nifty_lot_size = int(request.POST.get('nifty_lot_size', 75))
-        banknifty_lot_size = int(request.POST.get('banknifty_lot_size', 35))
         
         # Load current settings and update
         current_settings = utils.load_settings()
@@ -792,15 +939,9 @@ def settings_view(request):
             # Alert preferences
             'enable_target_alerts': enable_target_alerts,
             'enable_stoploss_alerts': enable_stoploss_alerts,
-            'auto_close_targets': auto_close_targets,
-            'auto_close_stoploss': auto_close_stoploss,
             'enable_trade_alerts': enable_trade_alerts,
             'enable_bulk_alerts': enable_bulk_alerts,
             'enable_summary_alerts': enable_summary_alerts,
-            
-            # Lot size configuration
-            'nifty_lot_size': nifty_lot_size,
-            'banknifty_lot_size': banknifty_lot_size,
         })
         
         try:
@@ -824,6 +965,151 @@ def settings_view(request):
         'pnl_status': pnl_status
     }
     return render(request, 'analyzer/settings.html', context)
+
+
+def broker_settings_view(request):
+    """Dedicated broker settings view with enhanced multi-broker support"""
+    
+    if request.method == 'POST':
+        # Handle broker account configuration
+        broker_accounts = []
+        if 'broker_accounts_json' in request.POST:
+            try:
+                broker_accounts = json.loads(request.POST.get('broker_accounts_json', '[]'))
+                
+                # Validate broker accounts
+                for account in broker_accounts:
+                    # For FlatTrade, use client_id; for others, use account_id
+                    account_identifier = account.get('client_id') if account.get('broker') == 'FLATTRADE' else account.get('account_id')
+                    if not account.get('broker') or not account_identifier:
+                        messages.error(request, 'Invalid broker account configuration. Please check all required fields.')
+                        return redirect('broker_settings')
+                
+                # Load current settings and update only broker settings
+                current_settings = utils.load_settings()
+                current_settings['broker_accounts'] = broker_accounts
+                
+                # Handle live trading toggle
+                enable_live_trading = 'enable_live_trading' in request.POST
+                auto_place_orders = 'auto_place_orders' in request.POST
+                default_order_type = request.POST.get('default_order_type', 'MARKET')
+                enable_position_monitoring = 'enable_position_monitoring' in request.POST
+                
+                # Handle lot size and auto-close settings
+                nifty_lot_size = int(request.POST.get('nifty_lot_size', 25))
+                banknifty_lot_size = int(request.POST.get('banknifty_lot_size', 15))
+                auto_close_targets = 'auto_close_targets' in request.POST
+                auto_close_stoploss = 'auto_close_stoploss' in request.POST
+                
+                current_settings.update({
+                    'enable_live_trading': enable_live_trading,
+                    'auto_place_orders': auto_place_orders,
+                    'default_order_type': default_order_type,
+                    'enable_position_monitoring': enable_position_monitoring,
+                    'nifty_lot_size': nifty_lot_size,
+                    'banknifty_lot_size': banknifty_lot_size,
+                    'auto_close_targets': auto_close_targets,
+                    'auto_close_stoploss': auto_close_stoploss,
+                })
+                
+                utils.save_settings(current_settings)
+                messages.success(request, f'✅ Broker settings updated successfully! {len(broker_accounts)} account(s) configured.')
+                
+            except json.JSONDecodeError:
+                messages.error(request, 'Invalid broker accounts configuration format')
+            except Exception as e:
+                messages.error(request, f'Error saving broker settings: {str(e)}')
+                
+        return redirect('broker_settings')
+
+    # Load current settings for display
+    current_settings = utils.load_settings()
+    
+    # Get broker account status
+    broker_accounts = current_settings.get('broker_accounts', [])
+    
+    # Migrate FlatTrade accounts from access_token to secret_key
+    migrated = False
+    for account in broker_accounts:
+        if account.get('broker') == 'FLATTRADE':
+            if 'access_token' in account and 'secret_key' not in account:
+                account['secret_key'] = account.pop('access_token')
+                migrated = True
+                print(f"Migrated FlatTrade account {account.get('client_id', account.get('account_id', 'Unknown'))} from access_token to secret_key")
+    
+    if migrated:
+        current_settings['broker_accounts'] = broker_accounts
+        utils.save_settings(current_settings)
+    
+    # Add default FlatTrade account if none exists
+    has_flattrade = any(account.get('broker') == 'FLATTRADE' for account in broker_accounts)
+    if not has_flattrade:
+        default_flattrade = {
+            'broker': 'FLATTRADE',
+            'client_id': 'FT033862',  # Single client ID
+            'account_name': 'FlatTrade Account',
+            'api_key': '',  # Leave empty for user to fill
+            'secret_key': '',  # Leave empty for user to fill
+            'enabled': True
+        }
+        broker_accounts.append(default_flattrade)
+        current_settings['broker_accounts'] = broker_accounts
+        utils.save_settings(current_settings)
+    
+    # Available brokers with their required fields
+    available_brokers = {
+        'DHAN': {
+            'name': 'DhanHQ',
+            'fields': ['client_id', 'access_token'],
+            'description': 'Fast execution with competitive pricing',
+            'logo': 'bi-bank',
+            'color': '#007bff'
+        },
+        'ZERODHA': {
+            'name': 'Zerodha Kite',
+            'fields': ['api_key', 'access_token'],
+            'description': 'India\'s largest discount broker',
+            'logo': 'bi-graph-up',
+            'color': '#ff6600'
+        },
+        'ANGEL': {
+            'name': 'Angel Broking',
+            'fields': ['api_key', 'access_token', 'client_id'],
+            'description': 'Technology-driven trading platform',
+            'logo': 'bi-wings',
+            'color': '#e74c3c'
+        },
+        'UPSTOX': {
+            'name': 'Upstox',
+            'fields': ['api_key', 'access_token'],
+            'description': 'Advanced trading technology',
+            'logo': 'bi-arrow-up-circle',
+            'color': '#8e44ad'
+        },
+        'FLATTRADE': {
+            'name': 'FlatTrade',
+            'fields': ['api_key', 'secret_key', 'client_id'],
+            'description': 'Zero brokerage trading platform',
+            'logo': 'bi-graph-down',
+            'color': '#27ae60'
+        }
+    }
+    
+    context = {
+        'settings': current_settings,
+        'broker_accounts': broker_accounts,
+        'available_brokers': available_brokers,
+        'live_trading_enabled': current_settings.get('enable_live_trading', False),
+        'auto_place_orders': current_settings.get('auto_place_orders', False),
+        'default_order_type': current_settings.get('default_order_type', 'MARKET'),
+        'enable_position_monitoring': current_settings.get('enable_position_monitoring', True),
+        'nifty_lot_size': current_settings.get('nifty_lot_size', 25),
+        'banknifty_lot_size': current_settings.get('banknifty_lot_size', 15),
+        'auto_close_targets': current_settings.get('auto_close_targets', False),
+        'auto_close_stoploss': current_settings.get('auto_close_stoploss', False),
+    }
+    
+    return render(request, 'analyzer/broker_settings.html', context)
 
 
 @require_http_methods(["POST"])
@@ -869,6 +1155,271 @@ def test_telegram(request):
         })
 
 
+@require_http_methods(["POST"])
+def test_broker_connection(request):
+    """Test broker API connection."""
+    try:
+        data = json.loads(request.body)
+        broker_type = data.get('broker', '').strip()
+        account_config = data.get('config', {})
+        
+        if not broker_type or not account_config:
+            return JsonResponse({
+                'success': False,
+                'error': 'Broker type and configuration are required'
+            })
+        
+        # Import broker handler classes
+        from .broker_manager import DhanBrokerHandler, FlatTradeBrokerHandler
+        
+        try:
+            if broker_type == 'FLATTRADE':
+                handler = FlatTradeBrokerHandler(account_config)
+                result = handler.test_connection()
+            elif broker_type == 'DHAN':
+                handler = DhanBrokerHandler(account_config)
+                # Add test connection method for other brokers if needed
+                result = {'success': False, 'error': 'Test connection not implemented for DHAN yet'}
+            else:
+                result = {'success': False, 'error': f'Broker {broker_type} not supported for testing yet'}
+            
+            return JsonResponse(result)
+            
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'error': f'Broker test error: {str(e)}'
+            })
+            
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'error': 'Invalid JSON data'
+        })
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': f'Unexpected error: {str(e)}'
+        })
+
+
+# Simple test endpoint for FlatTrade
+@require_http_methods(["GET"])
+def test_flattrade_quick(request):
+    """Quick test for FlatTrade authentication"""
+    try:
+        from .flattrade_api import FlatTradeBrokerHandler
+        
+        # Test with updated credentials
+        test_config = {
+            'account_id': 'FiftoNif',
+            'api_key': '130f996a94c444359fac442b48deb6e9',
+            'secret_key': '2025.c2818f24dab04e37b756327af571b2b90b3fc75e59621221',
+            'client_id': 'FiftoNif'
+        }
+        
+        handler = FlatTradeBrokerHandler(test_config)
+        result = handler.test_connection()
+        
+        return JsonResponse({
+            'test_result': result,
+            'config_used': {
+                'account_id': test_config['account_id'],
+                'client_id': test_config['client_id'],
+                'api_key': test_config['api_key'][:10] + '...',  # Partial key for security
+                'secret_key': '***' # Hide secret key
+            }
+        })
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': f'Test error: {str(e)}'
+        })
+
+
+@require_http_methods(["GET"])
+def flattrade_oauth(request):
+    """Initiate FlatTrade OAuth authentication"""
+    try:
+        client_id = request.GET.get('client_id', request.GET.get('account_id', 'default'))
+        print(f"FlatTrade OAuth: Received client_id={client_id}")
+        
+        # Load settings to get API key
+        settings = load_settings()
+        broker_accounts = settings.get('broker_accounts', [])
+        
+        # Find the account by client_id
+        account = None
+        for acc in broker_accounts:
+            if acc.get('broker') == 'FLATTRADE' and acc.get('client_id') == client_id:
+                account = acc
+                break
+        
+        if not account:
+            print(f"Client {client_id} not found in broker_accounts")
+            available_clients = [acc.get('client_id') for acc in broker_accounts if acc.get('broker') == 'FLATTRADE']
+            return JsonResponse({
+                'success': False,
+                'error': f'Client {client_id} not found. Available FlatTrade clients: {available_clients}'
+            })
+        
+        api_key = account.get('api_key', '')
+        print(f"Found account: {account}")
+        print(f"API key: {api_key[:10] if api_key else 'None'}...")
+        
+        if not api_key:
+            return JsonResponse({
+                'success': False,
+                'error': 'API key not configured. Please set API Key in broker settings first.'
+            })
+        
+        from .flattrade_api import FlatTradeBrokerHandler
+        from django.conf import settings as django_settings
+        
+        # Using new FlatTrade API application with correct redirect URI
+        # Pass client_id in state parameter since FlatTrade doesn't preserve query params
+        redirect_uri = 'http://localhost:8004/flattrade_callback/'
+        
+        print(f"🔗 Using redirect_uri: {redirect_uri}")
+        print(f"💡 Using new FlatTrade API credentials")
+        print(f"🆔 New API Key: {api_key[:10]}...")
+        print(f"📝 Passing client_id in state: {client_id}")
+        
+        oauth_url = FlatTradeBrokerHandler.generate_oauth_url(api_key, redirect_uri, client_id)
+        
+        print(f"FlatTrade OAuth: api_key={api_key[:10]}..., redirect_uri={redirect_uri}")
+        print(f"Generated OAuth URL: {oauth_url}")
+        
+        return redirect(oauth_url)
+        
+    except Exception as e:
+        print(f"FlatTrade OAuth error: {e}")
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({
+            'success': False,
+            'error': f'OAuth initiation error: {str(e)}'
+        })
+
+
+@require_http_methods(["GET"])
+def flattrade_callback(request):
+    """Handle FlatTrade OAuth callback"""
+    try:
+        auth_code = request.GET.get('code')
+        state = request.GET.get('state')
+        client_param = request.GET.get('client')  # FlatTrade returns state as 'client'
+        client_id = request.GET.get('client_id') or state or client_param  # Try all possible sources
+        
+        print(f"FlatTrade Callback: auth_code={auth_code}, state={state}, client_param={client_param}, client_id={client_id}")
+        
+        if not auth_code:
+            error = request.GET.get('error', 'Unknown error')
+            return render(request, 'analyzer/oauth_error.html', {
+                'error': error,
+                'broker': 'FlatTrade'
+            })
+        
+        if not client_id:
+            return render(request, 'analyzer/oauth_error.html', {
+                'error': 'Missing client_id in OAuth callback. Please try the OAuth flow again.',
+                'broker': 'FlatTrade'
+            })
+        
+        # Load settings to get API details
+        settings = load_settings()
+        broker_accounts = settings.get('broker_accounts', [])
+        
+        # Find the account by client_id
+        account = None
+        account_index = None
+        for i, acc in enumerate(broker_accounts):
+            if acc.get('broker') == 'FLATTRADE' and acc.get('client_id') == client_id:
+                account = acc
+                account_index = i
+                break
+        
+        if not account:
+            return render(request, 'analyzer/oauth_error.html', {
+                'error': f'FlatTrade account with client_id {client_id} not found',
+                'broker': 'FlatTrade'
+            })
+        
+        api_key = account.get('api_key', '')
+        secret_key = account.get('secret_key', '')
+        
+        if not all([api_key, secret_key]):
+            return render(request, 'analyzer/oauth_error.html', {
+                'error': 'API credentials not properly configured. Please set API Key and Secret Key in broker settings.',
+                'broker': 'FlatTrade'
+            })
+        
+        from .flattrade_api import FlatTradeBrokerHandler
+        
+        # Exchange auth code for access token
+        success, result = FlatTradeBrokerHandler.exchange_auth_code(
+            auth_code, api_key, secret_key
+        )
+        
+        print(f"Token exchange result: success={success}, result={result}")
+        
+        if success:
+            # Update account with new access token
+            account['access_token'] = result.get('access_token')
+            
+            # Convert datetime to string for JSON serialization
+            expires_at = result.get('expires_at')
+            if expires_at:
+                account['token_expiry'] = expires_at.isoformat()
+            
+            # Update the account in the list
+            broker_accounts[account_index] = account
+            settings['broker_accounts'] = broker_accounts
+            
+            # Save updated settings
+            save_settings(settings)
+            
+            return render(request, 'analyzer/oauth_success.html', {
+                'broker': 'FlatTrade',
+                'client_id': client_id,
+                'message': 'Authentication successful! Access token has been saved. You can now use FlatTrade for trading.'
+            })
+        else:
+            return render(request, 'analyzer/oauth_error.html', {
+                'error': result.get('error', 'Token exchange failed'),
+                'broker': 'FlatTrade'
+            })
+            
+    except Exception as e:
+        print(f"FlatTrade callback error: {e}")
+        import traceback
+        traceback.print_exc()
+        return render(request, 'analyzer/oauth_error.html', {
+            'error': f'Callback processing error: {str(e)}',
+            'broker': 'FlatTrade'
+        })
+
+
+def flattrade_oauth_demo(request):
+    """Demo page for FlatTrade OAuth"""
+    settings = load_settings()
+    broker_accounts = settings.get('broker_accounts', [])
+    
+    # Find FlatTrade account
+    flattrade_account = None
+    for acc in broker_accounts:
+        if acc.get('broker') == 'FLATTRADE':
+            flattrade_account = acc
+            break
+    
+    context = {
+        'client_id': flattrade_account.get('client_id', 'Not configured') if flattrade_account else 'Not configured',
+        'api_key_display': f"{flattrade_account.get('api_key', '')[:10]}..." if flattrade_account and flattrade_account.get('api_key') else 'Not configured'
+    }
+    
+    return render(request, 'analyzer/flattrade_oauth_demo.html', context)
+
+
 def automation_view(request):
     """Handle multiple automation schedules with enhanced functionality."""
     weekdays = [
@@ -905,6 +1456,11 @@ def automation_view(request):
                     'created_at': datetime.now().isoformat(),
                     'last_run': None,
                     'last_result': None,
+                    
+                    # Live trading configuration
+                    'enable_live_trading': 'enable_live_trading' in request.POST,
+                    'auto_place_orders': 'auto_place_orders' in request.POST,
+                    'selected_broker_accounts': request.POST.getlist('selected_broker_accounts'),
                 }
                 multiple_schedules.append(new_schedule)
                 
@@ -936,6 +1492,11 @@ def automation_view(request):
                         'banknifty_calc_type': request.POST.get('banknifty_calc_type', 'Monthly'),
                         'active_days': request.POST.getlist('active_days'),
                         'telegram_alerts': 'telegram_alerts' in request.POST,
+                        
+                        # Live trading configuration
+                        'enable_live_trading': 'enable_live_trading' in request.POST,
+                        'auto_place_orders': 'auto_place_orders' in request.POST,
+                        'selected_broker_accounts': request.POST.getlist('selected_broker_accounts'),
                     })
                     
                     settings['multiple_schedules'] = multiple_schedules
@@ -1074,11 +1635,26 @@ def automation_view(request):
         if 'last_result' not in schedule:
             schedule['last_result'] = None
     
+    # Get broker accounts for schedule configuration
+    broker_accounts = current_settings.get('broker_accounts', [])
+    enabled_broker_accounts = []
+    for account in broker_accounts:
+        if account.get('enabled', False):
+            # For FlatTrade, use client_id; for others, use account_id
+            account_id = account.get('client_id') if account.get('broker') == 'FLATTRADE' else account.get('account_id')
+            if account_id:
+                enabled_broker_accounts.append({
+                    'id': account_id,
+                    'name': account.get('account_name', account_id),
+                    'broker': account.get('broker'),
+                })
+    
     context = {
         'multiple_schedules': multiple_schedules,
         'weekdays': weekdays,
         'settings': current_settings,
         'recent_activities': utils.get_recent_automation_activities(10),
+        'broker_accounts': enabled_broker_accounts,
     }
     return render(request, 'analyzer/automation.html', context)
 

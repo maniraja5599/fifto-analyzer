@@ -342,6 +342,64 @@
                         </div>
                     </div>
                     
+                    <!-- Live Trading & Broker Selection -->
+                    <div class="mb-4">
+                        <div class="card border-0 bg-light">
+                            <div class="card-header bg-transparent border-0 pb-0">
+                                <div class="d-flex align-items-center">
+                                    <i class="bi bi-lightning-charge text-warning me-2"></i>
+                                    <h6 class="mb-0 fw-bold">Live Trading Configuration</h6>
+                                </div>
+                            </div>
+                            <div class="card-body pt-2">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-check form-switch mb-3">
+                                            <input class="form-check-input" type="checkbox" id="enableLiveTradingSchedule" name="enable_live_trading">
+                                            <label class="form-check-label fw-semibold" for="enableLiveTradingSchedule">
+                                                <i class="bi bi-robot text-primary me-1"></i>
+                                                Enable Live Trading for this Schedule
+                                            </label>
+                                            <small class="text-muted d-block">Automatically place live orders when analysis is generated</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-check form-switch mb-3">
+                                            <input class="form-check-input" type="checkbox" id="autoPlaceOrdersSchedule" name="auto_place_orders">
+                                            <label class="form-check-label fw-semibold" for="autoPlaceOrdersSchedule">
+                                                <i class="bi bi-send text-success me-1"></i>
+                                                Auto Place Orders
+                                            </label>
+                                            <small class="text-muted d-block">Skip manual confirmation and place orders immediately</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="broker-selection-container" id="brokerSelectionContainer" style="display: none;">
+                                    <div class="row">
+                                        <div class="col-12">
+                                            <label class="form-label fw-bold">
+                                                <i class="bi bi-bank2 text-success me-1"></i>
+                                                Select Broker Accounts for Live Trading
+                                            </label>
+                                            <div id="brokerAccountsList" class="border rounded p-3 bg-white">
+                                                <!-- Broker accounts will be loaded here -->
+                                                <div class="text-center text-muted py-3" id="noBrokersMessage">
+                                                    <i class="bi bi-info-circle me-1"></i>
+                                                    No broker accounts configured. 
+                                                    <a href="{% url 'broker_settings' %}" target="_blank" class="text-decoration-none">
+                                                        Configure broker accounts
+                                                    </a>
+                                                </div>
+                                            </div>
+                                            <small class="text-muted">Only selected accounts will be used for automated trading</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
@@ -792,6 +850,12 @@ document.addEventListener('DOMContentLoaded', function() {
     if (instNifty) instNifty.addEventListener('change', generateScheduleName);
     if (instBankNifty) instBankNifty.addEventListener('change', generateScheduleName);
     
+    // Initialize live trading toggles
+    initializeLiveTradingToggles();
+    
+    // Load broker accounts for selection
+    loadBrokerAccounts();
+    
     // Load recent activities when page loads
     console.log('🔄 About to call loadRecentActivities...');
     try {
@@ -801,6 +865,106 @@ document.addEventListener('DOMContentLoaded', function() {
         console.error('❌ Error calling loadRecentActivities:', error);
     }
 });
+
+// Initialize live trading toggle functionality
+function initializeLiveTradingToggles() {
+    const enableLiveTradingToggle = document.getElementById('enableLiveTradingSchedule');
+    const brokerSelectionContainer = document.getElementById('brokerSelectionContainer');
+    
+    if (enableLiveTradingToggle && brokerSelectionContainer) {
+        enableLiveTradingToggle.addEventListener('change', function() {
+            if (this.checked) {
+                brokerSelectionContainer.style.display = 'block';
+                loadBrokerAccounts();
+            } else {
+                brokerSelectionContainer.style.display = 'none';
+            }
+        });
+    }
+}
+
+// Load broker accounts for selection
+function loadBrokerAccounts() {
+    console.log('🔄 Loading broker accounts...');
+    
+    // Fetch broker accounts from settings
+    fetch('/api/broker-accounts-status/', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success && data.data.broker_accounts) {
+            renderBrokerAccountsList(data.data.broker_accounts);
+        } else {
+            showNoBrokersMessage();
+        }
+    })
+    .catch(error => {
+        console.error('Error loading broker accounts:', error);
+        showNoBrokersMessage();
+    });
+}
+
+// Render broker accounts list for selection
+function renderBrokerAccountsList(brokerAccounts) {
+    const container = document.getElementById('brokerAccountsList');
+    const noBrokersMessage = document.getElementById('noBrokersMessage');
+    
+    if (brokerAccounts.length === 0) {
+        showNoBrokersMessage();
+        return;
+    }
+    
+    noBrokersMessage.style.display = 'none';
+    
+    const availableBrokers = {
+        'DHAN': { name: 'DhanHQ', color: '#007bff', icon: 'bi-bank' },
+        'ZERODHA': { name: 'Zerodha Kite', color: '#ff6600', icon: 'bi-graph-up' },
+        'ANGEL': { name: 'Angel Broking', color: '#e74c3c', icon: 'bi-wings' },
+        'UPSTOX': { name: 'Upstox', color: '#8e44ad', icon: 'bi-arrow-up-circle' },
+        'FLATTRADE': { name: 'FlatTrade', color: '#27ae60', icon: 'bi-graph-down' }
+    };
+    
+    container.innerHTML = brokerAccounts.map((account, index) => {
+        const brokerInfo = availableBrokers[account.broker] || { name: account.broker, color: '#6c757d', icon: 'bi-bank' };
+        const isEnabled = account.enabled && account.status === 'enabled';
+        
+        return `
+            <div class="form-check border rounded p-2 mb-2 ${isEnabled ? 'bg-light' : 'bg-white'}">
+                <input class="form-check-input" type="checkbox" 
+                       name="selected_broker_accounts" 
+                       value="${account.id}" 
+                       id="broker_${index}"
+                       ${isEnabled ? '' : 'disabled'}>
+                <label class="form-check-label w-100" for="broker_${index}">
+                    <div class="d-flex align-items-center">
+                        <i class="bi ${brokerInfo.icon} me-2" style="color: ${brokerInfo.color}"></i>
+                        <div class="flex-grow-1">
+                            <strong>${brokerInfo.name}</strong>
+                            <small class="text-muted d-block">Account: ${account.account_name || account.id}</small>
+                        </div>
+                        <span class="badge ${isEnabled ? 'bg-success' : 'bg-secondary'} ms-2">
+                            ${isEnabled ? 'Enabled' : 'Disabled'}
+                        </span>
+                    </div>
+                    ${!isEnabled ? `<small class="text-muted">Account is disabled</small>` : ''}
+                </label>
+            </div>
+        `;
+    }).join('');
+}
+
+// Show no brokers message
+function showNoBrokersMessage() {
+    const noBrokersMessage = document.getElementById('noBrokersMessage');
+    if (noBrokersMessage) {
+        noBrokersMessage.style.display = 'block';
+    }
+}
 
 // Explicitly assign functions to window object for onclick accessibility
 window.showAddScheduleModal = showAddScheduleModal;
