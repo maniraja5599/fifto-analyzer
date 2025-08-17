@@ -421,6 +421,51 @@
                         </div>
                     </div>
                     
+                    <!-- Strategy Parameters -->
+                    <div class="mb-4">
+                        <div class="card border-0 bg-light">
+                            <div class="card-header bg-transparent border-0 pb-0">
+                                <div class="d-flex align-items-center">
+                                    <i class="bi bi-graph-up text-primary me-2"></i>
+                                    <h6 class="mb-0 fw-bold">Strategy Parameters</h6>
+                                </div>
+                                <small class="text-muted">Configure target/stoploss and hedge percentages for automated strategy generation</small>
+                            </div>
+                            <div class="card-body pt-2">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="targetStoplossPercent" class="form-label fw-bold">
+                                                <i class="bi bi-target text-success me-1"></i>
+                                                Target/StopLoss %
+                                            </label>
+                                            <div class="input-group">
+                                                <input type="number" class="form-control" id="targetStoplossPercent" name="target_stoploss_percent" 
+                                                       value="85" min="70" max="95" step="1">
+                                                <span class="input-group-text">%</span>
+                                            </div>
+                                            <small class="text-muted">Percentage of premium for Target/StopLoss calculation (Default: 85%)</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="hedgeBuyingPercent" class="form-label fw-bold">
+                                                <i class="bi bi-shield-check text-warning me-1"></i>
+                                                Hedge Buying %
+                                            </label>
+                                            <div class="input-group">
+                                                <input type="number" class="form-control" id="hedgeBuyingPercent" name="hedge_buying_percent" 
+                                                       value="10" min="5" max="20" step="1">
+                                                <span class="input-group-text">%</span>
+                                            </div>
+                                            <small class="text-muted">Percentage of premium for hedge strike selection (Default: 10%)</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
                     <div class="row">
                         <div class="col-md-6">
                             <div class="form-check form-switch">
@@ -530,6 +575,35 @@ function editSchedule(scheduleId) {
             document.getElementById('scheduleEnabled').checked = schedule.enabled || false;
             document.getElementById('telegramAlerts').checked = schedule.telegram_alerts !== false;
             document.getElementById('addToPortfolio').checked = schedule.add_to_portfolio !== false; // Default to true if not set
+            
+            // Strategy Parameters
+            document.getElementById('targetStoplossPercent').value = schedule.target_stoploss_percent || 85;
+            document.getElementById('hedgeBuyingPercent').value = schedule.hedge_buying_percent || 10;
+            
+            // Live Trading Settings
+            document.getElementById('enableLiveTradingSchedule').checked = schedule.enable_live_trading || false;
+            document.getElementById('autoPlaceOrdersSchedule').checked = schedule.auto_place_orders || false;
+            
+            // Show/hide broker selection based on live trading setting
+            const brokerSelectionContainer = document.getElementById('brokerSelectionContainer');
+            if (schedule.enable_live_trading) {
+                brokerSelectionContainer.style.display = 'block';
+                loadBrokerAccounts();
+                
+                // Wait a bit for broker accounts to load, then select the ones from schedule
+                setTimeout(() => {
+                    if (schedule.selected_broker_accounts) {
+                        schedule.selected_broker_accounts.forEach(accountId => {
+                            const checkbox = document.querySelector(`input[name="selected_broker_accounts"][value="${accountId}"]`);
+                            if (checkbox) {
+                                checkbox.checked = true;
+                            }
+                        });
+                    }
+                }, 500);
+            } else {
+                brokerSelectionContainer.style.display = 'none';
+            }
             
             document.getElementById('instNifty').checked = schedule.instruments.includes('NIFTY');
             document.getElementById('instBankNifty').checked = schedule.instruments.includes('BANKNIFTY');
@@ -931,7 +1005,7 @@ function renderBrokerAccountsList(brokerAccounts) {
     
     container.innerHTML = brokerAccounts.map((account, index) => {
         const brokerInfo = availableBrokers[account.broker] || { name: account.broker, color: '#6c757d', icon: 'bi-bank' };
-        const isEnabled = account.enabled && account.status === 'enabled';
+        const isEnabled = account.enabled === true;  // API already filters to enabled accounts
         
         return `
             <div class="form-check border rounded p-2 mb-2 ${isEnabled ? 'bg-light' : 'bg-white'}">

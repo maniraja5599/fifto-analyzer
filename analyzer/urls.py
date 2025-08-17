@@ -21,6 +21,11 @@ urlpatterns = [
     path('api/manual-refresh/', api_views.manual_refresh_api, name='manual_refresh_api'),
     path('api/position-monitor-status/', api_views.position_monitor_status_api, name='position_monitor_status_api'),
     path('api/broker-accounts-status/', api_views.broker_accounts_status_api, name='broker_accounts_status_api'),
+    
+    # Basket Order APIs
+    path('api/get-expiry-dates/', api_views.get_expiry_dates_api, name='get_expiry_dates_api'),
+    path('api/get-option-prices/', api_views.get_option_prices_api, name='get_option_prices_api'),
+    path('api/place-basket-order/', api_views.place_basket_order_api, name='place_basket_order_api'),
 
     # Form submission actions
     path('generate/', views.generate_and_show_analysis, name='generate_analysis'),

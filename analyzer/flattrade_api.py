@@ -683,29 +683,56 @@ class FlatTradeBrokerHandler:
         Generate FlatTrade option symbol format
         
         Format examples:
-        - NIFTY03JAN25000CE
-        - BANKNIFTY03JAN50000PE
+        - NIFTY28AUG25C24650 (Call)
+        - BANKNIFTY28AUG25P50000 (Put)
+        
+        Format: {INSTRUMENT}{DDMMMYY}{C|P}{STRIKE}
         """
         try:
             from datetime import datetime
             
-            # Parse expiry date
-            expiry_date = datetime.strptime(expiry, '%Y-%m-%d')
+            # Parse expiry date - handle multiple formats
+            expiry_date = None
             
-            # Format: DDMMMYY (e.g., 03JAN24)
+            # Try different date formats
+            date_formats = [
+                '%Y-%m-%d',      # 2025-08-21
+                '%d-%b-%Y',      # 21-Aug-2025
+                '%d-%B-%Y',      # 21-August-2025
+                '%d-AUG-%Y',     # 21-AUG-2025 (uppercase month)
+                '%d-%m-%Y',      # 21-08-2025
+                '%Y/%m/%d',      # 2025/08/21
+                '%d/%m/%Y'       # 21/08/2025
+            ]
+            
+            for fmt in date_formats:
+                try:
+                    expiry_date = datetime.strptime(expiry, fmt)
+                    logger.info(f"Successfully parsed expiry '{expiry}' using format '{fmt}'")
+                    break
+                except ValueError:
+                    continue
+            
+            if expiry_date is None:
+                raise ValueError(f"Unable to parse expiry date '{expiry}' with any known format")
+            
+            # Format: DDMMMYY (e.g., 28AUG25)
             date_str = expiry_date.strftime('%d%b%y').upper()
+            
+            # Convert option type to FlatTrade format (CE -> C, PE -> P)
+            ft_option_type = 'C' if option_type.upper() in ['CE', 'CALL'] else 'P'
             
             # Format strike price (remove decimal)
             strike_str = str(int(strike))
             
-            # Combine all parts
-            symbol = f"{instrument}{date_str}{strike_str}{option_type}"
+            # Combine all parts: INSTRUMENT + DATE + OPTION_TYPE + STRIKE
+            symbol = f"{instrument}{date_str}{ft_option_type}{strike_str}"
             
-            logger.info(f"Generated FlatTrade symbol: {symbol}")
+            logger.info(f"Generated FlatTrade symbol: {symbol} from expiry: {expiry}")
             return symbol
             
         except Exception as e:
-            logger.error(f"Symbol generation error: {e}")
+            logger.error(f"Symbol generation error: {e}, check flattrade document")
             # Fallback format
             return f"{instrument}_{expiry}_{int(strike)}_{option_type}"
     

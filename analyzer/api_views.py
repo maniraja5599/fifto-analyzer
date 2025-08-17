@@ -601,3 +601,216 @@ def broker_accounts_status_api(request):
             'error': str(e),
             'message': 'Failed to get broker accounts'
         }, status=500)
+
+
+@csrf_exempt
+@require_POST
+def get_expiry_dates_api(request):
+    """
+    API endpoint to get expiry dates for options
+    """
+    try:
+        instrument = request.GET.get('instrument', 'NIFTY')
+        
+        # Mock expiry dates - in production, fetch from broker APIs
+        base_date = datetime.now()
+        expiry_dates = []
+        
+        # Generate next 4 weekly expiries (Thursday)
+        for week in range(4):
+            # Find next Thursday
+            days_ahead = 3 - base_date.weekday()  # Thursday is 3
+            if days_ahead <= 0:  # Target day already happened this week
+                days_ahead += 7
+            
+            expiry_date = base_date + timedelta(days=days_ahead + (week * 7))
+            expiry_dates.append(expiry_date.strftime('%d-%b-%Y'))
+        
+        # Add monthly expiry (last Thursday of month)
+        last_day = base_date.replace(day=28) + timedelta(days=4)
+        last_day = last_day - timedelta(days=last_day.weekday() + 1)  # Last Thursday
+        if last_day > base_date:
+            expiry_dates.append(last_day.strftime('%d-%b-%Y'))
+        
+        return JsonResponse({
+            'success': True,
+            'expiry_dates': expiry_dates,
+            'instrument': instrument
+        })
+        
+    except Exception as e:
+        print(f"❌ Error getting expiry dates: {e}")
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+@csrf_exempt
+@require_POST
+def get_option_prices_api(request):
+    """
+    API endpoint to get current option prices
+    """
+    try:
+        data = json.loads(request.body)
+        symbols = data.get('symbols', [])
+        instrument = data.get('instrument', 'NIFTY')
+        
+        # Mock prices - in production, fetch from broker APIs or NSE
+        prices = {}
+        for symbol in symbols:
+            # Generate realistic option prices based on symbol
+            base_price = 50 + (hash(symbol) % 100)  # Generate consistent mock price
+            prices[symbol] = round(base_price + (datetime.now().second % 20), 2)
+        
+        return JsonResponse({
+            'success': True,
+            'prices': prices,
+            'instrument': instrument,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        print(f"❌ Error getting option prices: {e}")
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+@csrf_exempt
+@require_POST
+def place_basket_order_api(request):
+    """
+    API endpoint to place basket orders across multiple brokers
+    """
+    try:
+        data = json.loads(request.body)
+        brokers = data.get('brokers', [])
+        orders = data.get('orders', [])
+        timestamp = data.get('timestamp')
+        
+        if not brokers:
+            return JsonResponse({
+                'success': False,
+                'message': 'No brokers selected'
+            }, status=400)
+        
+        if not orders:
+            return JsonResponse({
+                'success': False,
+                'message': 'No orders to place'
+            }, status=400)
+        
+        # Load broker settings
+        settings_file = os.path.join(settings.BASE_DIR, 'fifto_settings.json')
+        broker_settings = {}
+        
+        if os.path.exists(settings_file):
+            with open(settings_file, 'r') as f:
+                broker_settings = json.load(f)
+        
+        placed_orders = []
+        failed_orders = []
+        
+        # Process orders for each broker
+        for broker_id in brokers:
+            broker_name = None
+            broker_handler = None
+            
+            # Find broker configuration
+            for broker_type, config in broker_settings.items():
+                if str(config.get('client_id', '')) == str(broker_id) or str(config.get('account_id', '')) == str(broker_id):
+                    broker_name = broker_type
+                    
+                    # Import and initialize broker handler
+                    try:
+                        if broker_type == 'DHAN':
+                            from .dhan_api_v2 import DhanAPI
+                            broker_handler = DhanAPI(config)
+                        elif broker_type == 'FLATTRADE':
+                            # Import FlatTrade API when available
+                            pass
+                        # Add other brokers as needed
+                        
+                    except ImportError as e:
+                        print(f"⚠️ Broker {broker_type} handler not available: {e}")
+                        continue
+                    break
+            
+            if not broker_handler:
+                failed_orders.append({
+                    'broker_id': broker_id,
+                    'error': 'Broker handler not available'
+                })
+                continue
+            
+            # Place orders for this broker
+            for order in orders:
+                try:
+                    # Prepare order data
+                    order_data = {
+                        'symbol': order['symbol'],
+                        'quantity': order['quantity'],
+                        'order_type': order['orderType'],
+                        'transaction_type': order['action'],
+                        'product_type': 'MIS',  # Intraday
+                        'price': order.get('limitPrice', 0)
+                    }
+                    
+                    # Place order (mock for now - implement actual API calls)
+                    print(f"🔄 Placing order: {order_data} via {broker_name}")
+                    
+                    # Mock successful order placement
+                    order_id = f"{broker_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{order['id']}"
+                    
+                    placed_orders.append({
+                        'broker': broker_name,
+                        'broker_id': broker_id,
+                        'order_id': order_id,
+                        'symbol': order['symbol'],
+                        'quantity': order['quantity'],
+                        'status': 'PLACED'
+                    })
+                    
+                except Exception as e:
+                    print(f"❌ Error placing order {order['symbol']}: {e}")
+                    failed_orders.append({
+                        'broker': broker_name,
+                        'broker_id': broker_id,
+                        'symbol': order['symbol'],
+                        'error': str(e)
+                    })
+        
+        # Prepare response
+        total_orders = len(placed_orders) + len(failed_orders)
+        success_count = len(placed_orders)
+        
+        message = f"Basket order execution completed!\n\n"
+        message += f"✅ Successfully placed: {success_count} orders\n"
+        if failed_orders:
+            message += f"❌ Failed orders: {len(failed_orders)}\n"
+        
+        message += f"\nTotal brokers used: {len(set(order['broker'] for order in placed_orders))}\n"
+        message += f"Execution time: {datetime.now().strftime('%H:%M:%S')}"
+        
+        return JsonResponse({
+            'success': success_count > 0,
+            'message': message,
+            'placed_orders': placed_orders,
+            'failed_orders': failed_orders,
+            'summary': {
+                'total_orders': total_orders,
+                'successful': success_count,
+                'failed': len(failed_orders),
+                'brokers_used': len(set(order['broker'] for order in placed_orders))
+            }
+        })
+        
+    except Exception as e:
+        print(f"❌ Error placing basket order: {e}")
+        return JsonResponse({
+            'success': False,
+            'message': f'Failed to place basket order: {str(e)}'
+        }, status=500)

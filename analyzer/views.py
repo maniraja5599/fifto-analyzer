@@ -1457,6 +1457,11 @@ def automation_view(request):
                     'last_run': None,
                     'last_result': None,
                     
+                    # Strategy Parameters
+                    'target_stoploss_percent': float(request.POST.get('target_stoploss_percent', 85)),
+                    'hedge_buying_percent': float(request.POST.get('hedge_buying_percent', 10)),
+                    'add_to_portfolio': 'add_to_portfolio' in request.POST,
+                    
                     # Live trading configuration
                     'enable_live_trading': 'enable_live_trading' in request.POST,
                     'auto_place_orders': 'auto_place_orders' in request.POST,
@@ -1492,6 +1497,11 @@ def automation_view(request):
                         'banknifty_calc_type': request.POST.get('banknifty_calc_type', 'Monthly'),
                         'active_days': request.POST.getlist('active_days'),
                         'telegram_alerts': 'telegram_alerts' in request.POST,
+                        
+                        # Strategy Parameters
+                        'target_stoploss_percent': float(request.POST.get('target_stoploss_percent', 85)),
+                        'hedge_buying_percent': float(request.POST.get('hedge_buying_percent', 10)),
+                        'add_to_portfolio': 'add_to_portfolio' in request.POST,
                         
                         # Live trading configuration
                         'enable_live_trading': 'enable_live_trading' in request.POST,

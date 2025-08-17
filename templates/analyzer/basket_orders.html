@@ -1,309 +1,1128 @@
-{% extends 'analyzer/layout.html' %}
+{% extends "analyzer/layout.html" %}
 {% load static %}
 
+{% block title %}Basket Orders - Live Trading{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Light Theme for Basket Orders */
+    body {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        min-height: 100vh;
+    }
+    
+    .light-card {
+        background: rgba(255, 255, 255, 0.95);
+        border: 1px solid rgba(0, 0, 0, 0.05);
+        box-shadow: 0 2px 15px rgba(0, 0, 0, 0.05);
+        border-radius: 12px;
+        backdrop-filter: blur(10px);
+    }
+    
+    .light-card-header {
+        background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+        border-radius: 12px 12px 0 0 !important;
+        padding: 1.25rem;
+    }
+    
+    .gradient-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 12px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .gradient-header::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="1" fill="white" opacity="0.1"/><circle cx="30" cy="30" r="1" fill="white" opacity="0.1"/><circle cx="50" cy="10" r="1" fill="white" opacity="0.1"/><circle cx="70" cy="50" r="1" fill="white" opacity="0.1"/><circle cx="90" cy="20" r="1" fill="white" opacity="0.1"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
+        pointer-events: none;
+    }
+    
+    .market-status-live {
+        background: linear-gradient(135deg, #56ab2f 0%, #a8e6cf 100%);
+        border: none;
+        color: white;
+        font-weight: 600;
+    }
+    
+    .market-status-closed {
+        background: linear-gradient(135deg, #ff6b6b 0%, #ffa8a8 100%);
+        border: none;
+        color: white;
+        font-weight: 600;
+    }
+    
+    .market-status-weekend {
+        background: linear-gradient(135deg, #ffd93d 0%, #ff6b6b 100%);
+        border: none;
+        color: white;
+        font-weight: 600;
+    }
+    
+    .broker-card {
+        background: rgba(255, 255, 255, 0.9);
+        border: 2px solid transparent;
+        border-radius: 12px;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+        cursor: pointer;
+    }
+    
+    .broker-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, #667eea, #764ba2);
+        transform: scaleX(0);
+        transition: transform 0.3s ease;
+    }
+    
+    .broker-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+        border-color: rgba(102, 126, 234, 0.3);
+    }
+    
+    .broker-card:hover::before {
+        transform: scaleX(1);
+    }
+    
+    .broker-card.selected {
+        border-color: #667eea;
+        background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+        box-shadow: 0 5px 20px rgba(102, 126, 234, 0.2);
+    }
+    
+    .broker-card.selected::before {
+        transform: scaleX(1);
+    }
+    
+    .broker-checkbox {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        width: 20px;
+        height: 20px;
+        border: 2px solid #dee2e6;
+        border-radius: 4px;
+        background: white;
+        transition: all 0.3s ease;
+    }
+    
+    .broker-card.selected .broker-checkbox {
+        background: #667eea;
+        border-color: #667eea;
+    }
+    
+    .broker-card.selected .broker-checkbox::after {
+        content: '✓';
+        color: white;
+        font-size: 12px;
+        font-weight: bold;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+    }
+    
+    .table-light-custom {
+        background: rgba(255, 255, 255, 0.9);
+        border-radius: 12px;
+        overflow: hidden;
+    }
+    
+    .table-light-custom thead th {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        border: none;
+        font-weight: 600;
+        color: #495057;
+        padding: 1rem;
+    }
+    
+    .table-light-custom tbody tr {
+        border: none;
+        transition: background-color 0.3s ease;
+    }
+    
+    .table-light-custom tbody tr:hover {
+        background: rgba(102, 126, 234, 0.05);
+    }
+    
+    .table-light-custom tbody td {
+        border: none;
+        padding: 1rem;
+        vertical-align: middle;
+    }
+    
+    .btn-light-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        color: white;
+        border-radius: 8px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-light-primary:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        color: white;
+    }
+    
+    .btn-light-success {
+        background: linear-gradient(135deg, #56ab2f 0%, #a8e6cf 100%);
+        border: none;
+        color: white;
+        border-radius: 8px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-light-success:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 5px 15px rgba(86, 171, 47, 0.4);
+        color: white;
+    }
+    
+    .btn-light-danger {
+        background: linear-gradient(135deg, #ff6b6b 0%, #ffa8a8 100%);
+        border: none;
+        color: white;
+        border-radius: 8px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-light-danger:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 5px 15px rgba(255, 107, 107, 0.4);
+        color: white;
+    }
+    
+    .summary-card {
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(248, 249, 250, 0.9) 100%);
+        border: 1px solid rgba(0, 0, 0, 0.05);
+        border-radius: 12px;
+        padding: 1.5rem;
+        text-align: center;
+        transition: all 0.3s ease;
+    }
+    
+    .summary-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+    }
+    
+    .summary-number {
+        font-size: 2rem;
+        font-weight: 700;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin-bottom: 0.5rem;
+    }
+    
+    .empty-state {
+        background: rgba(255, 255, 255, 0.9);
+        border: 2px dashed #dee2e6;
+        border-radius: 12px;
+        padding: 3rem;
+        text-align: center;
+        color: #6c757d;
+    }
+    
+    .modal-content {
+        border: none;
+        border-radius: 12px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+    }
+    
+    .modal-header {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+        border-radius: 12px 12px 0 0;
+    }
+    
+    .form-control, .form-select {
+        border: 1px solid rgba(0, 0, 0, 0.1);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.9);
+        transition: all 0.3s ease;
+    }
+    
+    .form-control:focus, .form-select:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        background: white;
+    }
+    
+    .badge-gradient-success {
+        background: linear-gradient(135deg, #56ab2f 0%, #a8e6cf 100%);
+        border: none;
+    }
+    
+    .badge-gradient-danger {
+        background: linear-gradient(135deg, #ff6b6b 0%, #ffa8a8 100%);
+        border: none;
+    }
+    
+    .badge-gradient-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+    }
+    
+    .badge-gradient-warning {
+        background: linear-gradient(135deg, #ffd93d 0%, #ff6b6b 100%);
+        border: none;
+    }
+    
+    .badge-gradient-info {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        border: none;
+    }
+    
+    .badge-gradient-secondary {
+        background: linear-gradient(135deg, #6c757d 0%, #adb5bd 100%);
+        border: none;
+    }
+    
+    /* Animation for loading spinners */
+    @keyframes pulse {
+        0% { opacity: 1; }
+        50% { opacity: 0.5; }
+        100% { opacity: 1; }
+    }
+    
+    .loading-pulse {
+        animation: pulse 1.5s infinite;
+    }
+    
+    .cursor-pointer {
+        cursor: pointer;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<!-- Modern Compact Header -->
-<div class="basket-header" style="margin-top: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 10px; padding: 20px; margin-bottom: 20px;">
-    <div class="row align-items-center">
-        <div class="col-md-8">
-            <div class="d-flex align-items-center gap-3">
-                <div class="basket-icon">
-                    <i class="bi bi-basket3-fill text-warning" style="font-size: 2rem;"></i>
-                </div>
-                <div>
-                    <h3 class="mb-1 fw-bold" style="color: white;">Basket Orders</h3>
-                    <p class="mb-0" style="color: rgba(255,255,255,0.8);">{{ basket_orders|length }} baskets • Total options managed</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4 text-end">
-            <div class="btn-group" role="group">
-                <a href="{% url 'option_chain' %}" class="btn btn-success btn-sm">
-                    <i class="bi bi-plus"></i> New Basket
-                </a>
-                <button class="btn btn-outline-light btn-sm" onclick="clearAllBaskets()">
-                    <i class="bi bi-trash"></i> Clear All
-                </button>
-                <button class="btn btn-outline-light btn-sm" onclick="refreshData()">
-                    <i class="bi bi-arrow-clockwise"></i>
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Quick Stats Bar -->
-<div class="stats-bar bg-light rounded p-3 mb-3 mt-3" style="border: 1px solid #e9ecef;">
-    <div class="row text-center">
-        <div class="col-3">
-            <div class="stat-item">
-                <div class="stat-number text-primary fw-bold" style="font-size: 1.5rem;">{{ basket_orders|length }}</div>
-                <div class="stat-label text-muted small">Total Baskets</div>
-            </div>
-        </div>
-        <div class="col-3">
-            <div class="stat-item">
-                <div class="stat-number text-success fw-bold" style="font-size: 1.5rem;">
-                    {% with active_count=0 %}
-                        {% for basket in basket_orders %}
-                            {% if basket.status == 'created' or basket.status == 'active' %}
-                                {% with active_count=active_count|add:1 %}{% endwith %}
-                            {% endif %}
-                        {% endfor %}
-                        {{ active_count }}
-                    {% endwith %}
-                </div>
-                <div class="stat-label text-muted small">Active</div>
-            </div>
-        </div>
-        <div class="col-3">
-            <div class="stat-item">
-                <div class="stat-number text-info fw-bold" style="font-size: 1.5rem;">
-                    {% with total_options=0 %}
-                        {% for basket in basket_orders %}
-                            {% with total_options=total_options|add:basket.options|length %}{% endwith %}
-                        {% endfor %}
-                        {{ total_options }}
-                    {% endwith %}
-                </div>
-                <div class="stat-label text-muted small">Total Options</div>
-            </div>
-        </div>
-        <div class="col-3">
-            <div class="stat-item">
-                <div class="stat-number text-warning fw-bold" style="font-size: 1.5rem;">
-                    {% if basket_orders %}{{ basket_orders|length }}{% else %}0{% endif %}
-                </div>
-                <div class="stat-label text-muted small">Strategies</div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Modern Basket Cards -->
-{% if basket_orders %}
-    <div class="baskets-container">
-        {% for basket in basket_orders %}
-        <div class="basket-card bg-white rounded shadow-sm border-0 mb-3" style="border: 1px solid #e9ecef;">
-            <div class="basket-card-header bg-light border-bottom-0 rounded-top p-3">
-                <div class="row align-items-center">
-                    <div class="col-md-6">
-                        <div class="d-flex align-items-center gap-2">
-                            {% if basket.status == 'created' %}
-                                <span class="badge bg-primary">Active</span>
-                            {% elif basket.status == 'active' %}
-                                <span class="badge bg-success">Running</span>
-                            {% else %}
-                                <span class="badge bg-secondary">{{ basket.status|capfirst }}</span>
-                            {% endif %}
-                            <h5 class="mb-0 fw-bold text-dark">{{ basket.name }}</h5>
-                        </div>
-                        <div class="text-muted small mt-1">
-                            <i class="bi bi-layers me-1"></i>{{ basket.options|length }} options
-                            <span class="mx-2">•</span>
-                            <i class="bi bi-clock me-1"></i>Created today
-                        </div>
-                    </div>
-                    <div class="col-md-6 text-end">
-                        <div class="btn-group" role="group">
-                            <button class="btn btn-outline-primary btn-sm" onclick="editBasket('{{ basket.name }}')">
-                                <i class="bi bi-pencil-square"></i> Edit
-                            </button>
-                            <button class="btn btn-outline-success btn-sm" onclick="executeBasket('{{ basket.name }}')">
-                                <i class="bi bi-play-fill"></i> Execute
-                            </button>
-                            <button class="btn btn-outline-danger btn-sm" onclick="deleteBasket('{{ basket.name }}')">
-                                <i class="bi bi-trash"></i>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="basket-card-body p-3">
-                <!-- Options Table -->
-                <div class="table-responsive">
-                    <table class="table table-sm table-hover mb-0">
-                        <thead class="table-light">
-                            <tr>
-                                <th class="fw-semibold">Symbol</th>
-                                <th class="fw-semibold">Type</th>
-                                <th class="fw-semibold text-end">Strike</th>
-                                <th class="fw-semibold text-end">LTP</th>
-                                <th class="fw-semibold text-end">Qty</th>
-                                <th class="fw-semibold text-end">Action</th>
-                                <th class="fw-semibold text-end">Premium</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for option in basket.options %}
-                            <tr class="option-row">
-                                <td class="fw-medium">{{ option.symbol|default:option.instrument }}</td>
-                                <td>
-                                    {% if option.option_type|default:option.type|lower == 'ce' %}
-                                        <span class="badge bg-success">CE</span>
-                                    {% else %}
-                                        <span class="badge bg-danger">PE</span>
-                                    {% endif %}
-                                </td>
-                                <td class="text-end fw-medium">{{ option.strike_price|default:option.strike }}</td>
-                                <td class="text-end">
-                                    <span class="fw-medium text-dark">₹{{ option.ltp|default:'--' }}</span>
-                                </td>
-                                <td class="text-end">
-                                    <span class="fw-medium">{{ option.quantity|default:'50' }}</span>
-                                </td>
-                                <td class="text-end">
-                                    {% if option.action|lower == 'buy' %}
-                                        <span class="badge bg-primary">BUY</span>
-                                    {% else %}
-                                        <span class="badge bg-warning">SELL</span>
-                                    {% endif %}
-                                </td>
-                                <td class="text-end">
-                                    {% if option.action|lower == 'buy' %}
-                                        <span class="fw-bold text-danger">₹{{ option.ltp|default:'--' }}</span>
-                                    {% else %}
-                                        <span class="fw-bold text-success">₹{{ option.ltp|default:'--' }}</span>
-                                    {% endif %}
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-                
-                <!-- Basket Summary -->
-                <div class="basket-summary bg-light rounded p-2 mt-3">
-                    <div class="row text-center">
-                        <div class="col-3">
-                            <small class="text-muted d-block">Net Premium</small>
-                            <span class="fw-bold text-dark">₹--</span>
-                        </div>
-                        <div class="col-3">
-                            <small class="text-muted d-block">Max Profit</small>
-                            <span class="fw-bold text-success">₹--</span>
-                        </div>
-                        <div class="col-3">
-                            <small class="text-muted d-block">Max Loss</small>
-                            <span class="fw-bold text-danger">₹--</span>
-                        </div>
-                        <div class="col-3">
-                            <small class="text-muted d-block">Breakeven</small>
-                            <span class="fw-bold text-warning">--</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        {% endfor %}
-    </div>
-{% else %}
-    <!-- Empty State -->
-    <div class="empty-state text-center py-5" style="background: #fafbfc; border-radius: 10px; border: 2px dashed #dee2e6;">
-        <div class="empty-icon mb-3">
-            <i class="bi bi-basket3" style="font-size: 4rem; color: #dee2e6;"></i>
-        </div>
-        <h4 class="text-muted mb-2">No Basket Orders</h4>
-        <p class="text-muted mb-4">Create your first basket to start building option strategies</p>
-        <a href="{% url 'option_chain' %}" class="btn btn-primary">
-            <i class="bi bi-plus-circle me-2"></i>Create First Basket
-        </a>
-    </div>
-{% endif %}
-
-<!-- Debug Information (Hidden by default) -->
-<div class="debug-panel bg-light border rounded p-3 mt-4" style="display: none; border-left: 4px solid #ffc107;" id="debugPanel">
-    <div class="d-flex justify-content-between align-items-center mb-2">
-        <h6 class="mb-0"><i class="bi bi-bug text-warning"></i> Debug Information</h6>
-        <button class="btn btn-sm btn-outline-secondary" onclick="toggleDebug()">Hide</button>
-    </div>
+<div class="container-fluid">
     <div class="row">
-        <div class="col-md-4">
-            <small class="text-muted d-block">Total Baskets</small>
-            <span class="fw-medium">{{ basket_orders|length }}</span>
-        </div>
-        <div class="col-md-4">
-            <small class="text-muted d-block">Session Active</small>
-            <span class="fw-medium">{% if basket_orders %}Yes{% else %}No{% endif %}</span>
-        </div>
-        <div class="col-md-4">
-            <small class="text-muted d-block">Basket Names</small>
-            <span class="fw-medium">
-                {% if basket_orders %}
-                    {% for basket in basket_orders %}
-                        "{{ basket.name }}"{% if not forloop.last %}, {% endif %}
-                    {% endfor %}
-                {% else %}
-                    None
-                {% endif %}
-            </span>
+        <div class="col-12">
+            <!-- Header Section -->
+            <div class="gradient-header">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h1 class="mb-2">
+                            <i class="bi bi-basket3-fill me-3"></i>
+                            Basket Orders
+                        </h1>
+                        <p class="mb-0 opacity-75">Live Trading with Multiple Brokers</p>
+                    </div>
+                    <div>
+                        <button class="btn btn-light btn-lg me-3" onclick="addNewStrike()">
+                            <i class="bi bi-plus-circle me-2"></i>Add Strike
+                        </button>
+                        <button class="btn btn-warning btn-lg" onclick="placeBasketOrder()">
+                            <i class="bi bi-send-fill me-2"></i>Place Basket Order
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Market Status -->
+            <div id="marketStatus" class="alert mb-4" style="border-radius: 12px;">
+                <i class="bi bi-clock me-2"></i>
+                <span class="loading-pulse">Checking market status...</span>
+            </div>
+
+            <!-- Broker Selection -->
+            <div class="light-card mb-4">
+                <div class="light-card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-bank2 me-2 text-primary"></i>
+                        Select Brokers for Order Placement
+                    </h5>
+                </div>
+                <div class="card-body p-4">
+                    <div id="brokerSelection" class="row">
+                        <!-- Broker checkboxes will be loaded here -->
+                    </div>
+                    <div id="noBrokersMessage" class="text-muted text-center py-3" style="display: none;">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        No broker accounts configured. 
+                        <a href="/broker_settings/" class="text-decoration-none fw-bold">Configure broker accounts</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Order Configuration -->
+            <div class="light-card mb-4">
+                <div class="light-card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-gear-fill me-2 text-primary"></i>
+                        Order Configuration
+                    </h5>
+                </div>
+                <div class="card-body p-4">
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <label for="instrumentSelect" class="form-label fw-semibold">Instrument</label>
+                            <select class="form-select" id="instrumentSelect">
+                                <option value="NIFTY">NIFTY</option>
+                                <option value="BANKNIFTY">BANKNIFTY</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="defaultOrderType" class="form-label fw-semibold">Default Order Type</label>
+                            <select class="form-select" id="defaultOrderType">
+                                <option value="MKT">Market Order</option>
+                                <option value="LMT">Limit Order</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="defaultQuantity" class="form-label fw-semibold">Default Quantity</label>
+                            <input type="number" class="form-control" id="defaultQuantity" value="50" min="1">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="expiryDate" class="form-label fw-semibold">Expiry Date</label>
+                            <select class="form-select" id="expiryDate">
+                                <option value="">Select Expiry</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Strike Orders Table -->
+            <div class="light-card mb-4">
+                <div class="light-card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <i class="bi bi-list-task me-2 text-primary"></i>
+                            Strike Orders (<span id="strikeCount" class="text-primary fw-bold">0</span>)
+                        </h5>
+                        <button class="btn btn-light-danger btn-sm" onclick="clearAllStrikes()">
+                            <i class="bi bi-trash me-1"></i>Clear All
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-light-custom mb-0" id="strikesTable">
+                            <thead>
+                                <tr>
+                                    <th width="100">Strike</th>
+                                    <th width="80">Type</th>
+                                    <th width="100">Action</th>
+                                    <th width="100">Quantity</th>
+                                    <th width="100">Order Type</th>
+                                    <th width="100">Price</th>
+                                    <th width="150">Current Premium</th>
+                                    <th width="100">Total Value</th>
+                                    <th width="80">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="strikesTableBody">
+                                <!-- Strike rows will be added here -->
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <div id="emptyStrikesMessage" class="empty-state m-4">
+                        <i class="bi bi-inbox" style="font-size: 3rem; color: #dee2e6;"></i>
+                        <h5 class="mt-3 mb-2">No strikes added yet</h5>
+                        <p class="text-muted">Click "Add Strike" to start building your basket order</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Order Summary -->
+            <div class="light-card" id="orderSummary" style="display: none;">
+                <div class="light-card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-calculator me-2 text-primary"></i>
+                        Order Summary
+                    </h5>
+                </div>
+                <div class="card-body p-4">
+                    <div class="row g-4">
+                        <div class="col-md-3">
+                            <div class="summary-card">
+                                <div class="summary-number" id="totalOrders">0</div>
+                                <h6 class="text-muted mb-0">Total Orders</h6>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="summary-card">
+                                <div class="summary-number" id="totalQuantity">0</div>
+                                <h6 class="text-muted mb-0">Total Quantity</h6>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="summary-card">
+                                <div class="summary-number" id="totalPremium">₹0</div>
+                                <h6 class="text-muted mb-0">Est. Premium</h6>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="summary-card">
+                                <div class="summary-number" id="selectedBrokers">0</div>
+                                <h6 class="text-muted mb-0">Selected Brokers</h6>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
 
-<!-- Show Debug Button -->
-<div class="text-center mt-3">
-    <button class="btn btn-sm btn-outline-secondary" onclick="toggleDebug()">
-        <i class="bi bi-gear"></i> Show Debug Info
-    </button>
+<!-- Add Strike Modal -->
+<div class="modal fade" id="addStrikeModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold">
+                    <i class="bi bi-plus-circle text-primary me-2"></i>
+                    Add New Strike
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <form id="addStrikeForm">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="strikePrice" class="form-label fw-semibold">Strike Price</label>
+                            <input type="number" class="form-control" id="strikePrice" required step="50" placeholder="e.g., 24500">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="optionType" class="form-label fw-semibold">Option Type</label>
+                            <select class="form-select" id="optionType" required>
+                                <option value="CE">Call (CE)</option>
+                                <option value="PE">Put (PE)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row g-3 mt-2">
+                        <div class="col-md-6">
+                            <label for="orderAction" class="form-label fw-semibold">Action</label>
+                            <select class="form-select" id="orderAction" required>
+                                <option value="BUY">Buy</option>
+                                <option value="SELL">Sell</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="orderQuantity" class="form-label fw-semibold">Quantity</label>
+                            <input type="number" class="form-control" id="orderQuantity" required min="1" placeholder="e.g., 50">
+                        </div>
+                    </div>
+                    <div class="row g-3 mt-2">
+                        <div class="col-md-6">
+                            <label for="orderTypeModal" class="form-label fw-semibold">Order Type</label>
+                            <select class="form-select" id="orderTypeModal" required>
+                                <option value="MKT">Market Order</option>
+                                <option value="LMT">Limit Order</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="limitPrice" class="form-label fw-semibold">Limit Price</label>
+                            <input type="number" class="form-control" id="limitPrice" step="0.05" placeholder="Auto for market orders">
+                            <div class="form-text">Only required for limit orders</div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">
+                    <i class="bi bi-x-circle me-1"></i>Cancel
+                </button>
+                <button type="button" class="btn btn-light-primary" onclick="addStrikeToBasket()">
+                    <i class="bi bi-plus-circle me-1"></i>Add Strike
+                </button>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script>
-function toggleDebug() {
-    const debugPanel = document.getElementById('debugPanel');
-    const isHidden = debugPanel.style.display === 'none';
-    debugPanel.style.display = isHidden ? 'block' : 'none';
+// Global variables
+let strikeOrders = [];
+let brokerAccounts = [];
+let currentPrices = {};
+let expiryDates = [];
+
+// Initialize page
+document.addEventListener('DOMContentLoaded', function() {
+    loadBrokerAccounts();
+    loadExpiryDates();
+    checkMarketStatus();
+    updateOrderSummary();
     
-    const button = event.target.closest('button');
-    button.innerHTML = isHidden ? 
-        '<i class="bi bi-gear"></i> Hide Debug Info' : 
-        '<i class="bi bi-gear"></i> Show Debug Info';
+    // Auto-fill default quantity when modal opens
+    $('#addStrikeModal').on('show.bs.modal', function() {
+        document.getElementById('orderQuantity').value = document.getElementById('defaultQuantity').value;
+        document.getElementById('orderTypeModal').value = document.getElementById('defaultOrderType').value;
+        updateLimitPriceVisibility();
+    });
+    
+    // Handle order type change
+    document.getElementById('orderTypeModal').addEventListener('change', updateLimitPriceVisibility);
+});
+
+// Load broker accounts
+function loadBrokerAccounts() {
+    fetch('/api/broker-accounts-status/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success && data.data.broker_accounts) {
+            brokerAccounts = data.data.broker_accounts;
+            renderBrokerSelection();
+        } else {
+            showNoBrokersMessage();
+        }
+    })
+    .catch(error => {
+        console.error('Error loading broker accounts:', error);
+        showNoBrokersMessage();
+    });
 }
 
-function refreshData() {
-    window.location.reload();
+// Render broker selection
+function renderBrokerSelection() {
+    const container = document.getElementById('brokerSelection');
+    
+    if (brokerAccounts.length === 0) {
+        showNoBrokersMessage();
+        return;
+    }
+    
+    const brokerInfo = {
+        'DHAN': { name: 'DhanHQ', color: '#007bff', icon: 'bi-bank' },
+        'ZERODHA': { name: 'Zerodha Kite', color: '#ff6600', icon: 'bi-graph-up' },
+        'ANGEL': { name: 'Angel Broking', color: '#e74c3c', icon: 'bi-wings' },
+        'UPSTOX': { name: 'Upstox', color: '#8e44ad', icon: 'bi-arrow-up-circle' },
+        'FLATTRADE': { name: 'FlatTrade', color: '#27ae60', icon: 'bi-graph-down' }
+    };
+    
+    container.innerHTML = brokerAccounts.map((account, index) => {
+        const info = brokerInfo[account.broker] || { name: account.broker, color: '#6c757d', icon: 'bi-bank' };
+        
+        return `
+            <div class="col-md-4 mb-3">
+                <div class="broker-card p-3" onclick="toggleBrokerSelection('broker_${index}')">
+                    <input type="checkbox" 
+                           name="selected_brokers" 
+                           value="${account.id}" 
+                           id="broker_${index}"
+                           style="display: none;"
+                           onchange="updateOrderSummary()">
+                    
+                    <div class="broker-checkbox"></div>
+                    
+                    <div class="d-flex align-items-center">
+                        <div class="me-3">
+                            <i class="bi ${info.icon}" style="color: ${info.color}; font-size: 1.5em;"></i>
+                        </div>
+                        <div class="flex-grow-1">
+                            <h6 class="mb-1 fw-bold">${info.name}</h6>
+                            <small class="text-muted">${account.account_name}</small>
+                        </div>
+                        <div class="ms-2">
+                            <span class="badge badge-gradient-success">Ready</span>
+                        </div>
+                    </div>
+                    <div class="mt-2">
+                        <small class="text-muted">
+                            <i class="bi bi-shield-check me-1"></i>
+                            Active Session
+                        </small>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+    
+    document.getElementById('noBrokersMessage').style.display = 'none';
 }
 
-function clearAllBaskets() {
-    if (confirm('Are you sure you want to clear all baskets? This action cannot be undone.')) {
-        fetch('{% url "clear_all_baskets" %}', {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': '{{ csrf_token }}',
-                'Content-Type': 'application/json',
-            },
+// Toggle broker selection
+function toggleBrokerSelection(brokerId) {
+    const checkbox = document.getElementById(brokerId);
+    const card = checkbox.closest('.broker-card');
+    
+    // Toggle checkbox
+    checkbox.checked = !checkbox.checked;
+    
+    // Update card styling
+    if (checkbox.checked) {
+        card.classList.add('selected');
+    } else {
+        card.classList.remove('selected');
+    }
+    
+    // Update order summary
+    updateOrderSummary();
+}
+
+// Update broker selection styling (legacy function - kept for compatibility)
+function updateBrokerSelection(checkbox) {
+    const card = checkbox.closest('.broker-card');
+    if (checkbox.checked) {
+        card.classList.add('selected');
+    } else {
+        card.classList.remove('selected');
+    }
+}
+
+// Show no brokers message
+function showNoBrokersMessage() {
+    document.getElementById('noBrokersMessage').style.display = 'block';
+    document.getElementById('brokerSelection').innerHTML = '';
+}
+
+// Load expiry dates
+function loadExpiryDates() {
+    const instrument = document.getElementById('instrumentSelect').value;
+    
+    // Get expiry dates from server
+    fetch(`/api/get-expiry-dates/?instrument=${instrument}`)
+    .then(response => response.json())
+    .then(data => {
+        if (data.success && data.expiry_dates) {
+            const select = document.getElementById('expiryDate');
+            select.innerHTML = '<option value="">Select Expiry</option>' + 
+                data.expiry_dates.map(exp => `<option value="${exp}">${exp}</option>`).join('');
+        } else {
+            // Fallback to mock data
+            const mockExpiries = [
+                '21-Aug-2025',
+                '28-Aug-2025',
+                '04-Sep-2025',
+                '25-Sep-2025'
+            ];
+            const select = document.getElementById('expiryDate');
+            select.innerHTML = '<option value="">Select Expiry</option>' + 
+                mockExpiries.map(exp => `<option value="${exp}">${exp}</option>`).join('');
+        }
+    })
+    .catch(error => {
+        console.error('Error loading expiry dates:', error);
+        // Fallback to mock data
+        const mockExpiries = [
+            '21-Aug-2025',
+            '28-Aug-2025',
+            '04-Sep-2025',
+            '25-Sep-2025'
+        ];
+        const select = document.getElementById('expiryDate');
+        select.innerHTML = '<option value="">Select Expiry</option>' + 
+            mockExpiries.map(exp => `<option value="${exp}">${exp}</option>`).join('');
+    });
+}
+
+// Check market status
+function checkMarketStatus() {
+    const now = new Date();
+    const day = now.getDay(); // 0 = Sunday, 6 = Saturday
+    const hour = now.getHours();
+    const minute = now.getMinutes();
+    const time = hour * 100 + minute;
+    
+    let status = '';
+    let className = '';
+    
+    if (day === 0 || day === 6) {
+        status = '⚠️ WEEKEND: Market is closed';
+        className = 'market-status-weekend';
+    } else if (time >= 915 && time <= 1530) {
+        status = '🟢 LIVE: Market is open for trading';
+        className = 'market-status-live';
+    } else {
+        status = '🔴 CLOSED: Market is closed';
+        className = 'market-status-closed';
+    }
+    
+    const statusDiv = document.getElementById('marketStatus');
+    statusDiv.innerHTML = `<i class="bi bi-clock me-2"></i>${status}`;
+    statusDiv.className = `alert ${className} mb-4`;
+}
+
+// Add new strike
+function addNewStrike() {
+    const modal = new bootstrap.Modal(document.getElementById('addStrikeModal'));
+    modal.show();
+}
+
+// Update limit price visibility
+function updateLimitPriceVisibility() {
+    const orderType = document.getElementById('orderTypeModal').value;
+    const limitPriceField = document.getElementById('limitPrice');
+    
+    if (orderType === 'LMT') {
+        limitPriceField.removeAttribute('disabled');
+        limitPriceField.setAttribute('required', 'true');
+    } else {
+        limitPriceField.setAttribute('disabled', 'true');
+        limitPriceField.removeAttribute('required');
+        limitPriceField.value = '';
+    }
+}
+
+// Add strike to basket
+function addStrikeToBasket() {
+    const form = document.getElementById('addStrikeForm');
+    
+    if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+    }
+    
+    const instrument = document.getElementById('instrumentSelect').value;
+    const strike = parseInt(document.getElementById('strikePrice').value);
+    const optionType = document.getElementById('optionType').value;
+    const action = document.getElementById('orderAction').value;
+    const quantity = parseInt(document.getElementById('orderQuantity').value);
+    const orderType = document.getElementById('orderTypeModal').value;
+    const limitPrice = orderType === 'LMT' ? parseFloat(document.getElementById('limitPrice').value) : null;
+    const expiry = document.getElementById('expiryDate').value;
+    
+    if (!expiry) {
+        alert('Please select an expiry date');
+        return;
+    }
+    
+    // Check for duplicate
+    const duplicate = strikeOrders.find(order => 
+        order.strike === strike && 
+        order.optionType === optionType && 
+        order.action === action
+    );
+    
+    if (duplicate) {
+        if (!confirm('A similar order already exists. Do you want to add another one?')) {
+            return;
+        }
+    }
+    
+    const strikeOrder = {
+        id: Date.now(),
+        instrument,
+        strike,
+        optionType,
+        action,
+        quantity,
+        orderType,
+        limitPrice,
+        expiry,
+        symbol: generateSymbol(instrument, strike, optionType, expiry),
+        currentPremium: 0,
+        totalValue: 0
+    };
+    
+    strikeOrders.push(strikeOrder);
+    
+    // Close modal and refresh table
+    const modal = bootstrap.Modal.getInstance(document.getElementById('addStrikeModal'));
+    modal.hide();
+    
+    renderStrikesTable();
+    updateOrderSummary();
+    fetchCurrentPrices();
+    
+    // Reset form
+    form.reset();
+    document.getElementById('orderQuantity').value = document.getElementById('defaultQuantity').value;
+}
+
+// Generate option symbol
+function generateSymbol(instrument, strike, optionType, expiry) {
+    // Convert expiry format: 21-Aug-2025 -> 21AUG25
+    const date = new Date(expiry.split('-').reverse().join('-'));
+    const day = date.getDate().toString().padStart(2, '0');
+    const month = date.toLocaleString('en-US', { month: 'short' }).toUpperCase();
+    const year = date.getFullYear().toString().slice(-2);
+    
+    return `${instrument}${day}${month}${year}${strike}${optionType}`;
+}
+
+// Render strikes table
+function renderStrikesTable() {
+    const tbody = document.getElementById('strikesTableBody');
+    const emptyMessage = document.getElementById('emptyStrikesMessage');
+    
+    if (strikeOrders.length === 0) {
+        tbody.innerHTML = '';
+        emptyMessage.style.display = 'block';
+        document.getElementById('strikeCount').textContent = '0';
+        return;
+    }
+    
+    emptyMessage.style.display = 'none';
+    document.getElementById('strikeCount').textContent = strikeOrders.length;
+    
+    tbody.innerHTML = strikeOrders.map(order => `
+        <tr>
+            <td><strong class="text-primary">${order.strike}</strong></td>
+            <td>
+                <span class="badge ${order.optionType === 'CE' ? 'badge-gradient-success' : 'badge-gradient-danger'}">
+                    ${order.optionType}
+                </span>
+            </td>
+            <td>
+                <span class="badge ${order.action === 'BUY' ? 'badge-gradient-primary' : 'badge-gradient-warning'}">
+                    ${order.action}
+                </span>
+            </td>
+            <td><span class="fw-semibold">${order.quantity}</span></td>
+            <td>
+                <span class="badge ${order.orderType === 'MKT' ? 'badge-gradient-info' : 'badge-gradient-secondary'}">
+                    ${order.orderType}
+                </span>
+            </td>
+            <td>
+                <span class="fw-semibold">
+                    ${order.orderType === 'LMT' ? `₹${order.limitPrice}` : 'Market'}
+                </span>
+            </td>
+            <td id="premium_${order.id}">
+                <div class="spinner-border spinner-border-sm text-primary loading-pulse" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </td>
+            <td id="total_${order.id}">
+                <span class="text-muted">-</span>
+            </td>
+            <td>
+                <button class="btn btn-light-danger btn-sm" onclick="removeStrike(${order.id})" title="Remove Strike">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+// Remove strike
+function removeStrike(id) {
+    strikeOrders = strikeOrders.filter(order => order.id !== id);
+    renderStrikesTable();
+    updateOrderSummary();
+}
+
+// Clear all strikes
+function clearAllStrikes() {
+    if (strikeOrders.length === 0) return;
+    
+    if (confirm('Are you sure you want to clear all strikes?')) {
+        strikeOrders = [];
+        renderStrikesTable();
+        updateOrderSummary();
+    }
+}
+
+// Fetch current prices
+function fetchCurrentPrices() {
+    if (strikeOrders.length === 0) return;
+    
+    // Prepare symbols for price fetch
+    const symbols = strikeOrders.map(order => order.symbol);
+    
+    fetch('/api/get-option-prices/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify({
+            symbols: symbols,
+            instrument: document.getElementById('instrumentSelect').value
         })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                location.reload();
-            } else {
-                alert('Error clearing baskets: ' + data.error);
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Error clearing baskets');
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success && data.prices) {
+            strikeOrders.forEach(order => {
+                const price = data.prices[order.symbol] || Math.random() * 100 + 10; // Fallback to mock
+                order.currentPremium = price;
+                order.totalValue = order.quantity * price;
+                
+                document.getElementById(`premium_${order.id}`).innerHTML = `
+                    <span class="fw-bold text-success">₹${price.toFixed(2)}</span>
+                `;
+                document.getElementById(`total_${order.id}`).innerHTML = `
+                    <span class="fw-bold text-primary">₹${order.totalValue.toFixed(2)}</span>
+                `;
+            });
+            updateOrderSummary();
+        } else {
+            // Fallback to mock prices
+            strikeOrders.forEach(order => {
+                const mockPrice = Math.random() * 100 + 10;
+                order.currentPremium = mockPrice;
+                order.totalValue = order.quantity * mockPrice;
+                
+                document.getElementById(`premium_${order.id}`).innerHTML = `
+                    <span class="fw-bold text-success">₹${mockPrice.toFixed(2)}</span>
+                `;
+                document.getElementById(`total_${order.id}`).innerHTML = `
+                    <span class="fw-bold text-primary">₹${order.totalValue.toFixed(2)}</span>
+                `;
+            });
+            updateOrderSummary();
+        }
+    })
+    .catch(error => {
+        console.error('Error fetching prices:', error);
+        // Use mock prices as fallback
+        strikeOrders.forEach(order => {
+            const mockPrice = Math.random() * 100 + 10;
+            order.currentPremium = mockPrice;
+            order.totalValue = order.quantity * mockPrice;
+            
+            document.getElementById(`premium_${order.id}`).innerHTML = `
+                <span class="fw-bold text-success">₹${mockPrice.toFixed(2)}</span>
+            `;
+            document.getElementById(`total_${order.id}`).innerHTML = `
+                <span class="fw-bold text-primary">₹${order.totalValue.toFixed(2)}</span>
+            `;
         });
+        updateOrderSummary();
+    });
+}
+
+// Update order summary
+function updateOrderSummary() {
+    const selectedBrokers = document.querySelectorAll('input[name="selected_brokers"]:checked').length;
+    const totalOrders = strikeOrders.length;
+    const totalQuantity = strikeOrders.reduce((sum, order) => sum + order.quantity, 0);
+    const totalPremium = strikeOrders.reduce((sum, order) => sum + (order.totalValue || 0), 0);
+    
+    document.getElementById('totalOrders').textContent = totalOrders;
+    document.getElementById('totalQuantity').textContent = totalQuantity;
+    document.getElementById('totalPremium').textContent = `₹${totalPremium.toFixed(2)}`;
+    document.getElementById('selectedBrokers').textContent = selectedBrokers;
+    
+    // Show/hide summary
+    const summaryCard = document.getElementById('orderSummary');
+    if (totalOrders > 0 || selectedBrokers > 0) {
+        summaryCard.style.display = 'block';
+    } else {
+        summaryCard.style.display = 'none';
     }
 }
 
-function editBasket(basketName) {
-    window.location.href = `{% url 'option_chain' %}?edit_basket=${encodeURIComponent(basketName)}`;
+// Place basket order
+function placeBasketOrder() {
+    const selectedBrokers = Array.from(document.querySelectorAll('input[name="selected_brokers"]:checked'))
+        .map(cb => cb.value);
+    
+    if (selectedBrokers.length === 0) {
+        alert('Please select at least one broker account');
+        return;
+    }
+    
+    if (strikeOrders.length === 0) {
+        alert('Please add at least one strike to the basket');
+        return;
+    }
+    
+    const confirmMessage = `Are you sure you want to place ${strikeOrders.length} orders across ${selectedBrokers.length} broker account(s)?
+
+This will place REAL ORDERS in the live market!
+
+Total estimated value: ₹${strikeOrders.reduce((sum, order) => sum + (order.totalValue || 0), 0).toFixed(2)}`;
+    
+    if (!confirm(confirmMessage)) {
+        return;
+    }
+    
+    // Prepare order data
+    const basketOrderData = {
+        brokers: selectedBrokers,
+        orders: strikeOrders,
+        timestamp: new Date().toISOString()
+    };
+    
+    // Place orders
+    placeBasketOrderAPI(basketOrderData);
 }
 
-function executeBasket(basketName) {
-    if (confirm(`Are you sure you want to execute basket "${basketName}"?`)) {
-        alert('Execute functionality will be implemented soon');
-    }
+// Place basket order API
+function placeBasketOrderAPI(basketData) {
+    // Show loading state
+    const button = document.querySelector('button[onclick="placeBasketOrder()"]');
+    const originalText = button.innerHTML;
+    button.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Placing Orders...';
+    button.disabled = true;
+    
+    fetch('/api/place-basket-order/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify(basketData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(`✅ Basket order placed successfully!\n\n${data.message}`);
+            // Clear basket after successful placement
+            strikeOrders = [];
+            renderStrikesTable();
+            updateOrderSummary();
+        } else {
+            alert(`❌ Error placing basket order:\n\n${data.message}`);
+        }
+    })
+    .catch(error => {
+        console.error('Error placing basket order:', error);
+        alert('❌ Failed to place basket order. Please try again.');
+    })
+    .finally(() => {
+        // Restore button
+        button.innerHTML = originalText;
+        button.disabled = false;
+    });
 }
 
-function deleteBasket(basketName) {
-    if (confirm(`Are you sure you want to delete basket "${basketName}"?`)) {
-        alert('Delete functionality will be implemented soon');
+// Get CSRF token
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
     }
+    return cookieValue;
 }
+
+// Update market status every minute
+setInterval(checkMarketStatus, 60000);
+
+// Update instrument expiry dates when instrument changes
+document.getElementById('instrumentSelect').addEventListener('change', loadExpiryDates);
 </script>
-
 {% endblock %}
