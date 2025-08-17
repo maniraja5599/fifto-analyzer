@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OAuth Error - {{ broker }}</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #ff7b7b 0%, #c94b4b 100%);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .container {
+            background: white;
+            border-radius: 12px;
+            padding: 40px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            text-align: center;
+            max-width: 500px;
+            width: 100%;
+        }
+        .error-icon {
+            color: #dc3545;
+            font-size: 64px;
+            margin-bottom: 20px;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .broker-name {
+            color: #dc3545;
+            font-weight: bold;
+        }
+        .error-message {
+            color: #666;
+            margin: 20px 0;
+            line-height: 1.6;
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px;
+            border-left: 4px solid #dc3545;
+        }
+        .btn {
+            display: inline-block;
+            padding: 12px 24px;
+            background: #dc3545;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            margin: 10px;
+            transition: background 0.3s;
+        }
+        .btn:hover {
+            background: #c82333;
+        }
+        .btn-secondary {
+            background: #6c757d;
+        }
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+        .help-info {
+            margin-top: 20px;
+            font-size: 14px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="error-icon">❌</div>
+        <h1>Authentication Failed</h1>
+        <p>
+            There was an error connecting your <span class="broker-name">{{ broker }}</span> account to Fifto Analyzer.
+        </p>
+        
+        <div class="error-message">
+            <strong>Error:</strong> {{ error }}
+        </div>
+        
+        <div>
+            <a href="/broker_settings/" class="btn btn-secondary">Back to Broker Settings</a>
+            {% if broker == 'FlatTrade' %}
+            <a href="/flattrade_oauth/" class="btn">Try Again</a>
+            {% endif %}
+        </div>
+        
+        <div class="help-info">
+            <p><strong>Common solutions:</strong></p>
+            <ul style="text-align: left; display: inline-block;">
+                <li>Check that your API credentials are correct</li>
+                <li>Ensure your {{ broker }} account is active</li>
+                <li>Verify that API access is enabled in your {{ broker }} account</li>
+                <li>Contact {{ broker }} support if the issue persists</li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>

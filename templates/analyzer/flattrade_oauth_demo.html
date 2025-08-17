@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FlatTrade OAuth Demo</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+    <div class="container mt-5">
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <div class="card shadow">
+                    <div class="card-header bg-success text-white">
+                        <h4 class="mb-0">
+                            <i class="bi bi-shield-lock me-2"></i>
+                            FlatTrade OAuth Authentication Demo
+                        </h4>
+                    </div>
+                    <div class="card-body">
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle me-2"></i>
+                            <strong>OAuth Authentication Status:</strong>
+                            <br>
+                            <br><strong>✅ Fixed Issues:</strong>
+                            <ul class="mt-2">
+                                <li>✅ Removed duplicate Client ID fields</li>
+                                <li>✅ Using HTTPS (localhost:8003) for OAuth callback</li>
+                                <li>✅ Proper OAuth URL generation with redirect_uri</li>
+                                <li>✅ Single Client ID: <code>FT033862</code></li>
+                            </ul>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h5><i class="bi bi-gear me-2"></i>Current Configuration:</h5>
+                                <ul class="list-group list-group-flush">
+                                    <li class="list-group-item">
+                                        <strong>Client ID:</strong> {{ client_id }}
+                                    </li>
+                                    <li class="list-group-item">
+                                        <strong>API Key:</strong> {{ api_key_display }}
+                                    </li>
+                                    <li class="list-group-item">
+                                        <strong>Redirect URI:</strong> <code>https://localhost:8003/flattrade_callback/</code>
+                                    </li>
+                                    <li class="list-group-item">
+                                        <strong>OAuth URL:</strong> <small class="text-muted">Generated dynamically</small>
+                                    </li>
+                                </ul>
+                            </div>
+                            <div class="col-md-6">
+                                <h5><i class="bi bi-play-circle me-2"></i>Test OAuth:</h5>
+                                <div class="d-grid gap-2">
+                                    <a href="/flattrade_oauth/?client_id={{ client_id }}" 
+                                       class="btn btn-warning btn-lg" 
+                                       target="_blank">
+                                        <i class="bi bi-shield-lock me-2"></i>
+                                        Start OAuth Authentication
+                                    </a>
+                                    <a href="/broker_settings/" class="btn btn-outline-primary">
+                                        <i class="bi bi-gear me-2"></i>
+                                        Go to Broker Settings
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <hr>
+                        
+                        <div class="alert alert-warning">
+                            <i class="bi bi-exclamation-triangle me-2"></i>
+                            <strong>Important:</strong>
+                            <br>
+                            1. Make sure to configure your actual FlatTrade API credentials in broker settings
+                            <br>
+                            2. The redirect URL must be registered in your FlatTrade app settings as: <code>https://localhost:8003/flattrade_callback/</code>
+                            <br>
+                            3. OAuth will open FlatTrade login page, after authentication you'll be redirected back with access token
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
