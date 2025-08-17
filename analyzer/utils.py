@@ -1307,6 +1307,110 @@ Max Loss: ₹{min_pnl:.0f}'''
     
     return f'static/{filename}'  # Return the relative path for web access
 
+def generate_multi_risk_analysis(instrument_name, calculation_type, selected_expiry_str, risk_levels, hedge_percentage=10.0):
+    """
+    Generate analysis for multiple risk levels and combine results for display.
+    This function is used for manual chart generation with risk level selection.
+    """
+    if not risk_levels:
+        risk_levels = ['high']
+    
+    # Risk level to coefficient mapping
+    risk_level_mapping = {
+        'high': 0.95,    # 95% coefficient for high risk
+        'medium': 0.85,  # 85% coefficient for medium risk  
+        'low': 0.75      # 75% coefficient for low risk
+    }
+    
+    combined_df_data = []
+    first_analysis = None
+    
+    for risk_level in risk_levels:
+        coefficient = risk_level_mapping.get(risk_level, 0.85)
+        print(f"🎯 Generating {risk_level.upper()} RISK analysis with {coefficient:.0%} coefficient")
+        
+        # Generate analysis for this risk level
+        analysis_data, status = generate_analysis(
+            instrument_name, calculation_type, selected_expiry_str, 
+            coefficient, hedge_percentage
+        )
+        
+        if analysis_data and analysis_data.get('df_data'):
+            # Store the first successful analysis for base data
+            if first_analysis is None:
+                first_analysis = analysis_data.copy()
+            
+            # Update entry names to include risk level
+            for entry in analysis_data['df_data']:
+                original_entry = entry.get('Entry', '')
+                entry['Entry'] = f"{original_entry} ({risk_level.upper()} RISK)"
+                entry['risk_level'] = risk_level
+                combined_df_data.append(entry)
+            
+            print(f"✅ {risk_level.upper()} RISK analysis generated successfully")
+        else:
+            print(f"❌ Failed to generate {risk_level.upper()} RISK analysis")
+    
+    if not combined_df_data or not first_analysis:
+        return None
+    
+    # Create combined analysis data using the first analysis as base
+    combined_analysis = first_analysis.copy()
+    combined_analysis['df_data'] = combined_df_data
+    combined_analysis['risk_levels'] = risk_levels
+    
+    # Generate combined HTML table for display
+    table_html = f"""
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th scope="col">Strategy</th>
+                    <th scope="col">CE Strike</th>
+                    <th scope="col">CE Price</th>
+                    <th scope="col">PE Strike</th>
+                    <th scope="col">PE Price</th>
+                    <th scope="col">Combined Premium</th>
+                    <th scope="col">Target/SL</th>
+                </tr>
+            </thead>
+            <tbody>
+    """
+    
+    for entry in combined_df_data:
+        risk_level = entry.get('risk_level', 'unknown')
+        risk_color = {
+            'high': 'danger',
+            'medium': 'warning', 
+            'low': 'success'
+        }.get(risk_level, 'secondary')
+        
+        table_html += f"""
+                <tr>
+                    <td>
+                        <strong>{entry['Entry']}</strong>
+                        <br><span class="badge bg-{risk_color}">{risk_level.upper()} RISK</span>
+                    </td>
+                    <td>{entry['CE Strike']}</td>
+                    <td>₹{entry['CE Price']:.2f}</td>
+                    <td>{entry['PE Strike']}</td>
+                    <td>₹{entry['PE Price']:.2f}</td>
+                    <td>₹{entry['Combined Premium']:.2f}</td>
+                    <td><span class="badge bg-success">₹{entry.get('Target', 0):.0f}</span></td>
+                </tr>
+        """
+    
+    table_html += """
+            </tbody>
+        </table>
+    </div>
+    """
+    
+    combined_analysis['display_df_html'] = table_html
+    
+    print(f"✅ Combined analysis created with {len(combined_df_data)} total strategies")
+    return combined_analysis
+
 def generate_analysis(instrument_name, calculation_type, selected_expiry_str, coefficient=0.85, hedge_percentage=10.0):
     """
     Generate chart analysis using yfinance data only for reliable historical data
@@ -1794,18 +1898,38 @@ def add_to_analysis(analysis_data):
     
     return result
 
-def auto_add_to_portfolio(analysis_data, auto_tag="Auto Generated", selected_risk_levels=None):
+def auto_add_to_portfolio(analysis_data, auto_tag="Auto Generated", selected_risk_levels=None, broker_accounts=None):
     """
     Automatically add generated charts to portfolio for trades that weren't manually added.
     This function is called when automation generates charts and they need to be added to active trades.
     Only adds trades matching the selected risk levels.
+    
+    Args:
+        analysis_data: Analysis data from chart generation
+        auto_tag: Tag to identify auto-generated trades
+        selected_risk_levels: List of risk levels to add (['high', 'medium', 'low'])
+        broker_accounts: List of broker account IDs used for live trading
     """
+    # Add debug logging for auto-add process
+    debug_file = r"C:\Users\manir\Desktop\debug_log.txt"
+    
+    def debug_log(message):
+        timestamp = datetime.now().strftime("%Y-%m-%d %I:%M:%S %p")
+        with open(debug_file, "a", encoding='utf-8') as f:
+            f.write(f"[{timestamp}] AUTO_ADD: {message}\n")
+    
+    debug_log(f"=== auto_add_to_portfolio() called ===")
+    debug_log(f"Parameters: auto_tag={auto_tag}, selected_risk_levels={selected_risk_levels}, broker_accounts={broker_accounts}")
+    
     if not analysis_data or not analysis_data.get('df_data'):
+        debug_log("❌ No analysis data to add to portfolio.")
         return "No analysis data to add to portfolio."
     
     # Default to all risk levels if none specified
     if selected_risk_levels is None:
         selected_risk_levels = ['high', 'medium', 'low']
+    
+    debug_log(f"📊 Using risk levels: {selected_risk_levels}")
     
     # Risk level mapping
     risk_mapping = {
@@ -1818,11 +1942,16 @@ def auto_add_to_portfolio(analysis_data, auto_tag="Auto Generated", selected_ris
     new_trades_added = 0
     start_time = datetime.now().strftime("%Y-%m-%d %I:%M:%S %p")
     
+    debug_log(f"📋 Loaded {len(trades)} existing trades")
+    
     # Check if any trades from this analysis already exist
     existing_trade_ids = {t['id'] for t in trades}
     
+    debug_log(f"📊 Analysis data contains {len(analysis_data['df_data'])} entries")
+    
     for entry in analysis_data['df_data']:
         entry_type = entry.get('Entry', '').strip()
+        debug_log(f"🔍 Processing entry: {entry_type}")
         
         # Check if this entry matches any selected risk level
         should_add = False
@@ -1831,15 +1960,19 @@ def auto_add_to_portfolio(analysis_data, auto_tag="Auto Generated", selected_ris
             if (entry_type == expected_entry_name or 
                 entry_type.startswith(expected_entry_name + ' (')):
                 should_add = True
+                debug_log(f"✅ Entry '{entry_type}' matches risk level '{risk_level}'")
                 break
         
         if not should_add:
+            debug_log(f"⏭️ Skipping entry '{entry_type}' - not in selected risk levels")
             continue  # Skip this entry as it's not in selected risk levels
         
-        trade_id = f"{analysis_data['instrument']}_{analysis_data['expiry']}_{entry['Entry'].replace(' ', '')}"
+        trade_id = f"{analysis_data['instrument']}_{analysis_data['expiry']}_{entry['Entry'].replace(' ', '')}_{int(datetime.now().timestamp())}"
+        debug_log(f"🆔 Generated trade ID: {trade_id}")
         
         # Only add if this specific trade doesn't already exist
         if trade_id not in existing_trade_ids:
+            debug_log(f"➕ Adding new trade: {trade_id}")
             new_trade = {
                 "id": trade_id,
                 "start_time": start_time,
@@ -1853,13 +1986,19 @@ def auto_add_to_portfolio(analysis_data, auto_tag="Auto Generated", selected_ris
                 "initial_premium": entry['Combined Premium'],
                 "target_amount": entry['Target'],
                 "stoploss_amount": entry['Stoploss'],
-                "auto_added": True  # Flag to identify auto-added trades
+                "auto_added": True,  # Flag to identify auto-added trades
+                "broker_accounts": broker_accounts or [],  # Store broker accounts used for this trade
+                "live_trading_enabled": bool(broker_accounts)  # Flag to show if live trading was used
             }
             trades.append(new_trade)
             new_trades_added += 1
+            debug_log(f"✅ Trade added successfully")
+        else:
+            debug_log(f"⏭️ Trade {trade_id} already exists, skipping")
     
     if new_trades_added > 0:
         save_trades(trades)
+        debug_log(f"💾 Saved {new_trades_added} new trades to portfolio")
         
         # Send Telegram notification about auto-added trades
         notification_message = f"""🤖 *Auto Portfolio Update*
@@ -1874,9 +2013,13 @@ These trades are now being monitored for target/stoploss alerts."""
         
         send_telegram_message(notification_message)
         
-        return f"✅ Auto-added {new_trades_added} trade(s) to portfolio with tag '{auto_tag}'"
+        result = f"✅ Auto-added {new_trades_added} trade(s) to portfolio with tag '{auto_tag}'"
+        debug_log(result)
+        return result
     else:
-        return "No new trades to add - all strategies already exist in portfolio."
+        result = "No new trades to add - all strategies already exist in portfolio."
+        debug_log(result)
+        return result
 
 def generate_and_auto_add_analysis(instrument_name, calculation_type, selected_expiry_str, auto_add=True):
     """
@@ -2195,8 +2338,16 @@ def test_specific_automation(automation_config):
 
 def generate_chart_for_instrument(instrument, calc_type, schedule_config=None):
     """Generate chart for a specific instrument and calculation type with selective strategy risk levels."""
+    # Add debug logging for automation process
+    debug_file = r"C:\Users\manir\Desktop\debug_log.txt"
+    
+    def debug_log(message):
+        timestamp = datetime.now().strftime("%Y-%m-%d %I:%M:%S %p")
+        with open(debug_file, "a", encoding='utf-8') as f:
+            f.write(f"[{timestamp}] AUTOMATION: {message}\n")
+    
     try:
-        print(f"🚀 Starting chart generation for {instrument} with {calc_type} calculation")
+        debug_log(f"🚀 Starting chart generation for {instrument} with {calc_type} calculation")
         
         # Get schedule-specific parameters or use defaults
         target_stoploss_percent = 85
@@ -2297,29 +2448,41 @@ def generate_chart_for_instrument(instrument, calc_type, schedule_config=None):
         # Auto-add to portfolio only the selected strategies if enabled
         if add_to_portfolio:
             try:
+                debug_log(f"🤖 AUTOMATION: Auto-add to portfolio is ENABLED")
+                debug_log(f"📊 Generated {len(all_analysis_results)} strategies to add to portfolio")
                 for analysis_data in all_analysis_results:
                     risk_level = analysis_data.get('risk_level', 'unknown')
-                    # Pass the specific risk level to ensure only that risk level is added
-                    add_result = auto_add_to_portfolio(analysis_data, f"Auto {risk_level.upper()} RISK", [risk_level])
-                    print(f"📊 Auto-added {risk_level.upper()} RISK strategy to portfolio: {add_result}")
+                    debug_log(f"🔄 Adding {risk_level.upper()} RISK strategy to portfolio...")
+                    # Pass the specific risk level and broker accounts to ensure proper tracking
+                    add_result = auto_add_to_portfolio(
+                        analysis_data, 
+                        f"Auto {risk_level.upper()} RISK", 
+                        [risk_level], 
+                        selected_broker_accounts  # Pass broker accounts for tracking
+                    )
+                    debug_log(f"📊 Auto-added {risk_level.upper()} RISK strategy to portfolio: {add_result}")
             except Exception as e:
-                print(f"❌ Error adding strategies to portfolio: {e}")
+                debug_log(f"❌ Error adding strategies to portfolio: {e}")
+        else:
+            debug_log(f"⏭️ AUTOMATION: Auto-add to portfolio is DISABLED")
         
         # Live trading integration for automation (use first successful analysis for order placement)
         if enable_live_trading and auto_place_orders and all_analysis_results:
+            debug_log(f"🚀 AUTOMATION: Live trading conditions met - placing orders")
+            debug_log(f"enable_live_trading={enable_live_trading}, auto_place_orders={auto_place_orders}, analysis_results={len(all_analysis_results)}")
             try:
                 # Use the first successful analysis for order placement
                 primary_analysis = all_analysis_results[0]
                 
                 from .broker_manager import broker_manager
                 
-                print("🚀 AUTOMATION: Auto Place Orders ENABLED - Bypassing manual confirmation")
-                print("🚀 AUTOMATION: Live trading enabled - placing orders automatically...")
+                debug_log("🚀 AUTOMATION: Auto Place Orders ENABLED - Bypassing manual confirmation")
+                debug_log("🚀 AUTOMATION: Live trading enabled - placing orders automatically...")
                 
                 # Use schedule-specific broker accounts if provided
                 if selected_broker_accounts:
                     enabled_accounts = selected_broker_accounts
-                    print(f"📋 Using schedule-specific broker accounts: {enabled_accounts}")
+                    debug_log(f"📋 Using schedule-specific broker accounts: {enabled_accounts}")
                 else:
                     # Fall back to global settings
                     settings = load_settings()
@@ -2329,7 +2492,7 @@ def generate_chart_for_instrument(instrument, calc_type, schedule_config=None):
                             account_id = acc.get('client_id') if acc.get('broker') == 'FLATTRADE' else acc.get('account_id')
                             if account_id:
                                 enabled_accounts.append(account_id)
-                    print(f"📋 Using global broker accounts: {enabled_accounts}")
+                    debug_log(f"📋 Using global broker accounts: {enabled_accounts}")
                 
                 if enabled_accounts:
                     # Add schedule_config to analysis_data for broker_manager
@@ -2392,10 +2555,12 @@ def generate_chart_for_instrument(instrument, calc_type, schedule_config=None):
                             error_msg = ', '.join(live_trading_result['errors'])
                         print(f"❌ Live trading failed: {error_msg}")
                 else:
-                    print("⚠️ No enabled broker accounts found for live trading")
+                    debug_log("⚠️ No enabled broker accounts found for live trading")
             
             except Exception as e:
-                print(f"❌ Error in live trading automation: {e}")
+                debug_log(f"❌ Error in live trading automation: {e}")
+        else:
+            debug_log(f"⏭️ AUTOMATION: Live trading skipped - enable_live_trading={enable_live_trading}, auto_place_orders={auto_place_orders}, analysis_results={len(all_analysis_results) if all_analysis_results else 0}")
         
         # Return success message with strategy count
         strategy_names = [f"{r.upper()} RISK" for r in strategy_risk_levels]

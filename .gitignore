@@ -18,6 +18,13 @@ static/pl_update_*.png
 active_trades.json
 app_settings.json
 
+# Debug and test files
+debug_*.py
+test_*.py
+test_*.html
+*debug_log.txt
+*.debug
+
 # Environment
 venv/
 env/

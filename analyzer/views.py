@@ -13,7 +13,7 @@ import os
 from datetime import datetime
 from collections import defaultdict
 from . import utils
-from .utils import generate_analysis, load_settings, save_settings
+from .utils import load_settings, save_settings
 from .pnl_updater import pnl_updater, PnLUpdater
 
 def parse_start_time(start_time_str):
@@ -128,30 +128,23 @@ def generate_and_show_analysis(request):
         debug_log(f"  Risk Levels: {risk_levels}")
         
         try:
-            debug_log("Calling utils.generate_chart_for_instrument()...")
+            debug_log("Calling generate_multi_risk_analysis()...")
             
-            # Create a mock schedule config for manual generation
-            schedule_config = {
-                'target_stoploss_percent': coefficient * 100,
-                'hedge_buying_percent': hedge_percentage,
-                'add_to_portfolio': False,  # Don't auto-add for manual generation
-                'enable_live_trading': False,
-                'auto_place_orders': False,
-                'selected_broker_accounts': [],
-                'strategy_risk_levels': risk_levels
-            }
+            # Generate analysis for each selected risk level
+            combined_analysis_data = utils.generate_multi_risk_analysis(
+                instrument, calc_type, expiry, risk_levels, hedge_percentage
+            )
             
-            # Use the enhanced chart generation function
-            result = utils.generate_chart_for_instrument(instrument, calc_type, schedule_config)
-            
-            if "✅" in result:
-                # For manual generation, we need to create a combined analysis data
-                # This is a simplified approach - you might want to enhance this further
-                messages.success(request, result)
-                debug_log("✅ Analysis successful")
+            if combined_analysis_data:
+                request.session['analysis_data'] = combined_analysis_data
+                strategy_count = len(combined_analysis_data['df_data'])
+                risk_names = [r.upper() for r in risk_levels]
+                success_msg = f"✅ Generated {strategy_count} strategies for {', '.join(risk_names)} risk levels"
+                messages.success(request, success_msg)
+                debug_log("✅ Analysis successful - data saved to session")
             else:
-                messages.error(request, result)
-                debug_log(f"❌ Analysis failed: {result}")
+                messages.error(request, "Failed to generate analysis")
+                debug_log("❌ Analysis failed")
         except Exception as e:
             error_msg = f"Error generating analysis: {str(e)}"
             messages.error(request, error_msg)
@@ -392,6 +385,11 @@ def add_trades(request):
             for trade in new_trades:
                 print(f"   🔹 Added: {trade['id']} | Status: {trade['status']} | Tag: {trade['entry_tag']}")
             
+            # Clear the analysis data from session since trades have been added successfully
+            if 'analysis_data' in request.session:
+                del request.session['analysis_data']
+                print("🗑️ Cleared analysis data from session")
+            
             messages.success(request, f"✅ {status}")
         else:
             print("ℹ️ No new trades added (duplicates prevented)")
@@ -578,8 +576,13 @@ def trades_list(request):
             # Use last known P&L instead of fetching fresh data (optimization)
             closed_count = 0
             current_pnl = 0
+            trade_broker_accounts = []
+            
             for trade in trades:
                 if trade['id'] == trade_id:
+                    # Get broker accounts associated with this trade
+                    trade_broker_accounts = trade.get('broker_accounts', [])
+                    
                     # Use the last calculated P&L (from last manual refresh)
                     current_pnl = trade.get('pnl', 0)
                     if current_pnl == "Refresh Required":
@@ -590,6 +593,25 @@ def trades_list(request):
                         except (ValueError, TypeError):
                             current_pnl = 0
                     
+                    # If this trade has broker accounts and live trading was enabled, attempt broker closing
+                    if trade_broker_accounts and trade.get('live_trading_enabled', False):
+                        try:
+                            from .broker_manager import broker_manager
+                            
+                            # Close positions for specific broker accounts associated with this trade
+                            close_result = broker_manager.close_trade_positions(trade, trade_broker_accounts)
+                            
+                            if close_result.get('success', False):
+                                # Add broker closing info to trade
+                                trade['broker_close_result'] = close_result
+                                trade['closed_via_broker'] = True
+                                messages.success(request, f'✅ Trade {trade_id} closed via live broker(s): {", ".join(trade_broker_accounts)}')
+                            else:
+                                messages.warning(request, f'⚠️ Partial broker close for {trade_id}. Manual verification recommended.')
+                                
+                        except Exception as e:
+                            messages.warning(request, f'⚠️ Could not close broker positions: {str(e)}. Trade marked as manually closed.')
+                    
                     # Close the trade with last known P&L
                     trade['status'] = 'Manually Closed'
                     trade['final_pnl'] = current_pnl
@@ -598,8 +620,10 @@ def trades_list(request):
                     break
                     
             utils.save_trades(trades)
-            # Send Telegram notification
-            utils.send_telegram_message(f"📝 Manual Close: Trade {trade_id} closed with P&L ₹{current_pnl:.2f}")
+            
+            # Send Telegram notification with broker info
+            broker_info = f" (Brokers: {', '.join(trade_broker_accounts)})" if trade_broker_accounts else ""
+            utils.send_telegram_message(f"📝 Manual Close: Trade {trade_id}{broker_info} closed with P&L ₹{current_pnl:.2f}")
             messages.success(request, f'Trade {trade_id} closed with P&L ₹{current_pnl:.2f}.')
             return redirect('trades_list')
             

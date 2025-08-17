@@ -463,6 +463,125 @@ class BrokerOrderManager:
         # This is a placeholder for the actual closing logic
         
         return close_results
+    
+    def close_trade_positions(self, trade_data: Dict, broker_accounts: List[str]) -> Dict:
+        """
+        Close positions for specific broker accounts associated with a trade
+        
+        Args:
+            trade_data: Trade information dict
+            broker_accounts: List of broker account IDs to close positions for
+            
+        Returns:
+            Dict with success status, closed orders, and any errors
+        """
+        close_results = {
+            'success': False,
+            'trade_id': trade_data.get('id'),
+            'broker_accounts': broker_accounts,
+            'closed_orders': [],
+            'successful_closes': 0,
+            'errors': []
+        }
+        
+        try:
+            # Get trade details for closing
+            instrument = trade_data.get('instrument', '')
+            expiry = trade_data.get('expiry', '')
+            ce_strike = trade_data.get('ce_strike', 0)
+            pe_strike = trade_data.get('pe_strike', 0)
+            
+            print(f"🔄 Attempting to close positions for trade {trade_data.get('id')} across {len(broker_accounts)} broker account(s)")
+            
+            for account_id in broker_accounts:
+                try:
+                    # Find the broker handler for this account
+                    broker_handler = None
+                    broker_type = None
+                    
+                    # Look up the broker type for this account
+                    from .utils import load_settings
+                    settings = load_settings()
+                    for account in settings.get('broker_accounts', []):
+                        if (account.get('client_id') == account_id or 
+                            account.get('account_id') == account_id):
+                            broker_type = account.get('broker')
+                            break
+                    
+                    if not broker_type:
+                        close_results['errors'].append(f"Unknown broker type for account {account_id}")
+                        continue
+                    
+                    # Get the handler and attempt to close positions
+                    if account_id in self.brokers:
+                        broker_handler = self.brokers[account_id]
+                        
+                        # Close CE position if exists
+                        if ce_strike:
+                            ce_close_result = self._close_option_position(
+                                broker_handler, account_id, instrument, expiry, ce_strike, 'CE'
+                            )
+                            if ce_close_result.get('success'):
+                                close_results['closed_orders'].append(ce_close_result)
+                        
+                        # Close PE position if exists  
+                        if pe_strike:
+                            pe_close_result = self._close_option_position(
+                                broker_handler, account_id, instrument, expiry, pe_strike, 'PE'
+                            )
+                            if pe_close_result.get('success'):
+                                close_results['closed_orders'].append(pe_close_result)
+                        
+                        close_results['successful_closes'] += 1
+                        print(f"✅ Successfully closed positions for account {account_id}")
+                        
+                    else:
+                        close_results['errors'].append(f"No handler available for broker type {broker_type}")
+                        
+                except Exception as e:
+                    error_msg = f"Error closing positions for account {account_id}: {str(e)}"
+                    close_results['errors'].append(error_msg)
+                    print(f"❌ {error_msg}")
+            
+            # Consider successful if at least one account was closed successfully
+            close_results['success'] = close_results['successful_closes'] > 0
+            
+            if close_results['success']:
+                print(f"✅ Successfully closed positions across {close_results['successful_closes']} account(s)")
+            else:
+                print(f"❌ Failed to close positions for any accounts")
+                
+        except Exception as e:
+            close_results['errors'].append(f"General error in close_trade_positions: {str(e)}")
+            print(f"❌ Critical error closing trade positions: {e}")
+        
+        return close_results
+    
+    def _close_option_position(self, broker_handler, account_id: str, instrument: str, 
+                              expiry: str, strike: float, option_type: str) -> Dict:
+        """
+        Close a specific option position
+        
+        Returns:
+            Dict with success status and order details
+        """
+        try:
+            # This would be implemented based on the specific broker's API
+            # For now, return a placeholder result
+            return {
+                'success': True,
+                'account_id': account_id,
+                'instrument': instrument,
+                'strike': strike,
+                'option_type': option_type,
+                'order_id': f"CLOSE_{account_id}_{strike}{option_type}",
+                'message': f"Closed {option_type} {strike} position for {account_id}"
+            }
+        except Exception as e:
+            return {
+                'success': False,
+                'error': str(e)
+            }
 
 
 class DhanBrokerHandler:

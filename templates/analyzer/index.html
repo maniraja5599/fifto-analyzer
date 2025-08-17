@@ -121,62 +121,6 @@
                         </div>
                     </div>
 
-                    <!-- Risk Level Selection Section -->
-                    <div class="row g-4 mb-4">
-                        <div class="col-md-12">
-                            <label class="form-label fw-semibold">
-                                <i class="bi bi-exclamation-triangle me-2 text-warning"></i>Strategy Risk Levels
-                            </label>
-                            <div class="strategy-selection">
-                                <div class="row g-2">
-                                    <div class="col-md-4">
-                                        <div class="form-check border rounded p-3 mb-2">
-                                            <input class="form-check-input" type="checkbox" name="risk_levels" value="high" id="riskHigh" checked>
-                                            <label class="form-check-label fw-semibold w-100" for="riskHigh">
-                                                <div class="d-flex align-items-center">
-                                                    <i class="bi bi-graph-up-arrow text-danger me-2"></i>
-                                                    <div>
-                                                        <div>High Risk</div>
-                                                        <small class="text-muted">95% coefficient - Higher premium, higher risk</small>
-                                                    </div>
-                                                </div>
-                                            </label>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <div class="form-check border rounded p-3 mb-2">
-                                            <input class="form-check-input" type="checkbox" name="risk_levels" value="medium" id="riskMedium">
-                                            <label class="form-check-label fw-semibold w-100" for="riskMedium">
-                                                <div class="d-flex align-items-center">
-                                                    <i class="bi bi-graph-up text-warning me-2"></i>
-                                                    <div>
-                                                        <div>Medium Risk</div>
-                                                        <small class="text-muted">85% coefficient - Balanced approach</small>
-                                                    </div>
-                                                </div>
-                                            </label>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <div class="form-check border rounded p-3 mb-2">
-                                            <input class="form-check-input" type="checkbox" name="risk_levels" value="low" id="riskLow">
-                                            <label class="form-check-label fw-semibold w-100" for="riskLow">
-                                                <div class="d-flex align-items-center">
-                                                    <i class="bi bi-shield-check text-success me-2"></i>
-                                                    <div>
-                                                        <div>Low Risk</div>
-                                                        <small class="text-muted">75% coefficient - Conservative strategy</small>
-                                                    </div>
-                                                </div>
-                                            </label>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <small class="text-muted">Select one or more risk levels to generate multiple strategies. Each risk level uses different premium coefficients.</small>
-                        </div>
-                    </div>
-
                     <!-- Generate Button Section with Cache Management -->
                     <div class="row align-items-center">
                         <div class="col-md-8 text-center text-md-start">
@@ -230,10 +174,6 @@
                     
                     <!-- Action Buttons - Larger Size -->
                     <div class="d-flex gap-2 flex-wrap align-items-center">
-                        <a href="{% url 'add_trades' %}" class="btn btn-success px-4 py-2">
-                            <i class="bi bi-plus-circle me-2"></i>Add to Portfolio
-                        </a>
-                        
                         <!-- Live Trading Controls -->
                         {% if settings.enable_live_trading %}
                         <div class="d-flex align-items-center gap-2 border-start ps-3">
@@ -664,29 +604,26 @@ document.head.insertAdjacentHTML('beforeend', `
             from { transform: rotate(0deg); }
             to { transform: rotate(360deg); }
         }
+        .btn-icon {
+            width: 28px;
+            height: 28px;
+            font-size: 1.125rem;
+            margin-right: 8px;
+        }
+        
+        .btn-title {
+            font-size: 0.8125rem;
+        }
+        
+        .btn-subtitle {
+            font-size: 0.6875rem;
+        }
+        
+        .chart-wrapper, .table-container {
+            padding: 1rem;
+        }
     </style>
 `);
 </script>
-    
-    .btn-icon {
-        width: 28px;
-        height: 28px;
-        font-size: 1.125rem;
-        margin-right: 8px;
-    }
-    
-    .btn-title {
-        font-size: 0.8125rem;
-    }
-    
-    .btn-subtitle {
-        font-size: 0.6875rem;
-    }
-    
-    .chart-wrapper, .table-container {
-        padding: 1rem;
-    }
-}
-</style>
 
 {% endblock %}
