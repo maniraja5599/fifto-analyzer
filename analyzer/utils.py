@@ -1794,13 +1794,25 @@ def add_to_analysis(analysis_data):
     
     return result
 
-def auto_add_to_portfolio(analysis_data, auto_tag="Auto Generated"):
+def auto_add_to_portfolio(analysis_data, auto_tag="Auto Generated", selected_risk_levels=None):
     """
     Automatically add generated charts to portfolio for trades that weren't manually added.
     This function is called when automation generates charts and they need to be added to active trades.
+    Only adds trades matching the selected risk levels.
     """
     if not analysis_data or not analysis_data.get('df_data'):
         return "No analysis data to add to portfolio."
+    
+    # Default to all risk levels if none specified
+    if selected_risk_levels is None:
+        selected_risk_levels = ['high', 'medium', 'low']
+    
+    # Risk level mapping
+    risk_mapping = {
+        'high': 'High Reward',
+        'medium': 'Mid Reward', 
+        'low': 'Low Reward'
+    }
     
     trades = load_trades()
     new_trades_added = 0
@@ -1810,6 +1822,20 @@ def auto_add_to_portfolio(analysis_data, auto_tag="Auto Generated"):
     existing_trade_ids = {t['id'] for t in trades}
     
     for entry in analysis_data['df_data']:
+        entry_type = entry.get('Entry', '').strip()
+        
+        # Check if this entry matches any selected risk level
+        should_add = False
+        for risk_level in selected_risk_levels:
+            expected_entry_name = risk_mapping.get(risk_level, '')
+            if (entry_type == expected_entry_name or 
+                entry_type.startswith(expected_entry_name + ' (')):
+                should_add = True
+                break
+        
+        if not should_add:
+            continue  # Skip this entry as it's not in selected risk levels
+        
         trade_id = f"{analysis_data['instrument']}_{analysis_data['expiry']}_{entry['Entry'].replace(' ', '')}"
         
         # Only add if this specific trade doesn't already exist
@@ -2168,7 +2194,7 @@ def test_specific_automation(automation_config):
         return error_msg
 
 def generate_chart_for_instrument(instrument, calc_type, schedule_config=None):
-    """Generate chart for a specific instrument and calculation type."""
+    """Generate chart for a specific instrument and calculation type with selective strategy risk levels."""
     try:
         print(f"🚀 Starting chart generation for {instrument} with {calc_type} calculation")
         
@@ -2179,6 +2205,7 @@ def generate_chart_for_instrument(instrument, calc_type, schedule_config=None):
         enable_live_trading = False
         auto_place_orders = False
         selected_broker_accounts = []
+        strategy_risk_levels = ['high']  # Default to high risk
         
         if schedule_config:
             target_stoploss_percent = schedule_config.get('target_stoploss_percent', 85)
@@ -2187,6 +2214,16 @@ def generate_chart_for_instrument(instrument, calc_type, schedule_config=None):
             enable_live_trading = schedule_config.get('enable_live_trading', False)
             auto_place_orders = schedule_config.get('auto_place_orders', False)
             selected_broker_accounts = schedule_config.get('selected_broker_accounts', [])
+            strategy_risk_levels = schedule_config.get('strategy_risk_levels', ['high'])
+        
+        print(f"📊 Selected strategy risk levels: {strategy_risk_levels}")
+        
+        # Risk level to percentage mapping
+        risk_level_mapping = {
+            'high': 95,      # High Risk: 95% of premium for target/stoploss
+            'medium': 85,    # Medium Risk: 85% of premium for target/stoploss  
+            'low': 75        # Low Risk: 75% of premium for target/stoploss
+        }
         
         # Get next expiry date based on calculation type
         today = datetime.now()
@@ -2198,16 +2235,14 @@ def generate_chart_for_instrument(instrument, calc_type, schedule_config=None):
             next_expiry = today + timedelta(days=days_ahead)
         else:  # Monthly
             # Find last Thursday of current month or next month
-            # Calculate last Thursday of current month
             current_month_end = today.replace(day=28) + timedelta(days=4)
             current_month_last_day = current_month_end - timedelta(days=current_month_end.day)
             current_month_last_thursday = current_month_last_day - timedelta(days=(current_month_last_day.weekday() - 3) % 7)
             
             if current_month_last_thursday > today:
-                # Current month's last Thursday hasn't passed yet
                 next_expiry = current_month_last_thursday
             else:
-                # Current month's last Thursday has passed, get next month's
+                # Next month's last Thursday
                 if today.month == 12:
                     next_month = today.replace(year=today.year + 1, month=1, day=1)
                 else:
@@ -2218,106 +2253,156 @@ def generate_chart_for_instrument(instrument, calc_type, schedule_config=None):
         expiry_str = next_expiry.strftime('%d-%b-%Y')
         print(f"📅 Using expiry date: {expiry_str}")
         
-        # Convert percentages to coefficients for the analysis function
-        coefficient = target_stoploss_percent / 100.0
-        hedge_percentage = hedge_buying_percent
+        all_analysis_results = []
+        success_count = 0
         
-        # Call the actual analysis function with schedule-specific parameters
-        analysis_data, status_message = generate_analysis(instrument, calc_type, expiry_str, coefficient, hedge_percentage)
-        
-        if analysis_data:
-            print(f"✅ Chart generation successful for {instrument}")
+        # Generate analysis for each selected risk level
+        for risk_level in strategy_risk_levels:
+            risk_percentage = risk_level_mapping.get(risk_level, 85)
+            print(f"🎯 Generating {risk_level.upper()} RISK strategy with {risk_percentage}% coefficient")
             
-            # Auto-add to portfolio if enabled (use schedule-specific setting if available)
             try:
-                if add_to_portfolio:
-                    add_result = add_to_analysis(analysis_data)
-                    print(f"📊 Auto-added to portfolio: {add_result}")
+                # Convert percentage to coefficient for the analysis function
+                coefficient = risk_percentage / 100.0
+                
+                # Call the actual analysis function with risk-level-specific parameters
+                analysis_data, status_message = generate_analysis(instrument, calc_type, expiry_str, coefficient, hedge_buying_percent)
+                
+                if analysis_data:
+                    # Add risk level information to analysis data
+                    analysis_data['risk_level'] = risk_level
+                    analysis_data['risk_percentage'] = risk_percentage
+                    
+                    # Update entry tags to include risk level
+                    for entry in analysis_data.get('df_data', []):
+                        entry['risk_level'] = risk_level.upper() + ' RISK'
+                        # Update Entry field to include risk level
+                        if 'Entry' in entry:
+                            original_entry = entry['Entry']
+                            entry['Entry'] = f"{original_entry} ({risk_level.upper()} RISK)"
+                    
+                    all_analysis_results.append(analysis_data)
+                    success_count += 1
+                    print(f"✅ {risk_level.upper()} RISK strategy generated successfully")
+                else:
+                    print(f"❌ Failed to generate {risk_level.upper()} RISK strategy: {status_message}")
+                    
             except Exception as e:
-                print(f"❌ Error adding to portfolio: {e}")
-            
-            # Live trading integration for automation (use schedule-specific settings) - Independent of portfolio addition
-            if enable_live_trading and auto_place_orders:
-                try:
-                    # Try to instantiate broker manager directly for debugging
-                    from .broker_manager import broker_manager
+                print(f"❌ Error generating {risk_level.upper()} RISK strategy: {e}")
+                continue
+        
+        if not all_analysis_results:
+            return f"❌ Failed to generate any strategies for {instrument}"
+        
+        # Auto-add to portfolio only the selected strategies if enabled
+        if add_to_portfolio:
+            try:
+                for analysis_data in all_analysis_results:
+                    risk_level = analysis_data.get('risk_level', 'unknown')
+                    # Pass the specific risk level to ensure only that risk level is added
+                    add_result = auto_add_to_portfolio(analysis_data, f"Auto {risk_level.upper()} RISK", [risk_level])
+                    print(f"📊 Auto-added {risk_level.upper()} RISK strategy to portfolio: {add_result}")
+            except Exception as e:
+                print(f"❌ Error adding strategies to portfolio: {e}")
+        
+        # Live trading integration for automation (use first successful analysis for order placement)
+        if enable_live_trading and auto_place_orders and all_analysis_results:
+            try:
+                # Use the first successful analysis for order placement
+                primary_analysis = all_analysis_results[0]
+                
+                from .broker_manager import broker_manager
+                
+                print("🚀 AUTOMATION: Auto Place Orders ENABLED - Bypassing manual confirmation")
+                print("🚀 AUTOMATION: Live trading enabled - placing orders automatically...")
+                
+                # Use schedule-specific broker accounts if provided
+                if selected_broker_accounts:
+                    enabled_accounts = selected_broker_accounts
+                    print(f"📋 Using schedule-specific broker accounts: {enabled_accounts}")
+                else:
+                    # Fall back to global settings
+                    settings = load_settings()
+                    enabled_accounts = []
+                    for acc in settings.get('broker_accounts', []):
+                        if acc.get('enabled', False):
+                            account_id = acc.get('client_id') if acc.get('broker') == 'FLATTRADE' else acc.get('account_id')
+                            if account_id:
+                                enabled_accounts.append(account_id)
+                    print(f"📋 Using global broker accounts: {enabled_accounts}")
+                
+                if enabled_accounts:
+                    # Add schedule_config to analysis_data for broker_manager
+                    primary_analysis['schedule_config'] = schedule_config
                     
-                    print("🚀 Automation: Live trading enabled - placing orders...")
+                    live_trading_result = broker_manager.place_strategy_orders(
+                        primary_analysis, 
+                        account_ids=enabled_accounts
+                    )
                     
-                    # Debug broker manager state
-                    print(f"🔍 Broker Manager Debug: {type(broker_manager)}")
-                    print(f"🔍 Broker Manager Active Accounts: {len(broker_manager.active_accounts)}")
-                    print(f"🔍 Broker Manager Brokers: {len(broker_manager.brokers)}")
-                    
-                    # Use schedule-specific broker accounts if provided, otherwise fall back to global settings
-                    if selected_broker_accounts:
-                        enabled_accounts = selected_broker_accounts
-                        print(f"📋 Using schedule-specific broker accounts: {enabled_accounts}")
-                    else:
-                        # Fall back to global settings
-                        settings = load_settings()
-                        enabled_accounts = []
-                        for acc in settings.get('broker_accounts', []):
-                            if acc.get('enabled', False):
-                                # For FlatTrade, use client_id; for others, use account_id
-                                account_id = acc.get('client_id') if acc.get('broker') == 'FLATTRADE' else acc.get('account_id')
-                                if account_id:
-                                    enabled_accounts.append(account_id)
-                        print(f"📋 Using global broker accounts: {enabled_accounts}")
-                    
-                    print(f"🔍 DEBUG: enabled_accounts: {enabled_accounts}")
-                    print(f"🔍 DEBUG: enabled_accounts is truthy: {bool(enabled_accounts)}")
-                    
-                    if enabled_accounts:
-                        # Add schedule_config to analysis_data for broker_manager to access risk level selection
-                        print(f"🔍 DEBUG: About to add schedule_config to analysis_data")
-                        print(f"🔍 DEBUG: schedule_config type: {type(schedule_config)}")
-                        print(f"🔍 DEBUG: schedule_config content: {schedule_config}")
-                        analysis_data['schedule_config'] = schedule_config
-                        print(f"🔍 DEBUG: analysis_data keys after adding schedule_config: {list(analysis_data.keys())}")
+                    if live_trading_result['success']:
+                        orders_count = len(live_trading_result['orders_placed'])
+                        accounts_count = live_trading_result['successful_accounts']
+                        print(f"✅ AUTOMATION AUTO-PLACEMENT: {orders_count} orders placed across {accounts_count} accounts WITHOUT manual confirmation")
                         
-                        live_trading_result = broker_manager.place_strategy_orders(
-                            analysis_data, 
-                            account_ids=enabled_accounts
-                        )
+                        # Start position monitoring if trade close is enabled
+                        if schedule_config and schedule_config.get('enable_trade_close'):
+                            try:
+                                from .position_monitor import position_monitor
+                                
+                                if not position_monitor.running:
+                                    position_monitor.start_monitoring()
+                                    print("🔄 Started position monitoring service")
+                                
+                                # Get latest trades for monitoring
+                                trades = load_trades()
+                                instrument_trades = [t for t in trades if t.get('instrument') == instrument]
+                                
+                                for trade in instrument_trades[-1:]:
+                                    position_monitor.add_position_for_monitoring(
+                                        trade, 
+                                        live_trading_result['orders_placed'],
+                                        schedule_config
+                                    )
+                                    print(f"📊 Added trade {trade.get('id')} to position monitoring")
+                                    
+                            except Exception as e:
+                                print(f"⚠️ Error setting up position monitoring: {e}")
                         
-                        print(f"🔍 DEBUG: Live trading result: {live_trading_result}")
-                        
-                        if live_trading_result['success']:
-                            orders_count = len(live_trading_result['orders_placed'])
-                            accounts_count = live_trading_result['successful_accounts']
-                            print(f"✅ Automation Live Trading: {orders_count} orders placed across {accounts_count} accounts")
+                        # Send Telegram notification
+                        if schedule_config and schedule_config.get('telegram_alerts', False):
+                            telegram_msg = f"🤖 **AUTO-PLACEMENT SUCCESS** (No Manual Confirmation)\n\n"
+                            telegram_msg += f"📊 Strategy: {instrument} ({calc_type})\n"
+                            telegram_msg += f"📈 Risk Levels: {', '.join([r.upper() for r in strategy_risk_levels])}\n"
+                            telegram_msg += f"📈 Orders: {orders_count} placed automatically\n"
+                            telegram_msg += f"🏦 Accounts: {accounts_count} brokers\n"
                             
-                            # Send Telegram notification about automation live orders
-                            if schedule_config and schedule_config.get('telegram_alerts', False):
-                                telegram_msg = f"🤖 **Automation Live Orders**\n\n"
-                                telegram_msg += f"📊 Strategy: {instrument} ({calc_type})\n"
-                                telegram_msg += f"📈 Orders: {orders_count} placed\n"
-                                telegram_msg += f"🏦 Accounts: {accounts_count} brokers\n"
-                                telegram_msg += f"⏰ Auto Time: {datetime.now().strftime('%I:%M:%S %p')}"
-                                send_telegram_message(telegram_msg)
-                        else:
-                            error_details = live_trading_result.get('error', live_trading_result.get('errors', 'Unknown error'))
-                            print(f"❌ Live trading failed: {error_details}")
-                            print(f"🔍 DEBUG: Full result details: {live_trading_result}")
+                            if schedule_config.get('enable_trade_close'):
+                                telegram_msg += f"📊 Monitoring: Enabled (1-min intervals)\n"
+                                if schedule_config.get('target_amount'):
+                                    telegram_msg += f"🎯 Target: ₹{schedule_config['target_amount']:,.0f}\n"
+                                if schedule_config.get('stoploss_amount'):
+                                    telegram_msg += f"🛑 StopLoss: ₹{schedule_config['stoploss_amount']:,.0f}\n"
+                            
+                            telegram_msg += f"⏰ Time: {datetime.now().strftime('%I:%M:%S %p')}"
+                            send_telegram_message(telegram_msg)
                     else:
-                        print("⚠️ No enabled broker accounts found for live trading")
-                except Exception as e:
-                    print(f"❌ Live trading error: {e}")
-                    print(f"🔍 DEBUG: Exception type: {type(e).__name__}")
-                    import traceback
-                    print(f"🔍 DEBUG: Exception traceback:")
-                    traceback.print_exc()
+                        error_msg = live_trading_result.get('message', 'Unknown error')
+                        if 'errors' in live_trading_result and live_trading_result['errors']:
+                            error_msg = ', '.join(live_trading_result['errors'])
+                        print(f"❌ Live trading failed: {error_msg}")
+                else:
+                    print("⚠️ No enabled broker accounts found for live trading")
             
-            return f"✅ Chart generated successfully for {instrument} ({calc_type}) - {status_message}"
-        else:
-            print(f"❌ Chart generation failed for {instrument}: {status_message}")
-            return f"❌ Failed to generate chart for {instrument}: {status_message}"
-            
+            except Exception as e:
+                print(f"❌ Error in live trading automation: {e}")
+        
+        # Return success message with strategy count
+        strategy_names = [f"{r.upper()} RISK" for r in strategy_risk_levels]
+        return f"✅ Generated {success_count} strategies for {instrument}: {', '.join(strategy_names)}"
+        
     except Exception as e:
-        error_msg = f"❌ Chart generation error for {instrument}: {str(e)}"
-        print(error_msg)
-        return error_msg
+        return f"❌ Failed to generate chart for {instrument}: {str(e)}"
 
 def start_permanent_schedule(schedule):
     """Start a permanent schedule that runs daily until manually turned off."""

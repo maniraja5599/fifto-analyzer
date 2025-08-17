@@ -4,6 +4,9 @@
 {% block title %}Active Trades{% endblock %}
 
 {% block content %}
+<!-- Hidden CSRF Token for JavaScript -->
+{% csrf_token %}
+
 <!-- Compact Page Header -->
 <div class="page-header">
     <div class="row align-items-center">
@@ -224,8 +227,33 @@
                                 </td>
                                 <td>
                                     <div class="target-info small">
-                                        <div class="text-success">Target: ₹{{ trade.target_amount|floatformat:2 }}</div>
-                                        <div class="text-danger">SL: ₹{{ trade.stoploss_amount|floatformat:2 }}</div>
+                                        <div class="target-display-{{ trade.id }}" id="targetDisplay{{ trade.id }}">
+                                            <div class="text-success d-flex align-items-center justify-content-between">
+                                                <span>Target: ₹{{ trade.target_amount|floatformat:2 }}</span>
+                                                <button class="btn btn-outline-success btn-xs ms-1" onclick="editTargetStoploss('{{ trade.id }}', {{ trade.target_amount }}, {{ trade.stoploss_amount }})" title="Edit Target/Stoploss">
+                                                    <i class="bi bi-pencil-square" style="font-size: 10px;"></i>
+                                                </button>
+                                            </div>
+                                            <div class="text-danger">SL: ₹{{ trade.stoploss_amount|floatformat:2 }}</div>
+                                        </div>
+                                        <div class="target-edit-{{ trade.id }} d-none" id="targetEdit{{ trade.id }}">
+                                            <div class="mb-1">
+                                                <input type="number" class="form-control form-control-sm" id="targetInput{{ trade.id }}" 
+                                                       value="{{ trade.target_amount }}" placeholder="Target Amount" step="50" min="0">
+                                            </div>
+                                            <div class="mb-1">
+                                                <input type="number" class="form-control form-control-sm" id="stoplossInput{{ trade.id }}" 
+                                                       value="{{ trade.stoploss_amount }}" placeholder="Stoploss Amount" step="50" min="0">
+                                            </div>
+                                            <div class="d-flex gap-1">
+                                                <button class="btn btn-success btn-xs" onclick="saveTargetStoploss('{{ trade.id }}')">
+                                                    <i class="bi bi-check"></i>
+                                                </button>
+                                                <button class="btn btn-secondary btn-xs" onclick="cancelEditTargetStoploss('{{ trade.id }}')">
+                                                    <i class="bi bi-x"></i>
+                                                </button>
+                                            </div>
+                                        </div>
                                     </div>
                                 </td>
                                 <td>
@@ -511,10 +539,23 @@
 </style>
 
 <script>
+// Test if JavaScript is working
+console.log('JavaScript loaded successfully');
+
 // Toggle group selection
 function toggleGroupSelection(groupKey) {
+    console.log('toggleGroupSelection called with groupKey:', groupKey);
+    
     const selectAllCheckbox = document.getElementById(`selectAll_${groupKey}`);
     const tradeCheckboxes = document.querySelectorAll(`input[data-group="${groupKey}"].trade-checkbox`);
+    
+    console.log('selectAllCheckbox:', selectAllCheckbox);
+    console.log('tradeCheckboxes found:', tradeCheckboxes.length);
+    
+    if (!selectAllCheckbox) {
+        console.error(`Select all checkbox not found: selectAll_${groupKey}`);
+        return;
+    }
     
     tradeCheckboxes.forEach(checkbox => {
         checkbox.checked = selectAllCheckbox.checked;
@@ -525,16 +566,26 @@ function toggleGroupSelection(groupKey) {
 
 // Update bulk action buttons visibility
 function updateBulkActionButtons(groupKey) {
+    console.log('updateBulkActionButtons called with groupKey:', groupKey);
+    
     const tradeCheckboxes = document.querySelectorAll(`input[data-group="${groupKey}"].trade-checkbox:checked`);
     const deleteBtn = document.getElementById(`deleteBtn_${groupKey}`);
     const closeBtn = document.getElementById(`closeBtn_${groupKey}`);
     
-    if (tradeCheckboxes.length > 0) {
-        deleteBtn.style.display = 'inline-block';
-        closeBtn.style.display = 'inline-block';
+    console.log('Checked checkboxes found:', tradeCheckboxes.length);
+    console.log('Delete button:', deleteBtn);
+    console.log('Close button:', closeBtn);
+    
+    if (deleteBtn && closeBtn) {
+        if (tradeCheckboxes.length > 0) {
+            deleteBtn.style.display = 'inline-block';
+            closeBtn.style.display = 'inline-block';
+        } else {
+            deleteBtn.style.display = 'none';
+            closeBtn.style.display = 'none';
+        }
     } else {
-        deleteBtn.style.display = 'none';
-        closeBtn.style.display = 'none';
+        console.error('Action buttons not found for group:', groupKey);
     }
 }
 
@@ -650,6 +701,149 @@ async function refreshTradeData() {
     }
 }
 
+// Edit Target/Stoploss functionality
+function editTargetStoploss(tradeId, currentTarget, currentStoploss) {
+    console.log(`Editing target/stoploss for trade ${tradeId}`, {currentTarget, currentStoploss});
+    
+    const targetDisplay = document.getElementById(`targetDisplay${tradeId}`);
+    const targetEdit = document.getElementById(`targetEdit${tradeId}`);
+    const targetInput = document.getElementById(`targetInput${tradeId}`);
+    const stoplossInput = document.getElementById(`stoplossInput${tradeId}`);
+    
+    if (!targetDisplay || !targetEdit || !targetInput || !stoplossInput) {
+        console.error('Required elements not found for trade:', tradeId);
+        return;
+    }
+    
+    // Hide display and show edit form
+    targetDisplay.classList.add('d-none');
+    targetEdit.classList.remove('d-none');
+    
+    // Set current values
+    targetInput.value = currentTarget;
+    stoplossInput.value = currentStoploss;
+}
+
+function cancelEditTargetStoploss(tradeId) {
+    console.log(`Cancelling edit for trade ${tradeId}`);
+    
+    const targetDisplay = document.getElementById(`targetDisplay${tradeId}`);
+    const targetEdit = document.getElementById(`targetEdit${tradeId}`);
+    
+    if (!targetDisplay || !targetEdit) {
+        console.error('Required elements not found for trade:', tradeId);
+        return;
+    }
+    
+    // Show display and hide edit form
+    targetDisplay.classList.remove('d-none');
+    targetEdit.classList.add('d-none');
+}
+
+function saveTargetStoploss(tradeId) {
+    console.log(`Saving target/stoploss for trade ${tradeId}`);
+    
+    const targetInput = document.getElementById(`targetInput${tradeId}`);
+    const stoplossInput = document.getElementById(`stoplossInput${tradeId}`);
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
+    
+    if (!targetInput || !stoplossInput) {
+        console.error('Input elements not found for trade:', tradeId);
+        alert('Error: Input elements not found');
+        return;
+    }
+    
+    if (!csrfToken) {
+        console.error('CSRF token not found');
+        alert('Error: CSRF token not found');
+        return;
+    }
+    
+    const targetAmount = targetInput.value;
+    const stoplossAmount = stoplossInput.value;
+    
+    if (!targetAmount || !stoplossAmount) {
+        alert('Please enter both target and stoploss amounts');
+        return;
+    }
+    
+    if (parseFloat(targetAmount) <= 0 || parseFloat(stoplossAmount) <= 0) {
+        alert('Target and stoploss amounts must be greater than 0');
+        return;
+    }
+    
+    // Prepare form data
+    const formData = new FormData();
+    formData.append('action', 'update_target_stoploss');
+    formData.append('trade_id', tradeId);
+    formData.append('target_amount', targetAmount);
+    formData.append('stoploss_amount', stoplossAmount);
+    formData.append('csrfmiddlewaretoken', csrfToken.value);
+    
+    // Show loading state
+    const saveBtn = event.target;
+    const originalHtml = saveBtn.innerHTML;
+    saveBtn.innerHTML = '<i class="spinner-border spinner-border-sm"></i>';
+    saveBtn.disabled = true;
+    
+    // Send update request
+    fetch('{% url "trades_list" %}', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': csrfToken.value
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Update display with new values
+            const targetDisplay = document.querySelector(`#targetDisplay${tradeId} .text-success span`);
+            const stoplossDisplay = document.querySelector(`#targetDisplay${tradeId} .text-danger`);
+            
+            targetDisplay.textContent = `Target: ₹${parseFloat(targetAmount).toFixed(2)}`;
+            stoplossDisplay.textContent = `SL: ₹${parseFloat(stoplossAmount).toFixed(2)}`;
+            
+            // Hide edit form and show display
+            cancelEditTargetStoploss(tradeId);
+            
+            // Show success message
+            showNotification('Target/Stoploss updated successfully!', 'success');
+        } else {
+            alert('Error updating target/stoploss: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error updating target/stoploss. Please try again.');
+    })
+    .finally(() => {
+        // Restore button state
+        saveBtn.innerHTML = originalHtml;
+        saveBtn.disabled = false;
+    });
+}
+
+function showNotification(message, type = 'info') {
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    notification.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Auto-remove after 3 seconds
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.remove();
+        }
+    }, 3000);
+}
+
 // Remove old simulation-based update function
 // Update current premiums is now handled by the API
 
@@ -704,26 +898,15 @@ style.textContent = `
         background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%) !important;
     }
     
-    .trades-table tbody tr:hover {
-        background-color: #f8f9fa;
-    }
-    
-    @media (max-width: 768px) {
-        .table-responsive {
-            max-height: 60vh !important;
-        }
-        
-        .trades-table {
-            font-size: 0.8rem;
-        }
-        
-        .trades-table td {
-            padding: 0.375rem 0.25rem;
-        }
+    .btn-xs {
+        font-size: 0.6rem;
+        padding: 0.1rem 0.3rem;
+        line-height: 1.2;
+        border-radius: 0.2rem;
     }
 `;
+
+// No more duplicate scripts - all functions are now in the main script block above
 document.head.appendChild(style);
 </script>
-</script>
-
 {% endblock %}

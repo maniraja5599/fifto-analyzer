@@ -31,7 +31,7 @@ class PositionMonitoringService:
     def __init__(self):
         self.running = False
         self.monitor_thread = None
-        self.monitoring_interval = 30  # Check every 30 seconds
+        self.monitoring_interval = 60  # Check every 60 seconds (1 minute)
         self.active_positions = {}
         self.closed_positions = []
         
@@ -53,34 +53,64 @@ class PositionMonitoringService:
             self.monitor_thread.join(timeout=5)
         logger.info("Position monitoring service stopped")
         
-    def add_position_for_monitoring(self, trade_data: Dict, broker_orders: List[Dict]):
+    def add_position_for_monitoring(self, trade_data: Dict, broker_orders: List[Dict], schedule_config: Optional[Dict] = None):
         """
         Add a new position for monitoring
         
         Args:
             trade_data: Trade information with target/stoploss
             broker_orders: List of broker orders that were placed
+            schedule_config: Schedule configuration with trade close settings
         """
         trade_id = trade_data.get('id')
         if not trade_id:
             return
             
+        # Use schedule config for trade close settings if provided
+        if schedule_config and schedule_config.get('enable_trade_close'):
+            # Respect individual target/stoploss enable flags
+            target_amount = schedule_config.get('target_amount') if schedule_config.get('enable_target', True) else None
+            stoploss_amount = schedule_config.get('stoploss_amount') if schedule_config.get('enable_stoploss', True) else None
+            monitoring_interval = schedule_config.get('monitoring_interval', 60)
+            alert_on_target = schedule_config.get('alert_on_target', True) and schedule_config.get('enable_target', True)
+            alert_on_stoploss = schedule_config.get('alert_on_stoploss', True) and schedule_config.get('enable_stoploss', True)
+        else:
+            # Fallback to trade data
+            target_amount = trade_data.get('target_amount')
+            stoploss_amount = trade_data.get('stoploss_amount')
+            monitoring_interval = 60
+            alert_on_target = True
+            alert_on_stoploss = True
+            
         position_info = {
             'trade_id': trade_id,
             'instrument': trade_data.get('instrument'),
             'expiry': trade_data.get('expiry'),
-            'target_amount': trade_data.get('target_amount'),
-            'stoploss_amount': trade_data.get('stoploss_amount'),
+            'target_amount': target_amount,
+            'stoploss_amount': stoploss_amount,
+            'monitoring_interval': monitoring_interval,
+            'alert_on_target': alert_on_target,
+            'alert_on_stoploss': alert_on_stoploss,
             'entry_time': datetime.now(),
             'broker_orders': broker_orders,
             'status': 'ACTIVE',
             'last_pnl': 0.0,
             'peak_pnl': 0.0,
-            'drawdown': 0.0
+            'drawdown': 0.0,
+            'schedule_config': schedule_config
         }
         
         self.active_positions[trade_id] = position_info
-        logger.info(f"Added position {trade_id} for monitoring")
+        
+        # Update monitoring interval if needed
+        if monitoring_interval < self.monitoring_interval:
+            self.monitoring_interval = monitoring_interval
+            
+        logger.info(f"Added position {trade_id} for monitoring with target: ₹{target_amount}, stoploss: ₹{stoploss_amount}")
+        
+        # Send initial monitoring alert
+        if schedule_config and schedule_config.get('enable_trade_close'):
+            self._send_monitoring_alert(trade_id, 'MONITORING_STARTED')
         
     def remove_position_from_monitoring(self, trade_id: str):
         """Remove a position from monitoring"""
@@ -177,15 +207,18 @@ class PositionMonitoringService:
         
     def _check_exit_conditions(self, position: Dict, current_pnl: float) -> Optional[str]:
         """Check if position should be closed based on current P&L"""
+        trade_id = position['trade_id']
         target_amount = position.get('target_amount')
         stoploss_amount = position.get('stoploss_amount')
         
         # Check target hit
         if target_amount and current_pnl >= target_amount:
+            self._send_monitoring_alert(trade_id, 'TARGET_HIT', current_pnl=current_pnl)
             return 'TARGET_HIT'
             
         # Check stoploss hit
         if stoploss_amount and current_pnl <= -stoploss_amount:
+            self._send_monitoring_alert(trade_id, 'STOPLOSS_HIT', current_pnl=current_pnl)
             return 'STOPLOSS_HIT'
             
         # Check time-based exit (e.g., close 30 minutes before market close)
@@ -307,6 +340,67 @@ class PositionMonitoringService:
             
         except Exception as e:
             logger.error(f"Error sending close notification: {e}")
+            
+    def _send_monitoring_alert(self, trade_id: str, alert_type: str, **kwargs):
+        """Send monitoring alert based on alert type"""
+        try:
+            from . import utils
+            
+            position = self.active_positions.get(trade_id)
+            if not position:
+                return
+                
+            instrument = position['instrument']
+            current_pnl = kwargs.get('current_pnl', position.get('last_pnl', 0))
+            
+            if alert_type == 'MONITORING_STARTED':
+                if not position.get('alert_on_target') and not position.get('alert_on_stoploss'):
+                    return  # Skip if alerts are disabled
+                    
+                message = f"📈 **Trade Monitoring Started**\n\n"
+                message += f"📊 Trade: {trade_id}\n"
+                message += f"📈 Instrument: {instrument}\n"
+                
+                if position.get('target_amount'):
+                    message += f"🎯 Target: ₹{position['target_amount']:,.2f}\n"
+                if position.get('stoploss_amount'):
+                    message += f"🛑 StopLoss: ₹{position['stoploss_amount']:,.2f}\n"
+                    
+                message += f"📊 Monitoring Interval: {position.get('monitoring_interval', 60)}s\n"
+                message += f"⏰ Started: {datetime.now().strftime('%I:%M:%S %p')}"
+                
+            elif alert_type == 'TARGET_HIT':
+                if not position.get('alert_on_target', True):
+                    return
+                    
+                message = f"🎯 **TARGET HIT!**\n\n"
+                message += f"📊 Trade: {trade_id}\n"
+                message += f"📈 Instrument: {instrument}\n"
+                message += f"💰 Current P&L: ₹{current_pnl:,.2f}\n"
+                message += f"🎯 Target: ₹{position['target_amount']:,.2f}\n"
+                message += f"⏰ Time: {datetime.now().strftime('%I:%M:%S %p')}\n"
+                message += f"🔄 Closing positions automatically..."
+                
+            elif alert_type == 'STOPLOSS_HIT':
+                if not position.get('alert_on_stoploss', True):
+                    return
+                    
+                message = f"🛑 **STOPLOSS HIT!**\n\n"
+                message += f"📊 Trade: {trade_id}\n"
+                message += f"📈 Instrument: {instrument}\n"
+                message += f"💰 Current P&L: ₹{current_pnl:,.2f}\n"
+                message += f"🛑 StopLoss: ₹{position['stoploss_amount']:,.2f}\n"
+                message += f"⏰ Time: {datetime.now().strftime('%I:%M:%S %p')}\n"
+                message += f"🔄 Closing positions automatically..."
+                
+            else:
+                return  # Unknown alert type
+                
+            utils.send_telegram_message(message)
+            logger.info(f"Sent {alert_type} alert for trade {trade_id}")
+            
+        except Exception as e:
+            logger.error(f"Error sending monitoring alert: {e}")
             
     def get_monitoring_status(self) -> Dict:
         """Get current monitoring status"""

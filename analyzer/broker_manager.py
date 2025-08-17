@@ -184,7 +184,9 @@ class BrokerOrderManager:
                 # Check if this entry matches any selected risk level
                 for risk_level in selected_risk_levels:
                     expected_entry_name = risk_mapping.get(risk_level, '')
-                    if entry_type == expected_entry_name:
+                    # Check both exact match and match with risk suffix (e.g., "High Reward (HIGH RISK)")
+                    if (entry_type == expected_entry_name or 
+                        entry_type.startswith(expected_entry_name + ' (')):
                         filtered_entries.append(entry)
                         print(f"🔍 DEBUG: ✅ Entry '{entry_type}' matches risk level '{risk_level}' - INCLUDED")
                         break

@@ -21,8 +21,16 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 def load_settings():
     """Load current settings"""
     try:
-        with open('fifto_settings.json', 'r') as f:
-            return json.load(f)
+        # Use the same settings file path as Django app
+        import os
+        settings_file = os.path.expanduser('~/app_settings.json')
+        if os.path.exists(settings_file):
+            with open(settings_file, 'r') as f:
+                return json.load(f)
+        else:
+            # Fallback to project-level settings file
+            with open('fifto_settings.json', 'r') as f:
+                return json.load(f)
     except Exception as e:
         print(f"❌ Error loading settings: {e}")
         return None

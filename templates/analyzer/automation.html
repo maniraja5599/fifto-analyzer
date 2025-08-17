@@ -46,10 +46,6 @@
                         <i class="bi bi-arrow-clockwise"></i>
                         <span class="d-none d-sm-inline">Refresh Status</span>
                     </button>
-                    <button type="button" class="btn btn-light-info ms-2" onclick="createTestActivity()" title="Create test activity">
-                        <i class="bi bi-plus-circle"></i>
-                        <span class="d-none d-sm-inline">Test Activity</span>
-                    </button>
                 </div>
             </div>
         </div>
@@ -325,11 +321,11 @@
                     </div>
                     
                     <div class="mb-3">
-                        <label class="form-label fw-bold">Instruments</label>
+                        <label class="form-label fw-bold text-danger">Instruments *</label>
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" name="instruments" value="NIFTY" id="instNifty">
+                                    <input class="form-check-input" type="checkbox" name="instruments" value="NIFTY" id="instNifty" required>
                                     <label class="form-check-label" for="instNifty">NIFTY</label>
                                 </div>
                             </div>
@@ -337,6 +333,58 @@
                                 <div class="form-check">
                                     <input class="form-check-input" type="checkbox" name="instruments" value="BANKNIFTY" id="instBankNifty">
                                     <label class="form-check-label" for="instBankNifty">BANKNIFTY</label>
+                                </div>
+                            </div>
+                        </div>
+                        <small class="text-muted"><strong>At least one instrument must be selected</strong></small>
+                    </div>
+                    
+                    <!-- Strategy Risk Levels -->
+                    <div class="mb-4">
+                        <div class="card border-0 bg-light">
+                            <div class="card-header bg-transparent border-0 pb-0">
+                                <div class="d-flex align-items-center">
+                                    <i class="bi bi-shield-exclamation text-warning me-2"></i>
+                                    <h6 class="mb-0 fw-bold">Strategy Risk Levels *</h6>
+                                </div>
+                                <small class="text-muted">Select one or more risk levels for chart generation methods</small>
+                            </div>
+                            <div class="card-body pt-2">
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="checkbox" name="strategy_risk_levels" value="high" id="strategyHigh" checked>
+                                            <label class="form-check-label" for="strategyHigh">
+                                                <i class="bi bi-exclamation-triangle text-danger me-1"></i>
+                                                <strong>High Risk</strong><br>
+                                                <small class="text-muted">Maximum profit potential</small>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="checkbox" name="strategy_risk_levels" value="medium" id="strategyMedium">
+                                            <label class="form-check-label" for="strategyMedium">
+                                                <i class="bi bi-dash-circle text-warning me-1"></i>
+                                                <strong>Medium Risk</strong><br>
+                                                <small class="text-muted">Balanced approach</small>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="checkbox" name="strategy_risk_levels" value="low" id="strategyLow">
+                                            <label class="form-check-label" for="strategyLow">
+                                                <i class="bi bi-shield-check text-success me-1"></i>
+                                                <strong>Low Risk</strong><br>
+                                                <small class="text-muted">Conservative trading</small>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="alert alert-info mt-2 mb-0">
+                                    <i class="bi bi-info-circle me-2"></i>
+                                    <strong>Auto Portfolio Addition:</strong> Charts will be automatically added to portfolio based on selected strategy risk levels.
                                 </div>
                             </div>
                         </div>
@@ -368,16 +416,16 @@
                                             <input class="form-check-input" type="checkbox" id="autoPlaceOrdersSchedule" name="auto_place_orders">
                                             <label class="form-check-label fw-semibold" for="autoPlaceOrdersSchedule">
                                                 <i class="bi bi-send text-success me-1"></i>
-                                                Auto Place Orders
+                                                Auto Place Orders (No Manual Confirmation)
                                             </label>
-                                            <small class="text-muted d-block">Skip manual confirmation and place orders immediately</small>
+                                            <small class="text-muted d-block">Automatically place orders immediately when charts are generated - bypasses all manual confirmations</small>
                                         </div>
                                     </div>
                                 </div>
                                 
                                 <div class="broker-selection-container" id="brokerSelectionContainer" style="display: none;">
                                     <div class="row">
-                                        <div class="col-md-6">
+                                        <div class="col-md-12">
                                             <label class="form-label fw-bold">
                                                 <i class="bi bi-bank2 text-success me-1"></i>
                                                 Select Broker Accounts for Live Trading
@@ -393,36 +441,6 @@
                                                 </div>
                                             </div>
                                             <small class="text-muted">Only selected accounts will be used for automated trading</small>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <label class="form-label fw-bold">
-                                                <i class="bi bi-shield-exclamation text-warning me-1"></i>
-                                                Trading Strategy Risk Level
-                                            </label>
-                                            <div class="strategy-selection">
-                                                <div class="form-check mb-2">
-                                                    <input class="form-check-input" type="checkbox" name="strategy_risk_levels" value="high" id="strategyHigh" checked>
-                                                    <label class="form-check-label" for="strategyHigh">
-                                                        <i class="bi bi-exclamation-triangle text-danger me-1"></i>
-                                                        <strong>High Risk</strong> - Maximum profit potential
-                                                    </label>
-                                                </div>
-                                                <div class="form-check mb-2">
-                                                    <input class="form-check-input" type="checkbox" name="strategy_risk_levels" value="medium" id="strategyMedium">
-                                                    <label class="form-check-label" for="strategyMedium">
-                                                        <i class="bi bi-dash-circle text-warning me-1"></i>
-                                                        <strong>Medium Risk</strong> - Balanced approach
-                                                    </label>
-                                                </div>
-                                                <div class="form-check mb-2">
-                                                    <input class="form-check-input" type="checkbox" name="strategy_risk_levels" value="low" id="strategyLow">
-                                                    <label class="form-check-label" for="strategyLow">
-                                                        <i class="bi bi-shield-check text-success me-1"></i>
-                                                        <strong>Low Risk</strong> - Conservative trading
-                                                    </label>
-                                                </div>
-                                            </div>
-                                            <small class="text-muted">Select one or more risk levels to apply for this schedule</small>
                                         </div>
                                     </div>
                                 </div>
@@ -496,23 +514,16 @@
                         </div>
                     </div>
                     
+                    <!-- Schedule Enable/Disable -->
                     <div class="row">
-                        <div class="col-md-6">
+                        <div class="col-md-12">
                             <div class="form-check form-switch">
                                 <input class="form-check-input" type="checkbox" id="scheduleEnabled" name="enabled" checked>
                                 <label class="form-check-label fw-bold" for="scheduleEnabled">
+                                    <i class="bi bi-power text-success me-1"></i>
                                     Enable this schedule
                                 </label>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="form-check form-switch">
-                                <input class="form-check-input" type="checkbox" id="addToPortfolio" name="add_to_portfolio" checked>
-                                <label class="form-check-label fw-bold" for="addToPortfolio">
-                                    <i class="bi bi-briefcase text-success me-1"></i>
-                                    Add to Portfolio
-                                </label>
-                                <small class="text-muted d-block">Automatically add generated charts to portfolio</small>
+                                <small class="text-muted d-block">Schedule will run automatically on selected days and times</small>
                             </div>
                         </div>
                     </div>
@@ -535,7 +546,11 @@ function showAddScheduleModal() {
         document.getElementById('formAction').value = 'create';
         document.getElementById('scheduleForm').reset();
         document.getElementById('scheduleEnabled').checked = true;
-        document.getElementById('addToPortfolio').checked = true; // Default on
+        
+        // Set default values
+        document.getElementById('instNifty').checked = true; // Default NIFTY selected
+        document.getElementById('strategyHigh').checked = true; // Default High Risk selected
+        
         // Auto-generate name
         generateScheduleName();
         const modal = new bootstrap.Modal(document.getElementById('scheduleModal'));
@@ -656,7 +671,6 @@ function editSchedule(scheduleId) {
             document.getElementById('scheduleTime').value = formattedTime;
             document.getElementById('scheduleEnabled').checked = schedule.enabled || false;
             document.getElementById('telegramAlerts').checked = schedule.telegram_alerts !== false;
-            document.getElementById('addToPortfolio').checked = schedule.add_to_portfolio !== false;
             
             // Strategy Parameters
             document.getElementById('targetStoplossPercent').value = schedule.target_stoploss_percent || 85;
@@ -779,7 +793,25 @@ function saveSchedule() {
     console.log('saveSchedule called');
     try {
         const form = document.getElementById('scheduleForm');
+        
+        // Validate mandatory fields
+        const instrumentsChecked = form.querySelectorAll('input[name="instruments"]:checked');
+        const strategyRiskLevelsChecked = form.querySelectorAll('input[name="strategy_risk_levels"]:checked');
+        
+        if (instrumentsChecked.length === 0) {
+            showPopNotification('Please select at least one instrument (NIFTY or BANKNIFTY)', 'error');
+            return;
+        }
+        
+        if (strategyRiskLevelsChecked.length === 0) {
+            showPopNotification('Please select at least one strategy risk level', 'error');
+            return;
+        }
+        
         const formData = new FormData(form);
+        
+        // Automatically add to portfolio based on selected strategies
+        formData.append('add_to_portfolio', 'on');
         
         const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
         if (csrfToken) {
@@ -980,33 +1012,6 @@ function loadRecentActivities() {
 }
 
 // Test function to create a sample activity
-function createTestActivity() {
-    console.log('🧪 Creating test activity...');
-    
-    const formData = new FormData();
-    formData.append('action', 'create_test_activity');
-    formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
-    
-    fetch('{% url "automation" %}', {
-        method: 'POST',
-        body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-        console.log('🧪 Test activity response:', data);
-        if (data.success) {
-            showPopNotification('Test activity created!', 'success');
-            loadRecentActivities(); // Reload activities
-        } else {
-            showPopNotification('Error creating test activity: ' + data.message, 'error');
-        }
-    })
-    .catch(error => {
-        console.error('Error creating test activity:', error);
-        showPopNotification('Error creating test activity', 'error');
-    });
-}
-
 // Update name when instruments change
 document.addEventListener('DOMContentLoaded', function() {
     console.log('🚀 DOM Content Loaded - Automation page ready');
@@ -1140,7 +1145,6 @@ window.deleteSchedule = deleteSchedule;
 window.testSchedule = testSchedule;
 window.toggleSchedule = toggleSchedule;
 window.saveSchedule = saveSchedule;
-window.createTestActivity = createTestActivity;
 
 </script>
 

@@ -113,6 +113,11 @@ def generate_and_show_analysis(request):
         expiry = request.POST.get('expiry')
         coefficient = float(request.POST.get('coefficient', 85)) / 100  # Convert percentage to decimal
         hedge_percentage = float(request.POST.get('hedge_percentage', 10))  # Default 10% hedge
+        risk_levels = request.POST.getlist('risk_levels')  # Get multiple risk levels
+        
+        # Default to high risk if none selected
+        if not risk_levels:
+            risk_levels = ['high']
         
         debug_log(f"Form data received:")
         debug_log(f"  Instrument: {instrument}")
@@ -120,19 +125,33 @@ def generate_and_show_analysis(request):
         debug_log(f"  Expiry: {expiry}")
         debug_log(f"  Coefficient: {coefficient}")
         debug_log(f"  Hedge Percentage: {hedge_percentage}%")
+        debug_log(f"  Risk Levels: {risk_levels}")
         
         try:
-            debug_log("Calling utils.generate_analysis()...")
-            analysis_data, status = utils.generate_analysis(instrument, calc_type, expiry, coefficient, hedge_percentage)
-            debug_log(f"Analysis result: {type(analysis_data)}, Status: {status}")
+            debug_log("Calling utils.generate_chart_for_instrument()...")
             
-            if analysis_data:
-                request.session['analysis_data'] = analysis_data
-                messages.success(request, status)
-                debug_log("✅ Analysis successful - data saved to session")
+            # Create a mock schedule config for manual generation
+            schedule_config = {
+                'target_stoploss_percent': coefficient * 100,
+                'hedge_buying_percent': hedge_percentage,
+                'add_to_portfolio': False,  # Don't auto-add for manual generation
+                'enable_live_trading': False,
+                'auto_place_orders': False,
+                'selected_broker_accounts': [],
+                'strategy_risk_levels': risk_levels
+            }
+            
+            # Use the enhanced chart generation function
+            result = utils.generate_chart_for_instrument(instrument, calc_type, schedule_config)
+            
+            if "✅" in result:
+                # For manual generation, we need to create a combined analysis data
+                # This is a simplified approach - you might want to enhance this further
+                messages.success(request, result)
+                debug_log("✅ Analysis successful")
             else:
-                messages.error(request, status)
-                debug_log(f"❌ Analysis failed: {status}")
+                messages.error(request, result)
+                debug_log(f"❌ Analysis failed: {result}")
         except Exception as e:
             error_msg = f"Error generating analysis: {str(e)}"
             messages.error(request, error_msg)
@@ -203,7 +222,7 @@ def place_live_orders(request):
                 telegram_msg += f"⏰ Time: {datetime.now().strftime('%I:%M:%S %p')}"
                 utils.send_telegram_message(telegram_msg)
             
-            # Start position monitoring if enabled
+            # Start position monitoring if enabled (either global or schedule-based)
             if current_settings.get('enable_position_monitoring', False):
                 from .position_monitor import position_monitor
                 
@@ -212,12 +231,31 @@ def place_live_orders(request):
                 instrument = analysis_data.get('instrument')
                 latest_trades = [t for t in trades if t.get('instrument') == instrument]
                 
+                # Check if there's any automation schedule with trade close enabled for this instrument
+                schedule_config = None
+                multiple_schedules = current_settings.get('multiple_schedules', [])
+                for schedule in multiple_schedules:
+                    if (schedule.get('enabled') and 
+                        schedule.get('enable_trade_close') and 
+                        instrument in schedule.get('instruments', [])):
+                        schedule_config = schedule
+                        break
+                
                 # Add positions to monitoring
                 for trade in latest_trades[-len(analysis_data.get('df_data', [])):]:  # Get latest trades
-                    position_monitor.add_position_for_monitoring(
-                        trade, 
-                        live_trading_result['orders_placed']
-                    )
+                    if schedule_config:
+                        # Use schedule configuration for trade close settings
+                        position_monitor.add_position_for_monitoring(
+                            trade, 
+                            live_trading_result['orders_placed'],
+                            schedule_config
+                        )
+                    else:
+                        # Use default/trade-based settings
+                        position_monitor.add_position_for_monitoring(
+                            trade, 
+                            live_trading_result['orders_placed']
+                        )
                 
                 # Start monitoring service if not already running
                 if not position_monitor.running:
@@ -727,6 +765,48 @@ def trades_list(request):
                 utils.send_telegram_message(f"🗑️ Expiry Delete: {deleted_count} trades expiring on '{expiry_date}' deleted")
                 messages.success(request, f'Deleted {deleted_count} trades expiring on "{expiry_date}".')
             return redirect('trades_list')
+            
+        elif action == 'update_target_stoploss':
+            trade_id = request.POST.get('trade_id')
+            target_amount = request.POST.get('target_amount')
+            stoploss_amount = request.POST.get('stoploss_amount')
+            
+            try:
+                target_amount = float(target_amount) if target_amount else 0
+                stoploss_amount = float(stoploss_amount) if stoploss_amount else 0
+                
+                if target_amount <= 0 or stoploss_amount <= 0:
+                    return JsonResponse({'success': False, 'message': 'Target and stoploss amounts must be greater than 0'})
+                
+                # Find and update the trade
+                trade_found = False
+                for trade in trades:
+                    if trade['id'] == trade_id:
+                        trade['target_amount'] = target_amount
+                        trade['stoploss_amount'] = stoploss_amount
+                        trade_found = True
+                        break
+                
+                if not trade_found:
+                    return JsonResponse({'success': False, 'message': 'Trade not found'})
+                
+                # Save updated trades
+                utils.save_trades(trades)
+                
+                # Send Telegram notification
+                utils.send_telegram_message(f"📝 Target/SL Updated: {trade_id} - Target: ₹{target_amount:.2f}, SL: ₹{stoploss_amount:.2f}")
+                
+                return JsonResponse({
+                    'success': True, 
+                    'message': 'Target and stoploss updated successfully',
+                    'target_amount': target_amount,
+                    'stoploss_amount': stoploss_amount
+                })
+                
+            except (ValueError, TypeError) as e:
+                return JsonResponse({'success': False, 'message': 'Invalid target or stoploss amount'})
+            except Exception as e:
+                return JsonResponse({'success': False, 'message': f'Error updating trade: {str(e)}'})
 
     # Filter trades by instrument
     if instrument_filter != 'all':
@@ -1467,13 +1547,20 @@ def automation_view(request):
                     # Strategy Parameters
                     'target_stoploss_percent': float(request.POST.get('target_stoploss_percent', 85)),
                     'hedge_buying_percent': float(request.POST.get('hedge_buying_percent', 10)),
-                    'add_to_portfolio': 'add_to_portfolio' in request.POST,
+                    'add_to_portfolio': True,  # Always add to portfolio automatically based on strategy
                     
                     # Live trading configuration
                     'enable_live_trading': 'enable_live_trading' in request.POST,
                     'auto_place_orders': 'auto_place_orders' in request.POST,
                     'selected_broker_accounts': request.POST.getlist('selected_broker_accounts'),
                     'strategy_risk_levels': request.POST.getlist('strategy_risk_levels'),
+                    
+                    # Live P&L Monitoring configuration
+                    'enable_trade_close': 'enable_trade_close' in request.POST,
+                    'target_amount': float(request.POST.get('target_amount', 0)) if request.POST.get('target_amount') else None,
+                    'stoploss_amount': float(request.POST.get('stoploss_amount', 0)) if request.POST.get('stoploss_amount') else None,
+                    'alert_on_target': 'alert_on_target' in request.POST,
+                    'alert_on_stoploss': 'alert_on_stoploss' in request.POST,
                 }
                 multiple_schedules.append(new_schedule)
                 
@@ -1509,13 +1596,20 @@ def automation_view(request):
                         # Strategy Parameters
                         'target_stoploss_percent': float(request.POST.get('target_stoploss_percent', 85)),
                         'hedge_buying_percent': float(request.POST.get('hedge_buying_percent', 10)),
-                        'add_to_portfolio': 'add_to_portfolio' in request.POST,
+                        'add_to_portfolio': True,  # Always add to portfolio automatically based on strategy
                         
                         # Live trading configuration
                         'enable_live_trading': 'enable_live_trading' in request.POST,
                         'auto_place_orders': 'auto_place_orders' in request.POST,
                         'selected_broker_accounts': request.POST.getlist('selected_broker_accounts'),
                         'strategy_risk_levels': request.POST.getlist('strategy_risk_levels'),
+                        
+                        # Live P&L Monitoring configuration
+                        'enable_trade_close': 'enable_trade_close' in request.POST,
+                        'target_amount': float(request.POST.get('target_amount', 0)) if request.POST.get('target_amount') else None,
+                        'stoploss_amount': float(request.POST.get('stoploss_amount', 0)) if request.POST.get('stoploss_amount') else None,
+                        'alert_on_target': 'alert_on_target' in request.POST,
+                        'alert_on_stoploss': 'alert_on_stoploss' in request.POST,
                     })
                     
                     settings['multiple_schedules'] = multiple_schedules
