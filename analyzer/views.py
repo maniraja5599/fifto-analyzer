@@ -1278,7 +1278,9 @@ def flattrade_oauth(request):
         
         # Using new FlatTrade API application with correct redirect URI
         # Pass client_id in state parameter since FlatTrade doesn't preserve query params
-        redirect_uri = 'http://localhost:8004/flattrade_callback/'
+        # Make redirect URI dynamic based on current request
+        current_host = request.get_host()
+        redirect_uri = f"http://{current_host}/flattrade_callback/"
         
         print(f"🔗 Using redirect_uri: {redirect_uri}")
         print(f"💡 Using new FlatTrade API credentials")
@@ -1312,15 +1314,18 @@ def flattrade_callback(request):
         client_id = request.GET.get('client_id') or state or client_param  # Try all possible sources
         
         print(f"FlatTrade Callback: auth_code={auth_code}, state={state}, client_param={client_param}, client_id={client_id}")
+        print(f"FlatTrade Callback: All GET parameters: {dict(request.GET)}")
         
         if not auth_code:
             error = request.GET.get('error', 'Unknown error')
+            print(f"❌ FlatTrade Callback: No auth_code found, error={error}")
             return render(request, 'analyzer/oauth_error.html', {
                 'error': error,
                 'broker': 'FlatTrade'
             })
         
         if not client_id:
+            print(f"❌ FlatTrade Callback: No client_id found in any parameter")
             return render(request, 'analyzer/oauth_error.html', {
                 'error': 'Missing client_id in OAuth callback. Please try the OAuth flow again.',
                 'broker': 'FlatTrade'
@@ -1385,8 +1390,10 @@ def flattrade_callback(request):
                 'message': 'Authentication successful! Access token has been saved. You can now use FlatTrade for trading.'
             })
         else:
+            error_message = result.get('error', 'Token exchange failed')
+            print(f"❌ Token exchange failed for client_id {client_id}: {error_message}")
             return render(request, 'analyzer/oauth_error.html', {
-                'error': result.get('error', 'Token exchange failed'),
+                'error': f'Authentication failed for account {client_id}: {error_message}',
                 'broker': 'FlatTrade'
             })
             
@@ -1466,6 +1473,7 @@ def automation_view(request):
                     'enable_live_trading': 'enable_live_trading' in request.POST,
                     'auto_place_orders': 'auto_place_orders' in request.POST,
                     'selected_broker_accounts': request.POST.getlist('selected_broker_accounts'),
+                    'strategy_risk_levels': request.POST.getlist('strategy_risk_levels'),
                 }
                 multiple_schedules.append(new_schedule)
                 
@@ -1507,6 +1515,7 @@ def automation_view(request):
                         'enable_live_trading': 'enable_live_trading' in request.POST,
                         'auto_place_orders': 'auto_place_orders' in request.POST,
                         'selected_broker_accounts': request.POST.getlist('selected_broker_accounts'),
+                        'strategy_risk_levels': request.POST.getlist('strategy_risk_levels'),
                     })
                     
                     settings['multiple_schedules'] = multiple_schedules

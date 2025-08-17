@@ -854,13 +854,35 @@ class FlatTradeBrokerHandler:
                 return f"{instrument}_{expiry}_{int(strike)}_{option_type}"
     
     def get_lot_size(self, instrument: str) -> int:
-        """Get lot size for different instruments"""
-        lot_sizes = {
-            'NIFTY': 75,        # Updated lot sizes as of 2024
-            'BANKNIFTY': 15,
-            'FINNIFTY': 40,
-            'MIDCPNIFTY': 150,
-            'SENSEX': 10,
-            'BANKEX': 15
-        }
-        return lot_sizes.get(instrument.upper(), 50)  # Default lot size
+        """Get lot size for different instruments from settings"""
+        try:
+            # Import here to avoid circular imports
+            from .utils import load_settings
+            settings = load_settings()
+            
+            # Get lot sizes from settings with fallback to defaults
+            if instrument.upper() == 'NIFTY':
+                return settings.get('nifty_lot_size', 75)
+            elif instrument.upper() == 'BANKNIFTY':
+                return settings.get('banknifty_lot_size', 15)
+            else:
+                # Fallback to hardcoded values for other instruments
+                lot_sizes = {
+                    'FINNIFTY': 40,
+                    'MIDCPNIFTY': 150,
+                    'SENSEX': 10,
+                    'BANKEX': 15
+                }
+                return lot_sizes.get(instrument.upper(), 50)  # Default lot size
+                
+        except Exception as e:
+            # Fallback to original hardcoded values if settings fail
+            lot_sizes = {
+                'NIFTY': 75,        # Updated lot sizes as of 2024
+                'BANKNIFTY': 15,
+                'FINNIFTY': 40,
+                'MIDCPNIFTY': 150,
+                'SENSEX': 10,
+                'BANKEX': 15
+            }
+            return lot_sizes.get(instrument.upper(), 50)  # Default lot size

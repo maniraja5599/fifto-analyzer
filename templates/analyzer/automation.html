@@ -249,8 +249,8 @@
                         <div class="col-md-6">
                             <div class="mb-3">
                                 <label for="scheduleTime" class="form-label fw-bold">Time</label>
-                                <input type="time" class="form-control" id="scheduleTime" name="time" value="09:20" required>
-                                <small class="text-muted">Daily generation time</small>
+                                <input type="time" class="form-control" id="scheduleTime" name="time" value="09:20:00" step="1" required>
+                                <small class="text-muted">Daily generation time (with seconds precision)</small>
                             </div>
                         </div>
                         <div class="col-md-6">
@@ -377,7 +377,7 @@
                                 
                                 <div class="broker-selection-container" id="brokerSelectionContainer" style="display: none;">
                                     <div class="row">
-                                        <div class="col-12">
+                                        <div class="col-md-6">
                                             <label class="form-label fw-bold">
                                                 <i class="bi bi-bank2 text-success me-1"></i>
                                                 Select Broker Accounts for Live Trading
@@ -393,6 +393,36 @@
                                                 </div>
                                             </div>
                                             <small class="text-muted">Only selected accounts will be used for automated trading</small>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label fw-bold">
+                                                <i class="bi bi-shield-exclamation text-warning me-1"></i>
+                                                Trading Strategy Risk Level
+                                            </label>
+                                            <div class="strategy-selection">
+                                                <div class="form-check mb-2">
+                                                    <input class="form-check-input" type="checkbox" name="strategy_risk_levels" value="high" id="strategyHigh" checked>
+                                                    <label class="form-check-label" for="strategyHigh">
+                                                        <i class="bi bi-exclamation-triangle text-danger me-1"></i>
+                                                        <strong>High Risk</strong> - Maximum profit potential
+                                                    </label>
+                                                </div>
+                                                <div class="form-check mb-2">
+                                                    <input class="form-check-input" type="checkbox" name="strategy_risk_levels" value="medium" id="strategyMedium">
+                                                    <label class="form-check-label" for="strategyMedium">
+                                                        <i class="bi bi-dash-circle text-warning me-1"></i>
+                                                        <strong>Medium Risk</strong> - Balanced approach
+                                                    </label>
+                                                </div>
+                                                <div class="form-check mb-2">
+                                                    <input class="form-check-input" type="checkbox" name="strategy_risk_levels" value="low" id="strategyLow">
+                                                    <label class="form-check-label" for="strategyLow">
+                                                        <i class="bi bi-shield-check text-success me-1"></i>
+                                                        <strong>Low Risk</strong> - Conservative trading
+                                                    </label>
+                                                </div>
+                                            </div>
+                                            <small class="text-muted">Select one or more risk levels to apply for this schedule</small>
                                         </div>
                                     </div>
                                 </div>
@@ -519,20 +549,43 @@ function showAddScheduleModal() {
 
 function testSchedule(scheduleId) {
     console.log('testSchedule called with ID:', scheduleId);
+    
+    if (!scheduleId) {
+        showPopNotification('Error: No schedule ID provided', 'error');
+        return;
+    }
+    
     showPopNotification('Testing schedule... Please wait', 'info');
     
     const formData = new FormData();
     formData.append('action', 'test');
     formData.append('schedule_id', scheduleId);
-    formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+    
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
+    if (csrfToken) {
+        formData.append('csrfmiddlewaretoken', csrfToken.value);
+    } else {
+        console.error('CSRF token not found');
+        showPopNotification('Error: Security token not found', 'error');
+        return;
+    }
     
     fetch('{% url "automation" %}', {
         method: 'POST',
-        body: formData
+        body: formData,
+        headers: {
+            'X-CSRFToken': csrfToken ? csrfToken.value : ''
+        }
     })
-    .then(response => response.json())
+    .then(response => {
+        console.log('Test response status:', response.status);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
     .then(data => {
-        console.log('Test response:', data);
+        console.log('Test response data:', data);
         if (data.success) {
             showPopNotification('Test completed successfully!', 'success');
             if (data.charts_generated) {
@@ -542,7 +595,7 @@ function testSchedule(scheduleId) {
             }
             loadRecentActivities();
         } else {
-            showPopNotification('Test failed: ' + data.message, 'error');
+            showPopNotification('Test failed: ' + (data.message || 'Unknown error'), 'error');
         }
     })
     .catch(error => {
@@ -553,6 +606,12 @@ function testSchedule(scheduleId) {
 
 function editSchedule(scheduleId) {
     console.log('editSchedule called with ID:', scheduleId);
+    
+    if (!scheduleId) {
+        showPopNotification('Error: No schedule ID provided', 'error');
+        return;
+    }
+    
     document.getElementById('scheduleModalTitle').textContent = 'Edit Schedule';
     document.getElementById('formAction').value = 'update';
     document.getElementById('scheduleId').value = scheduleId;
@@ -560,21 +619,44 @@ function editSchedule(scheduleId) {
     const formData = new FormData();
     formData.append('action', 'get_schedule');
     formData.append('schedule_id', scheduleId);
-    formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+    
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
+    if (csrfToken) {
+        formData.append('csrfmiddlewaretoken', csrfToken.value);
+    } else {
+        console.error('CSRF token not found');
+        showPopNotification('Error: Security token not found', 'error');
+        return;
+    }
     
     fetch('{% url "automation" %}', {
         method: 'POST',
-        body: formData
+        body: formData,
+        headers: {
+            'X-CSRFToken': csrfToken ? csrfToken.value : ''
+        }
     })
-    .then(response => response.json())
+    .then(response => {
+        console.log('Edit response status:', response.status);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
     .then(data => {
+        console.log('Edit response data:', data);
         if (data.success && data.schedule) {
             const schedule = data.schedule;
+            
+            // Basic schedule info
             document.getElementById('scheduleName').value = schedule.name || '';
-            document.getElementById('scheduleTime').value = schedule.time || '09:20';
+            // Ensure time format includes seconds (pad with :00 if not present)
+            const timeValue = schedule.time || '09:20:00';
+            const formattedTime = timeValue.includes(':') && timeValue.split(':').length === 2 ? timeValue + ':00' : timeValue;
+            document.getElementById('scheduleTime').value = formattedTime;
             document.getElementById('scheduleEnabled').checked = schedule.enabled || false;
             document.getElementById('telegramAlerts').checked = schedule.telegram_alerts !== false;
-            document.getElementById('addToPortfolio').checked = schedule.add_to_portfolio !== false; // Default to true if not set
+            document.getElementById('addToPortfolio').checked = schedule.add_to_portfolio !== false;
             
             // Strategy Parameters
             document.getElementById('targetStoplossPercent').value = schedule.target_stoploss_percent || 85;
@@ -584,13 +666,19 @@ function editSchedule(scheduleId) {
             document.getElementById('enableLiveTradingSchedule').checked = schedule.enable_live_trading || false;
             document.getElementById('autoPlaceOrdersSchedule').checked = schedule.auto_place_orders || false;
             
+            // Strategy Risk Levels - default to high risk if not set
+            const riskLevels = schedule.strategy_risk_levels || ['high'];
+            document.getElementById('strategyHigh').checked = riskLevels.includes('high');
+            document.getElementById('strategyMedium').checked = riskLevels.includes('medium');
+            document.getElementById('strategyLow').checked = riskLevels.includes('low');
+            
             // Show/hide broker selection based on live trading setting
             const brokerSelectionContainer = document.getElementById('brokerSelectionContainer');
             if (schedule.enable_live_trading) {
                 brokerSelectionContainer.style.display = 'block';
                 loadBrokerAccounts();
                 
-                // Wait a bit for broker accounts to load, then select the ones from schedule
+                // Wait for broker accounts to load, then select the ones from schedule
                 setTimeout(() => {
                     if (schedule.selected_broker_accounts) {
                         schedule.selected_broker_accounts.forEach(accountId => {
@@ -605,26 +693,31 @@ function editSchedule(scheduleId) {
                 brokerSelectionContainer.style.display = 'none';
             }
             
-            document.getElementById('instNifty').checked = schedule.instruments.includes('NIFTY');
-            document.getElementById('instBankNifty').checked = schedule.instruments.includes('BANKNIFTY');
+            // Instruments
+            document.getElementById('instNifty').checked = (schedule.instruments || []).includes('NIFTY');
+            document.getElementById('instBankNifty').checked = (schedule.instruments || []).includes('BANKNIFTY');
             
+            // Calculation types
             document.getElementById('niftyCalcType').value = schedule.nifty_calc_type || 'Weekly';
             document.getElementById('bankniftyCalcType').value = schedule.banknifty_calc_type || 'Monthly';
             
+            // Active days
             const dayCheckboxes = document.querySelectorAll('input[name="active_days"]');
             dayCheckboxes.forEach(checkbox => {
-                checkbox.checked = schedule.active_days && schedule.active_days.includes(checkbox.value);
+                checkbox.checked = (schedule.active_days || []).includes(checkbox.value);
             });
             
+            // Show the modal
             const modal = new bootstrap.Modal(document.getElementById('scheduleModal'));
             modal.show();
+            
         } else {
-            showPopNotification('Error loading schedule data', 'error');
+            showPopNotification('Error loading schedule data: ' + (data.message || 'Unknown error'), 'error');
         }
     })
     .catch(error => {
         console.error('Error loading schedule:', error);
-        showPopNotification('Error loading schedule data', 'error');
+        showPopNotification('Error loading schedule data: ' + error.message, 'error');
     });
 }
 
@@ -1054,6 +1147,32 @@ window.createTestActivity = createTestActivity;
 </div> <!-- Close container-fluid -->
 
 <style>
+/* Strategy selection styling */
+.strategy-selection {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 1rem;
+    border: 1px solid #e9ecef;
+}
+
+.strategy-selection .form-check {
+    background: white;
+    border-radius: 6px;
+    padding: 0.75rem;
+    border: 1px solid #dee2e6;
+    transition: all 0.2s ease;
+}
+
+.strategy-selection .form-check:hover {
+    border-color: #007bff;
+    box-shadow: 0 2px 4px rgba(0,123,255,0.1);
+}
+
+.strategy-selection .form-check-input:checked + .form-check-label {
+    color: #007bff;
+    font-weight: 600;
+}
+
 /* Automation page specific improvements */
 
 /* Main content padding improvements */

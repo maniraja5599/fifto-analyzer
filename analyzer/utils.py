@@ -1522,7 +1522,7 @@ def generate_analysis(instrument_name, calculation_type, selected_expiry_str, co
     # Enhanced info box with global theme styling (removed ₹ symbol)
     # Ensure current_price is a number for display
     price_display = int(float(current_price)) if current_price is not None else (24750 if instrument_name == "NIFTY" else 51500)
-    info_text = f"{instrument_name}: {price_display}\nExpiry: {expiry_label}\nGenerated: {datetime.now().strftime('%d-%b-%Y %I:%M %p')}"
+    info_text = f"{instrument_name}: {price_display}\nExpiry: {expiry_label}\nGenerated: {datetime.now().strftime('%d-%b-%Y %I:%M:%S %p')}"
     ax.text(0.5, 0.85, info_text, transform=ax.transAxes, ha='center', va='center', 
             fontsize=12, fontfamily='monospace', color='#1e293b', fontweight='600',
             bbox=dict(boxstyle='round,pad=0.8', facecolor='#f1f5f9', 
@@ -1680,12 +1680,12 @@ def add_to_analysis(analysis_data):
             print(f"   - {trade.get('id', 'NO_ID')}")
     
     new_trades_added = 0
-    start_time = datetime.now().strftime("%Y-%m-%d %I:%M %p")
+    start_time = datetime.now().strftime("%Y-%m-%d %I:%M:%S %p")
     day_name = datetime.now().strftime("%A")
     entry_tag = f"{day_name} Selling"
     
-    # Add timestamp to make trade IDs more unique
-    timestamp_suffix = datetime.now().strftime("%I%M%p")
+    # Add timestamp to make trade IDs more unique (with seconds for more precision)
+    timestamp_suffix = datetime.now().strftime("%I%M%S%p")
     
     print(f"🏷️ Entry tag: {entry_tag}")
     print(f"⏰ Timestamp suffix: {timestamp_suffix}")
@@ -1804,7 +1804,7 @@ def auto_add_to_portfolio(analysis_data, auto_tag="Auto Generated"):
     
     trades = load_trades()
     new_trades_added = 0
-    start_time = datetime.now().strftime("%Y-%m-%d %I:%M %p")
+    start_time = datetime.now().strftime("%Y-%m-%d %I:%M:%S %p")
     
     # Check if any trades from this analysis already exist
     existing_trade_ids = {t['id'] for t in trades}
@@ -1984,10 +1984,13 @@ def run_automated_chart_generation():
         print(day_status)
     
     # Enhanced time check with proper scheduling logic (using IST)
-    schedule_hour, schedule_minute = map(int, auto_gen_time.split(':'))
+    time_parts = auto_gen_time.split(':')
+    schedule_hour = int(time_parts[0])
+    schedule_minute = int(time_parts[1]) 
+    schedule_second = int(time_parts[2]) if len(time_parts) >= 3 else 0
     
     # Create scheduled time for today in IST
-    scheduled_time = current_time.replace(hour=schedule_hour, minute=schedule_minute, second=0, microsecond=0)
+    scheduled_time = current_time.replace(hour=schedule_hour, minute=schedule_minute, second=schedule_second, microsecond=0)
     
     # Check if we're within 15 minutes of scheduled time (to handle scheduler delays)
     time_diff = (current_time - scheduled_time).total_seconds() / 60  # minutes
@@ -2194,14 +2197,23 @@ def generate_chart_for_instrument(instrument, calc_type, schedule_config=None):
                 days_ahead += 7
             next_expiry = today + timedelta(days=days_ahead)
         else:  # Monthly
-            # Find last Thursday of next month
-            if today.month == 12:
-                next_month = today.replace(year=today.year + 1, month=1, day=1)
+            # Find last Thursday of current month or next month
+            # Calculate last Thursday of current month
+            current_month_end = today.replace(day=28) + timedelta(days=4)
+            current_month_last_day = current_month_end - timedelta(days=current_month_end.day)
+            current_month_last_thursday = current_month_last_day - timedelta(days=(current_month_last_day.weekday() - 3) % 7)
+            
+            if current_month_last_thursday > today:
+                # Current month's last Thursday hasn't passed yet
+                next_expiry = current_month_last_thursday
             else:
-                next_month = today.replace(month=today.month + 1, day=1)
-            last_day = (next_month + timedelta(days=31)).replace(day=1) - timedelta(days=1)
-            last_thursday = last_day - timedelta(days=(last_day.weekday() - 3) % 7)
-            next_expiry = last_thursday
+                # Current month's last Thursday has passed, get next month's
+                if today.month == 12:
+                    next_month = today.replace(year=today.year + 1, month=1, day=1)
+                else:
+                    next_month = today.replace(month=today.month + 1, day=1)
+                last_day = (next_month + timedelta(days=31)).replace(day=1) - timedelta(days=1)
+                next_expiry = last_day - timedelta(days=(last_day.weekday() - 3) % 7)
         
         expiry_str = next_expiry.strftime('%d-%b-%Y')
         print(f"📅 Using expiry date: {expiry_str}")
@@ -2227,9 +2239,15 @@ def generate_chart_for_instrument(instrument, calc_type, schedule_config=None):
             # Live trading integration for automation (use schedule-specific settings) - Independent of portfolio addition
             if enable_live_trading and auto_place_orders:
                 try:
+                    # Try to instantiate broker manager directly for debugging
                     from .broker_manager import broker_manager
                     
                     print("🚀 Automation: Live trading enabled - placing orders...")
+                    
+                    # Debug broker manager state
+                    print(f"🔍 Broker Manager Debug: {type(broker_manager)}")
+                    print(f"🔍 Broker Manager Active Accounts: {len(broker_manager.active_accounts)}")
+                    print(f"🔍 Broker Manager Brokers: {len(broker_manager.brokers)}")
                     
                     # Use schedule-specific broker accounts if provided, otherwise fall back to global settings
                     if selected_broker_accounts:
@@ -2247,11 +2265,23 @@ def generate_chart_for_instrument(instrument, calc_type, schedule_config=None):
                                     enabled_accounts.append(account_id)
                         print(f"📋 Using global broker accounts: {enabled_accounts}")
                     
+                    print(f"🔍 DEBUG: enabled_accounts: {enabled_accounts}")
+                    print(f"🔍 DEBUG: enabled_accounts is truthy: {bool(enabled_accounts)}")
+                    
                     if enabled_accounts:
+                        # Add schedule_config to analysis_data for broker_manager to access risk level selection
+                        print(f"🔍 DEBUG: About to add schedule_config to analysis_data")
+                        print(f"🔍 DEBUG: schedule_config type: {type(schedule_config)}")
+                        print(f"🔍 DEBUG: schedule_config content: {schedule_config}")
+                        analysis_data['schedule_config'] = schedule_config
+                        print(f"🔍 DEBUG: analysis_data keys after adding schedule_config: {list(analysis_data.keys())}")
+                        
                         live_trading_result = broker_manager.place_strategy_orders(
                             analysis_data, 
                             account_ids=enabled_accounts
                         )
+                        
+                        print(f"🔍 DEBUG: Live trading result: {live_trading_result}")
                         
                         if live_trading_result['success']:
                             orders_count = len(live_trading_result['orders_placed'])
@@ -2267,12 +2297,16 @@ def generate_chart_for_instrument(instrument, calc_type, schedule_config=None):
                                 telegram_msg += f"⏰ Auto Time: {datetime.now().strftime('%I:%M:%S %p')}"
                                 send_telegram_message(telegram_msg)
                         else:
-                            print(f"❌ Live trading failed: {live_trading_result.get('error', 'Unknown error')}")
+                            error_details = live_trading_result.get('error', live_trading_result.get('errors', 'Unknown error'))
+                            print(f"❌ Live trading failed: {error_details}")
+                            print(f"🔍 DEBUG: Full result details: {live_trading_result}")
                     else:
                         print("⚠️ No enabled broker accounts found for live trading")
                 except Exception as e:
                     print(f"❌ Live trading error: {e}")
+                    print(f"🔍 DEBUG: Exception type: {type(e).__name__}")
                     import traceback
+                    print(f"🔍 DEBUG: Exception traceback:")
                     traceback.print_exc()
             
             return f"✅ Chart generated successfully for {instrument} ({calc_type}) - {status_message}"
@@ -2307,18 +2341,24 @@ def start_permanent_schedule(schedule):
             pass
         
         # Schedule the job to run daily
-        hour, minute = schedule['time'].split(':')
+        time_parts = schedule['time'].split(':')
+        hour = int(time_parts[0])
+        minute = int(time_parts[1])
+        second = int(time_parts[2]) if len(time_parts) >= 3 else 0
+        
         scheduler.add_job(
             func=run_permanent_schedule,
             trigger='cron',
-            hour=int(hour),
-            minute=int(minute),
+            hour=hour,
+            minute=minute,
+            second=second,
             id=job_id,
             args=[schedule],
             replace_existing=True
         )
         
-        print(f"[+] Started permanent schedule '{schedule['name']}' at {schedule['time']} daily")
+        start_time = datetime.now(pytz.timezone('Asia/Kolkata'))
+        print(f"[+] Started permanent schedule '{schedule['name']}' at {schedule['time']} daily (started at {start_time.strftime('%I:%M:%S %p')})")
         return True
         
     except Exception as e:
@@ -2341,7 +2381,8 @@ def stop_permanent_schedule(schedule_id):
 def run_permanent_schedule(schedule):
     """Execute a permanent schedule."""
     try:
-        print(f"[+] Running permanent schedule: {schedule['name']}")
+        current_time = datetime.now(pytz.timezone('Asia/Kolkata'))
+        print(f"[+] Running permanent schedule: {schedule['name']} at {current_time.strftime('%I:%M:%S %p')}")
         
         # Check if enabled
         if not schedule.get('enabled', False):
@@ -2349,7 +2390,6 @@ def run_permanent_schedule(schedule):
             return
         
         # Get current time and check market status
-        current_time = datetime.now(pytz.timezone('Asia/Kolkata'))
         
         # Check market hours for notification
         market_open = current_time.replace(hour=9, minute=15, second=0, microsecond=0)
@@ -2401,7 +2441,8 @@ def run_permanent_schedule(schedule):
             message = f"🤖 Automated Schedule Run - {schedule['name']}\n{market_status}\nNo instruments selected for generation"
             send_telegram_message(message)
         
-        print(f"[+] Completed permanent schedule: {schedule['name']}")
+        completion_time = datetime.now(pytz.timezone('Asia/Kolkata'))
+        print(f"[+] Completed permanent schedule: {schedule['name']} at {completion_time.strftime('%I:%M:%S %p')}")
         
     except Exception as e:
         error_msg = f"[ERROR] Permanent schedule '{schedule['name']}' failed: {str(e)}"
@@ -2456,7 +2497,7 @@ def add_automation_activity(title, description, status='success'):
             'title': title,
             'description': description,
             'status': status,
-            'time': datetime.now().strftime('%d %b %Y, %I:%M %p'),
+            'time': datetime.now().strftime('%d %b %Y, %I:%M:%S %p'),
             'timestamp': datetime.now().isoformat()
         }
         
