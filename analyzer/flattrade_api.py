@@ -459,6 +459,70 @@ class FlatTradeAPI:
             
         return self._make_request('SearchScrip', data)
     
+    def _get_market_price(self, symbol: str, exchange: str = 'NFO') -> Optional[float]:
+        """
+        Get current market price for a symbol using quotes API
+        
+        Args:
+            symbol: Trading symbol
+            exchange: Exchange name (default: NFO for options)
+            
+        Returns:
+            Current market price as float, None if failed
+        """
+        try:
+            # First search for the symbol to get its token
+            success, search_result = self.search_scrips(symbol, exchange)
+            
+            if not success or not search_result:
+                logger.warning(f"FlatTrade: Could not find symbol '{symbol}' for price fetching")
+                return None
+            
+            # Extract token from search results
+            token = None
+            if isinstance(search_result, dict) and 'values' in search_result:
+                for item in search_result['values']:
+                    if item.get('tsym') == symbol and item.get('exch') == exchange:
+                        token = item.get('token')
+                        break
+            elif isinstance(search_result, list):
+                for item in search_result:
+                    if item.get('tsym') == symbol and item.get('exch') == exchange:
+                        token = item.get('token')
+                        break
+            
+            if not token:
+                logger.warning(f"FlatTrade: Could not find token for symbol '{symbol}'")
+                return None
+            
+            # Get quotes using the token
+            success, quote_result = self.get_quotes(exchange, token)
+            
+            if not success or not quote_result:
+                logger.warning(f"FlatTrade: Could not get quotes for symbol '{symbol}'")
+                return None
+            
+            # Extract price from quote result
+            # Try multiple possible price fields in order of preference
+            price_fields = ['lp', 'c', 'bp1', 'sp1', 'o', 'h']  # Last price, close, best bid, best offer, open, high
+            
+            for field in price_fields:
+                if field in quote_result and quote_result[field]:
+                    try:
+                        price = float(quote_result[field])
+                        if price > 0:
+                            logger.info(f"FlatTrade: Got market price {price} for symbol '{symbol}' using field '{field}'")
+                            return price
+                    except (ValueError, TypeError):
+                        continue
+            
+            logger.warning(f"FlatTrade: No valid price found in quote result for symbol '{symbol}': {quote_result}")
+            return None
+            
+        except Exception as e:
+            logger.error(f"FlatTrade: Error getting market price for symbol '{symbol}': {e}")
+            return None
+    
     def get_option_chain(self, symbol: str, exchange: str, strike_price: str, count: int = 10) -> Tuple[bool, Dict]:
         """Get option chain data"""
         data = {
@@ -649,7 +713,7 @@ class FlatTradeBrokerHandler:
     
     def place_option_order(self, instrument: str, expiry: str, strike: float,
                           option_type: str, transaction_type: str, quantity: int,
-                          order_type: str = 'MARKET') -> Dict:
+                          order_type: str = 'MARKET', price: Optional[float] = None) -> Dict:
         """
         Place option order with automatic symbol generation
         
@@ -661,6 +725,7 @@ class FlatTradeBrokerHandler:
             transaction_type: BUY or SELL
             quantity: Order quantity
             order_type: MARKET or LIMIT
+            price: Optional price for limit orders (if not provided, will fetch market price)
             
         Returns:
             Dict with success status and order details
@@ -678,20 +743,34 @@ class FlatTradeBrokerHandler:
             # For market orders, FlatTrade might require a nominal price or specific handling
             if ft_order_type == 'MKT':
                 # For market orders, use a nominal price (some brokers require this)
-                price = 1.0  # Nominal price for market orders
+                order_price = 1.0  # Nominal price for market orders
             else:
-                # For limit orders, we need to get actual market price
-                # TODO: Implement market price fetching for limit orders
-                price = 1.0  # Placeholder - should fetch current market price
+                # For limit orders, use provided price or fetch market price
+                if price is not None:
+                    # Use the provided price
+                    order_price = price
+                    logger.info(f"FlatTrade: Using provided price {order_price} for limit order")
+                else:
+                    # Get current market price
+                    market_price = self._get_market_price(symbol, 'NFO')
+                    if market_price is not None:
+                        # Use current market price for limit orders
+                        order_price = market_price
+                        logger.info(f"FlatTrade: Using market price {order_price} for limit order")
+                    else:
+                        # Fallback to nominal price if market price fetch fails
+                        order_price = 1.0
+                        logger.warning(f"FlatTrade: Could not fetch market price for {symbol}, using fallback price {order_price}")
+                        logger.warning("FlatTrade: Consider manually specifying price for limit orders to avoid execution issues")
             
-            logger.info(f"FlatTrade: Placing {ft_order_type} order for {symbol} at price {price}")
+            logger.info(f"FlatTrade: Placing {ft_order_type} order for {symbol} at price {order_price}")
             
             success, result = self.api.place_order(
                 symbol=symbol,
                 exchange='NFO',
                 transaction_type=side,
                 quantity=quantity,
-                price=price,
+                price=order_price,
                 product='M',  # NRML
                 order_type=ft_order_type,
                 validity='DAY'
