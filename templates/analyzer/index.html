@@ -173,10 +173,30 @@
                     </div>
                     
                     <!-- Action Buttons - Larger Size -->
-                    <div class="d-flex gap-2 flex-wrap">
+                    <div class="d-flex gap-2 flex-wrap align-items-center">
                         <a href="{% url 'add_trades' %}" class="btn btn-success px-4 py-2">
                             <i class="bi bi-plus-circle me-2"></i>Add to Portfolio
                         </a>
+                        
+                        <!-- Live Trading Controls -->
+                        {% if settings.enable_live_trading %}
+                        <div class="d-flex align-items-center gap-2 border-start ps-3">
+                            <span class="text-success fw-bold small">
+                                <i class="bi bi-broadcast-pin me-1"></i>LIVE TRADING
+                            </span>
+                            {% if settings.auto_place_orders %}
+                                <span class="badge bg-success">AUTO</span>
+                            {% else %}
+                                <button type="button" class="btn btn-warning btn-sm" onclick="placeLiveOrders()">
+                                    <i class="bi bi-rocket me-1"></i>Place Orders
+                                </button>
+                            {% endif %}
+                            <small class="text-muted">
+                                {{ settings.broker_accounts|length }} account(s)
+                            </small>
+                        </div>
+                        {% endif %}
+                        
                         <button type="button" class="btn btn-outline-secondary px-4 py-2" onclick="clearAnalysis()">
                             <i class="bi bi-arrow-clockwise me-2"></i>Generate New
                         </button>
@@ -497,6 +517,100 @@
 }
         padding: 0.875rem 1rem;
     }
+</style>
+
+<script>
+// Live Trading Functions
+function placeLiveOrders() {
+    if (!confirm('This will place live orders with real money across your configured broker accounts. Are you sure?')) {
+        return;
+    }
+    
+    // Show loading state
+    const btn = event.target;
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="bi bi-arrow-repeat spin me-1"></i>Placing Orders...';
+    btn.disabled = true;
+    
+    // Call the backend to place live orders
+    fetch('{% url "place_live_orders" %}', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            'place_orders': true
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Show success message
+            showLiveOrdersResult(data, 'success');
+            
+            // Update button to show success
+            btn.innerHTML = '<i class="bi bi-check-circle me-1"></i>Orders Placed';
+            btn.classList.remove('btn-warning');
+            btn.classList.add('btn-success');
+            
+        } else {
+            showLiveOrdersResult(data, 'error');
+            
+            // Reset button
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }
+    })
+    .catch(error => {
+        console.error('Error placing live orders:', error);
+        showLiveOrdersResult({message: 'Network error occurred'}, 'error');
+        
+        // Reset button
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    });
+}
+
+function showLiveOrdersResult(data, type) {
+    const alertClass = type === 'success' ? 'alert-success' : 'alert-danger';
+    const icon = type === 'success' ? 'bi-check-circle' : 'bi-exclamation-triangle';
+    
+    const alert = document.createElement('div');
+    alert.className = `alert ${alertClass} alert-dismissible fade show position-fixed`;
+    alert.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    
+    alert.innerHTML = `
+        <i class="bi ${icon} me-2"></i>
+        <strong>${type === 'success' ? 'Live Orders Placed!' : 'Order Error'}</strong>
+        <br>${data.message}
+        ${data.orders_count ? `<br><small>Orders: ${data.orders_count}, Accounts: ${data.accounts_count}</small>` : ''}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(alert);
+    
+    // Auto remove after 8 seconds
+    setTimeout(() => {
+        if (alert.parentNode) {
+            alert.remove();
+        }
+    }, 8000);
+}
+
+// Add spinning animation for loading states
+document.head.insertAdjacentHTML('beforeend', `
+    <style>
+        .spin {
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+    </style>
+`);
+</script>
     
     .btn-icon {
         width: 28px;

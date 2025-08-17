@@ -66,9 +66,7 @@
                         <button class="nav-link" id="alerts-tab" data-bs-toggle="tab" data-bs-target="#alerts-config" type="button" role="tab">
                             <i class="bi bi-bell me-2"></i>Alert Settings
                         </button>
-                        <button class="nav-link" id="trading-tab" data-bs-toggle="tab" data-bs-target="#trading-config" type="button" role="tab">
-                            <i class="bi bi-graph-up me-2"></i>Trading Config
-                        </button>
+                        <!-- Trading Config Tab Removed - Available in dedicated broker settings page -->
                         <!-- Refresh Settings Tab Removed - On-demand mode only -->
                     </div>
                 </nav>
@@ -182,93 +180,7 @@
                             </div>
                         </div>
                         
-                        <!-- Trading Configuration -->
-                        <div class="tab-pane fade" id="trading-config" role="tabpanel">
-                            <div class="p-4">
-                                <div class="row g-4">
-                                    <div class="col-12">
-                                        <div class="setting-group">
-                                            <h6 class="setting-title">
-                                                <i class="bi bi-graph-up text-success me-2"></i>
-                                                Trading Configuration
-                                            </h6>
-                                            <p class="setting-description">Configure lot sizes and trading parameters</p>
-                                            
-                                            <div class="row g-3">
-                                                <div class="col-md-6">
-                                                    <label for="nifty_lot_size" class="form-label fw-bold">NIFTY Lot Size</label>
-                                                    <input type="number" class="form-control" name="nifty_lot_size" id="nifty_lot_size" 
-                                                           value="{{ settings.nifty_lot_size|default:25 }}" min="1" max="1000">
-                                                    <small class="text-muted">Number of lots for NIFTY trades</small>
-                                                </div>
-                                                <div class="col-md-6">
-                                                    <label for="banknifty_lot_size" class="form-label fw-bold">BANKNIFTY Lot Size</label>
-                                                    <input type="number" class="form-control" name="banknifty_lot_size" id="banknifty_lot_size" 
-                                                           value="{{ settings.banknifty_lot_size|default:15 }}" min="1" max="1000">
-                                                    <small class="text-muted">Number of lots for BANKNIFTY trades</small>
-                                                </div>
-                                                <div class="col-md-6">
-                                                    <div class="form-check form-switch">
-                                                        <input class="form-check-input" type="checkbox" name="auto_close_targets" id="auto_close_targets"
-                                                               {% if settings.auto_close_targets %}checked{% endif %}>
-                                                        <label class="form-check-label" for="auto_close_targets">
-                                                            <strong>Auto Close on Target</strong>
-                                                            <br><small class="text-muted">Automatically close trades when target is hit</small>
-                                                        </label>
-                                                    </div>
-                                                </div>
-                                                <div class="col-md-6">
-                                                    <div class="form-check form-switch">
-                                                        <input class="form-check-input" type="checkbox" name="auto_close_stoploss" id="auto_close_stoploss"
-                                                               {% if settings.auto_close_stoploss %}checked{% endif %}>
-                                                        <label class="form-check-label" for="auto_close_stoploss">
-                                                            <strong>Auto Close on Stop Loss</strong>
-                                                            <br><small class="text-muted">Automatically close trades when stop loss is hit</small>
-                                                        </label>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            
-                                            <!-- Manual Refresh Controls -->
-                                            <div class="row g-3 mt-3">
-                                                <div class="col-12">
-                                                    <h6 class="mb-3">
-                                                        <i class="bi bi-arrow-clockwise text-info me-2"></i>
-                                                        Manual Data Refresh (On-Demand)
-                                                    </h6>
-                                                    <div class="row g-2">
-                                                        <div class="col-md-3">
-                                                            <button type="submit" name="refresh_trades" class="btn btn-outline-primary btn-sm w-100">
-                                                                <i class="bi bi-list-ul me-1"></i>Refresh Trades
-                                                            </button>
-                                                        </div>
-                                                        <div class="col-md-3">
-                                                            <button type="submit" name="refresh_pnl" class="btn btn-outline-success btn-sm w-100">
-                                                                <i class="bi bi-graph-up me-1"></i>Refresh P&L
-                                                            </button>
-                                                        </div>
-                                                        <div class="col-md-3">
-                                                            <button type="submit" name="refresh_option_chain" class="btn btn-outline-info btn-sm w-100">
-                                                                <i class="bi bi-grid me-1"></i>Refresh Options
-                                                            </button>
-                                                        </div>
-                                                        <div class="col-md-3">
-                                                            <button type="submit" name="clear_cache" class="btn btn-outline-warning btn-sm w-100">
-                                                                <i class="bi bi-trash me-1"></i>Clear Cache
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                    <small class="text-muted mt-2 d-block">
-                                                        <i class="bi bi-info-circle me-1"></i>
-                                                        Use these buttons to manually refresh data when needed instead of automatic background updates
-                                                    </small>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                        <!-- Trading Configuration Tab Removed - Available in dedicated broker settings page -->
                         
                         <!-- Refresh Settings Tab Removed - On-demand mode only -->
                     </div>

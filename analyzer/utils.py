@@ -2202,6 +2202,70 @@ def generate_chart_for_instrument(instrument, calc_type):
                 if settings.get('auto_portfolio_enabled', False):
                     add_result = add_to_analysis(analysis_data)
                     print(f"📊 Auto-added to portfolio: {add_result}")
+                    
+                    # Live trading integration for automation
+                    if settings.get('enable_live_trading', False) and settings.get('auto_place_orders', False):
+                        try:
+                            from .broker_manager import broker_manager
+                            
+                            print("🚀 Automation: Live trading enabled - placing orders...")
+                            
+                            # Get enabled broker accounts
+                            enabled_accounts = []
+                            for acc in settings.get('broker_accounts', []):
+                                if acc.get('enabled', False):
+                                    # Handle both 'account_id' and 'client_id' field names for compatibility
+                                    account_key = acc.get('account_id') or acc.get('client_id')
+                                    if account_key:
+                                        enabled_accounts.append(account_key)
+                            
+                            if enabled_accounts:
+                                live_trading_result = broker_manager.place_strategy_orders(
+                                    analysis_data, 
+                                    account_ids=enabled_accounts
+                                )
+                                
+                                if live_trading_result['success']:
+                                    orders_count = len(live_trading_result['orders_placed'])
+                                    accounts_count = live_trading_result['successful_accounts']
+                                    print(f"✅ Automation Live Trading: {orders_count} orders placed across {accounts_count} accounts")
+                                    
+                                    # Send Telegram notification about automation live orders
+                                    if settings.get('enable_trade_alerts', False):
+                                        telegram_msg = f"🤖 **Automation Live Orders**\n\n"
+                                        telegram_msg += f"📊 Strategy: {instrument} ({calc_type})\n"
+                                        telegram_msg += f"📈 Orders: {orders_count} placed\n"
+                                        telegram_msg += f"🏦 Accounts: {accounts_count} brokers\n"
+                                        telegram_msg += f"⏰ Auto Time: {datetime.now().strftime('%I:%M:%S %p')}"
+                                        send_telegram_message(telegram_msg)
+                                        
+                                    # Start position monitoring if enabled
+                                    if settings.get('enable_position_monitoring', False):
+                                        from .position_monitor import position_monitor
+                                        
+                                        # Add positions to monitoring
+                                        trades = load_trades()
+                                        latest_trades = [t for t in trades if t.get('instrument') == instrument]
+                                        
+                                        for trade in latest_trades[-len(analysis_data.get('df_data', [])):]:  # Get latest trades
+                                            position_monitor.add_position_for_monitoring(
+                                                trade, 
+                                                live_trading_result['orders_placed']
+                                            )
+                                            
+                                        # Start monitoring service if not already running
+                                        if not position_monitor.running:
+                                            position_monitor.start_monitoring()
+                                            
+                                else:
+                                    error_msg = '; '.join(live_trading_result['errors'][:3])
+                                    print(f"⚠️ Automation Live Trading Issues: {error_msg}")
+                            else:
+                                print("📝 Live trading enabled but no broker accounts configured")
+                                
+                        except Exception as e:
+                            print(f"❌ Automation live trading error: {e}")
+                            
             except Exception as e:
                 print(f"⚠️ Failed to auto-add to portfolio: {str(e)}")
             

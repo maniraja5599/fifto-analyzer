@@ -19,13 +19,15 @@ urlpatterns = [
     path('api/historical-data/', api_views.historical_data_api, name='historical_data_api'),
     path('api/refresh-trades/', api_views.refresh_trades_data_api, name='refresh_trades_data_api'),
     path('api/manual-refresh/', api_views.manual_refresh_api, name='manual_refresh_api'),
-    path('api/refresh-trades/', api_views.refresh_trades_data_api, name='refresh_trades_data_api'),
+    path('api/position-monitor-status/', api_views.position_monitor_status_api, name='position_monitor_status_api'),
+    path('api/broker-accounts-status/', api_views.broker_accounts_status_api, name='broker_accounts_status_api'),
 
     # Form submission actions
     path('generate/', views.generate_and_show_analysis, name='generate_analysis'),
     path('task_status/<str:task_id>/', views.check_task_status, name='check_task_status'),
     path('add_trades/', views.add_trades, name='add_trades'),
     path('send_charts/', views.send_charts, name='send_charts'),
+    path('place_live_orders/', views.place_live_orders, name='place_live_orders'),
 
     # Pages for viewing data and settings
     path('trades/', views.trades_list, name='trades_list'),
@@ -33,6 +35,12 @@ urlpatterns = [
     path('automation/', views.automation_view, name='automation'),
     path('test_automation/', views.test_automation_view, name='test_automation'),
     path('settings/', views.settings_view, name='settings'),
+    path('broker_settings/', views.broker_settings_view, name='broker_settings'),
+    path('test_broker_connection/', views.test_broker_connection, name='test_broker_connection'),
+    path('test_flattrade_quick/', views.test_flattrade_quick, name='test_flattrade_quick'),
+    path('flattrade_oauth/', views.flattrade_oauth, name='flattrade_oauth'),
+    path('flattrade_callback/', views.flattrade_callback, name='flattrade_callback'),
+    path('flattrade_oauth_demo/', views.flattrade_oauth_demo, name='flattrade_oauth_demo'),
     path('nse-test/', views.nse_test_view, name='nse_test'),
     path('test_telegram/', views.test_telegram, name='test_telegram'),
 
