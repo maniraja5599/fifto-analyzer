@@ -6,7 +6,7 @@ import json
 import logging
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple, Any
-from urllib.parse import urlencode, urlparse
+from urllib.parse import urlencode, urlparse, quote
 
 logger = logging.getLogger(__name__)
 
@@ -242,29 +242,25 @@ class FlatTradeAPI:
             # Create JSON string ensuring proper formatting
             jdata_str = json.dumps(data, separators=(',', ':'), ensure_ascii=False)
             
-            # Prepare payload as per FlatTrade API format
-            payload = {
-                'jData': jdata_str,
-                'jKey': self.access_token
-            }
-            
             logger.info(f"FlatTrade: Making request to {endpoint}")
             logger.info(f"FlatTrade: Request URL: {url}")
             logger.info(f"FlatTrade: Data being sent: {data}")
             logger.info(f"FlatTrade: jData JSON: {jdata_str}")
-            logger.info(f"FlatTrade: Full payload keys: {list(payload.keys())}")
             
-            # Set proper headers for form data
+            # Use URL-encoded approach as it got further (authentication error vs JSON error)
+            payload_string = f"jData={quote(jdata_str)}&jKey={quote(self.access_token)}"
+            
             headers = {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
                 'Accept': 'application/json',
                 'Content-Type': 'application/x-www-form-urlencoded'
             }
             
-            response = self.session.post(url, data=payload, headers=headers, timeout=30)
+            logger.info(f"FlatTrade: Payload string: {payload_string[:100]}...")
+            
+            response = self.session.post(url, data=payload_string, headers=headers, timeout=30)
             
             logger.info(f"FlatTrade: Response status: {response.status_code}")
-            logger.info(f"FlatTrade: Response headers: {dict(response.headers)}")
             
             # Handle different response content types
             try:
@@ -282,18 +278,12 @@ class FlatTradeAPI:
                 return True, response_data
             else:
                 logger.error(f"FlatTrade HTTP {response.status_code} error on {endpoint}")
-                logger.error(f"Request URL: {url}")
-                logger.error(f"Request Data: {data}")
                 logger.error(f"Response Text: {response.text}")
-                logger.error(f"Response Headers: {dict(response.headers)}")
                 return False, {'error': f'HTTP {response.status_code}: {response.text}'}
                 
         except requests.RequestException as e:
             logger.error(f"FlatTrade request failed on {endpoint}: {e}")
             return False, {'error': f'Network error: {str(e)}'}
-        except json.JSONDecodeError as e:
-            logger.error(f"FlatTrade JSON decode error on {endpoint}: {e}")
-            return False, {'error': f'Invalid response format: {str(e)}'}
         except Exception as e:
             logger.error(f"FlatTrade unexpected error on {endpoint}: {e}")
             return False, {'error': f'Request error: {str(e)}'}
