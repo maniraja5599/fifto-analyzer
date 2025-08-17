@@ -687,6 +687,7 @@ class FlatTradeBrokerHandler:
         - BANKNIFTY28AUG25P50000 (Put)
         
         Format: {INSTRUMENT}{DDMMMYY}{C|P}{STRIKE}
+        User confirmed format: NIFTY28AUG25C24650
         """
         try:
             from datetime import datetime
@@ -694,47 +695,87 @@ class FlatTradeBrokerHandler:
             # Parse expiry date - handle multiple formats
             expiry_date = None
             
-            # Try different date formats
+            # Try different date formats that NSE/system might provide
             date_formats = [
+                '%d-%b-%Y',      # 21-Aug-2025 (NSE standard format)
                 '%Y-%m-%d',      # 2025-08-21
-                '%d-%b-%Y',      # 21-Aug-2025
                 '%d-%B-%Y',      # 21-August-2025
                 '%d-AUG-%Y',     # 21-AUG-2025 (uppercase month)
                 '%d-%m-%Y',      # 21-08-2025
                 '%Y/%m/%d',      # 2025/08/21
-                '%d/%m/%Y'       # 21/08/2025
+                '%d/%m/%Y',      # 21/08/2025
+                '%d%b%Y',        # 21Aug2025
+                '%d%B%Y',        # 21August2025
+                '%d%b%y',        # 21Aug25
+                '%d-%m-%y',      # 21-08-25
+                '%y-%m-%d',      # 25-08-21
+                '%b %d, %Y',     # Aug 21, 2025
+                '%B %d, %Y'      # August 21, 2025
             ]
             
             for fmt in date_formats:
                 try:
                     expiry_date = datetime.strptime(expiry, fmt)
-                    logger.info(f"Successfully parsed expiry '{expiry}' using format '{fmt}'")
+                    logger.info(f"FlatTrade: Successfully parsed expiry '{expiry}' using format '{fmt}'")
                     break
                 except ValueError:
                     continue
             
             if expiry_date is None:
-                raise ValueError(f"Unable to parse expiry date '{expiry}' with any known format")
+                # Try to extract date from string if it contains numbers
+                import re
+                # Try to extract DD-MM-YYYY or DD/MM/YYYY pattern
+                date_pattern = r'(\d{1,2})[-/](\d{1,2})[-/](\d{4})'
+                match = re.search(date_pattern, expiry)
+                if match:
+                    day, month, year = match.groups()
+                    try:
+                        expiry_date = datetime(int(year), int(month), int(day))
+                        logger.info(f"FlatTrade: Extracted date from pattern: {expiry}")
+                    except:
+                        pass
+                
+                if expiry_date is None:
+                    raise ValueError(f"Unable to parse expiry date '{expiry}' with any known format")
             
-            # Format: DDMMMYY (e.g., 28AUG25)
+            # FlatTrade requires DDMMMYY format (e.g., 28AUG25)
+            # Using %d%b%y and converting to uppercase to match FlatTrade exactly
             date_str = expiry_date.strftime('%d%b%y').upper()
             
             # Convert option type to FlatTrade format (CE -> C, PE -> P)
-            ft_option_type = 'C' if option_type.upper() in ['CE', 'CALL'] else 'P'
+            if option_type.upper() in ['CE', 'CALL', 'C']:
+                ft_option_type = 'C'
+            elif option_type.upper() in ['PE', 'PUT', 'P']:
+                ft_option_type = 'P'
+            else:
+                logger.warning(f"Unknown option type: {option_type}, defaulting to 'C'")
+                ft_option_type = 'C'
             
-            # Format strike price (remove decimal)
-            strike_str = str(int(strike))
+            # Format strike price (remove decimal, ensure integer)
+            strike_str = str(int(float(strike)))
             
             # Combine all parts: INSTRUMENT + DATE + OPTION_TYPE + STRIKE
-            symbol = f"{instrument}{date_str}{ft_option_type}{strike_str}"
+            # Example: NIFTY + 28AUG25 + C + 24650 = NIFTY28AUG25C24650
+            symbol = f"{instrument.upper()}{date_str}{ft_option_type}{strike_str}"
             
-            logger.info(f"Generated FlatTrade symbol: {symbol} from expiry: {expiry}")
+            logger.info(f"FlatTrade: Generated symbol '{symbol}' from instrument='{instrument}', expiry='{expiry}', strike={strike}, type='{option_type}'")
             return symbol
             
         except Exception as e:
-            logger.error(f"Symbol generation error: {e}, check flattrade document")
-            # Fallback format
-            return f"{instrument}_{expiry}_{int(strike)}_{option_type}"
+            logger.error(f"FlatTrade symbol generation error: {e}")
+            # Enhanced fallback with proper format
+            try:
+                from datetime import datetime
+                # Try to create a basic fallback symbol
+                fallback_date = datetime.now().strftime('%d%b%y').upper()
+                ft_option_type = 'C' if 'C' in str(option_type).upper() else 'P'
+                strike_str = str(int(float(strike)))
+                fallback_symbol = f"{instrument.upper()}{fallback_date}{ft_option_type}{strike_str}"
+                logger.warning(f"Using fallback symbol: {fallback_symbol}")
+                return fallback_symbol
+            except:
+                # Final fallback
+                return f"{instrument}_{expiry}_{int(strike)}_{option_type}"
     
     def get_lot_size(self, instrument: str) -> int:
         """Get lot size for different instruments"""
